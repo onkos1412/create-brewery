@@ -99,6 +99,7 @@ public class KettleBlock extends BaseEntityBlock {
             }
             int accepted = kettle.fillWater(1000);
             if (accepted > 0 && !player.getAbilities().instabuild) {
+                // The bucket is spent even on a partial pour so water cannot be duplicated.
                 player.setItemInHand(hand, new net.minecraft.world.item.ItemStack(
                         net.minecraft.world.item.Items.BUCKET));
             }

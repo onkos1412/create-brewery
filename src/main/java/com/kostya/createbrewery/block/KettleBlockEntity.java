@@ -36,6 +36,11 @@ public class KettleBlockEntity extends BlockEntity {
     /** How much wort a finished brew yields. */
     public static final int WORT_PER_BREW = 1000;
 
+    /** How much extra room is needed to start a brew with this recipe. */
+    private static int brewRoom(KettleLogic.RecipeView recipe) {
+        return Math.max(recipe.wortAmount(), WORT_PER_BREW);
+    }
+
     private final ItemStackHandler input = new ItemStackHandler(4) {
         @Override
         protected void onContentsChanged(int slot) {
@@ -72,7 +77,7 @@ public class KettleBlockEntity extends BlockEntity {
         return heatLevel;
     }
 
-    /** Adds water to the tank (used by pipes and by right-clicking with a water bucket). */
+    /** Adds water to the tank (used by right-clicking with a water bucket and by pipes). */
     public int fillWater(int amount) {
         int accepted = Math.min(amount, TANK_CAPACITY - waterAmount - wortAmount);
         if (accepted <= 0) {
@@ -146,21 +151,24 @@ public class KettleBlockEntity extends BlockEntity {
             return;
         }
 
-        BrewingRecipe holding = recipe.value();
-        if (wortAmount + WORT_PER_BREW > TANK_CAPACITY) {
-            // Tank is full of wort: stop brewing until it is drained.
-            setBrewingState(true);
-            return;
-        }
-
-        KettleLogic.RecipeView view = toView(holding);
+        KettleLogic.RecipeView view = toView(recipe.value());
         List<String> itemIds = inputIds();
 
-        brewProgressTicks = KettleLogic.advanceProgress(view, heatLevel, itemIds, waterAmount, brewProgressTicks);
-        setBrewingState(brewProgressTicks > 0);
-        setChanged();
+        // Everything is computed against this tick's snapshot, so the state cannot
+        // drift between the progress check and the actual brew.
+        boolean roomForMore = wortAmount + brewRoom(view) <= TANK_CAPACITY;
+        int nextProgress = KettleLogic.advanceProgress(view, heatLevel, itemIds, waterAmount, brewProgressTicks);
 
-        if (brewProgressTicks < holding.brewTimeTicks()) {
+        if (roomForMore && nextProgress > brewProgressTicks) {
+            brewProgressTicks = nextProgress;
+            setBrewingState(true);
+            setChanged();
+        } else {
+            brewProgressTicks = 0;
+            setBrewingState(roomForMore && waterAmount >= view.wortAmount());
+        }
+
+        if (brewProgressTicks < recipe.value().brewTimeTicks()) {
             return;
         }
 
@@ -169,10 +177,11 @@ public class KettleBlockEntity extends BlockEntity {
             return;
         }
 
-        waterAmount -= WORT_PER_BREW;
+        waterAmount -= view.wortAmount();
         wortAmount += result.wortAmount();
         consume(result.consumed().size());
         brewProgressTicks = 0;
+        setBrewingState(false);
         setChanged();
     }
 
@@ -191,9 +200,12 @@ public class KettleBlockEntity extends BlockEntity {
                 continue;
             }
             int taken = Math.min(remaining, stack.getCount());
-            stack.shrink(taken);
+            // Shrink a copy: ItemStackHandler hands out the live stack, so mutating it in
+            // place and then calling setStackInSlot would leave one object in two slots.
+            ItemStack leftover = stack.copy();
+            leftover.shrink(taken);
             remaining -= taken;
-            input.setStackInSlot(slot, stack);
+            input.setStackInSlot(slot, leftover);
         }
     }
 

@@ -32,9 +32,9 @@ public class KettleScreen extends AbstractContainerScreen<KettleMenu> {
     protected void renderBg(GuiGraphics graphics, float partialTick, int mouseX, int mouseY) {
         graphics.blit(TEXTURE, leftPos, topPos, 0, 0, imageWidth, imageHeight);
 
-        int progressHeight = (int) (28 * (Math.min(menu.getKettle().getBrewProgressTicks(), 200) / 200f));
+        int progressHeight = (int) (28 * (Math.min(menu.getBrewProgress(), 200) / 200f));
         if (progressHeight > 0) {
-            graphics.blit(TEXTURE, leftPos + 152, topPos + 48 - progressHeight,
+            graphics.blit(TEXTURE, leftPos + 152, topPos + 20 + 28 - progressHeight,
                     176, 28 - progressHeight, 8, progressHeight);
         }
     }
