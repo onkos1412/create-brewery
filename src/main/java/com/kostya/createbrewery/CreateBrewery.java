@@ -25,6 +25,11 @@ public class CreateBrewery {
         LOGGER.info("Create Brewery: {} content registries wired", contentRegistries().size());
     }
 
+    /** Builds a resource location in this mod's namespace. */
+    public static net.minecraft.resources.ResourceLocation id(String path) {
+        return net.minecraft.resources.ResourceLocation.fromNamespaceAndPath(MOD_ID, path);
+    }
+
     /**
      * Every content registry the mod owns, in one place so wiring is explicit and
      * can be audited in a single spot. Called from the mod constructor.
@@ -34,6 +39,8 @@ public class CreateBrewery {
                 ModFluids.FLUID_TYPES,
                 ModFluids.FLUIDS,
                 ModItems.ITEMS,
-                ModDataComponents.DATA_COMPONENTS);
+                ModDataComponents.DATA_COMPONENTS,
+                com.kostya.createbrewery.recipe.ModRecipeTypes.RECIPE_TYPES,
+                com.kostya.createbrewery.recipe.BrewingRecipeSerializer.SERIALIZERS);
     }
 }
