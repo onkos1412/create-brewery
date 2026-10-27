@@ -47,6 +47,7 @@ public class CreateBrewery {
                 com.kostya.createbrewery.block.ModBlocks.BLOCK_ITEMS,
                 com.kostya.createbrewery.block.ModBlocks.BLOCK_ENTITIES,
                 com.kostya.createbrewery.block.ModMenus.MENUS,
-                ModCreativeTabs.TABS);
+                ModCreativeTabs.TABS,
+                com.kostya.createbrewery.drunk.ModAttachments.ATTACHMENTS);
     }
 }

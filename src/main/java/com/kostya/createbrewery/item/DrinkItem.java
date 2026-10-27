@@ -1,6 +1,7 @@
 package com.kostya.createbrewery.item;
 
 import com.kostya.createbrewery.DrinkData;
+import com.kostya.createbrewery.drunk.DrunkManager;
 import com.kostya.createbrewery.registry.ModDataComponents;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.component.DataComponentMap;
@@ -59,9 +60,8 @@ public class DrinkItem extends Item {
         if (entity instanceof Player player) {
             DrinkData data = stack.getOrDefault(ModDataComponents.DRINK_DATA.get(), new DrinkData(DrinkData.MAX_STARS));
             if (!level.isClientSide) {
-                // TODO(Task 5): replace with DrunkManager.addDrunk(player, amount) once that
-                // manager exists. Amount is the quality of the drink; ignore if it is null.
-                // DrunkManager.addDrunk(player, data.stars());
+                // A better drink gets you drunker; the amount is the star rating.
+                DrunkManager.addDrunk(player, data.stars());
             }
             player.playSound(SoundEvents.PLAYER_BURP, 0.5f, level.random.nextFloat() * 0.1f + 0.9f);
             stack.consume(1, player);
