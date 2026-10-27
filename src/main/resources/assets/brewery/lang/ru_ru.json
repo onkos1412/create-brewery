@@ -1,0 +1,8 @@
+{
+  "itemGroup.brewery": "Create Brewery",
+  "item.brewery.drink_bottle": "Бутылка напитка",
+  "block.brewery.kettle": "Пивоваренный котёл",
+  "container.brewery.kettle": "Пивоваренный котёл",
+  "fluid_type.brewery.wort": "Сусло",
+  "tooltip.brewery.drink_data": "Качество: %s/5"
+}

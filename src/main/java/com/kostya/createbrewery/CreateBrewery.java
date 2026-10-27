@@ -1,5 +1,6 @@
 package com.kostya.createbrewery;
 
+import com.kostya.createbrewery.registry.ModCreativeTabs;
 import com.kostya.createbrewery.registry.ModDataComponents;
 import com.kostya.createbrewery.registry.ModFluids;
 import com.kostya.createbrewery.registry.ModItems;
@@ -41,6 +42,11 @@ public class CreateBrewery {
                 ModItems.ITEMS,
                 ModDataComponents.DATA_COMPONENTS,
                 com.kostya.createbrewery.recipe.ModRecipeTypes.RECIPE_TYPES,
-                com.kostya.createbrewery.recipe.BrewingRecipeSerializer.SERIALIZERS);
+                com.kostya.createbrewery.recipe.BrewingRecipeSerializer.SERIALIZERS,
+                com.kostya.createbrewery.block.ModBlocks.BLOCKS,
+                com.kostya.createbrewery.block.ModBlocks.BLOCK_ITEMS,
+                com.kostya.createbrewery.block.ModBlocks.BLOCK_ENTITIES,
+                com.kostya.createbrewery.block.ModMenus.MENUS,
+                ModCreativeTabs.TABS);
     }
 }
