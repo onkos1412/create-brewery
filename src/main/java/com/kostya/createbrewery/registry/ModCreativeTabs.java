@@ -24,6 +24,7 @@ public final class ModCreativeTabs {
                     .icon(() -> new ItemStack(ModItems.DRINK_BOTTLE.get()))
                     .displayItems((parameters, output) -> {
                         output.accept(ModBlocks.KETTLE_ITEM.get());
+                        output.accept(ModBlocks.SPOUT_ITEM.get());
                         output.accept(ModItems.DRINK_BOTTLE.get());
                     })
                     .build());

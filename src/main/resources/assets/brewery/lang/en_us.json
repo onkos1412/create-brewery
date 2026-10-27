@@ -2,6 +2,7 @@
   "itemGroup.brewery": "Create Brewery",
   "item.brewery.drink_bottle": "Drink Bottle",
   "block.brewery.kettle": "Brewing Kettle",
+  "block.brewery.spout": "Bottling Spout",
   "container.brewery.kettle": "Brewing Kettle",
   "fluid_type.brewery.wort": "Wort",
   "tooltip.brewery.drink_data": "Quality: %s/5"

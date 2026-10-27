@@ -40,6 +40,23 @@ public final class ModBlocks {
             BLOCK_ENTITIES.register("kettle",
                     () -> BlockEntityType.Builder.of(KettleBlockEntity::new, KETTLE.get()).build(null));
 
+    /**
+     * The bottling spout: pours a kettle's wort into an empty bottle.
+     */
+    public static final DeferredBlock<SpoutBlock> SPOUT = BLOCKS.registerBlock("spout",
+            SpoutBlock::new,
+            BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.METAL)
+                    .strength(2.0f, 4.0f)
+                    .noOcclusion());
+
+    public static final DeferredHolder<Item, BlockItem> SPOUT_ITEM = BLOCK_ITEMS.register("spout",
+            () -> new BlockItem(SPOUT.get(), new Item.Properties()));
+
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<SpoutBlockEntity>> SPOUT_BLOCK_ENTITY =
+            BLOCK_ENTITIES.register("spout",
+                    () -> BlockEntityType.Builder.of(SpoutBlockEntity::new, SPOUT.get()).build(null));
+
     private ModBlocks() {
     }
 
