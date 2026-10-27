@@ -1,3 +1,6 @@
 {
-  "itemGroup.brewery": "Create Brewery"
+  "itemGroup.brewery": "Create Brewery",
+  "item.brewery.drink_bottle": "Drink Bottle",
+  "fluid_type.brewery.wort": "Wort",
+  "tooltip.brewery.drink_data": "Quality: %s/5"
 }

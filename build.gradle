@@ -46,6 +46,42 @@ base {
 // Mojang ships Java 21 to end users in 1.21.1, so mods should target Java 21.
 java.toolchain.languageVersion = JavaLanguageVersion.of(21)
 
+// Minimal JUnit 5 test setup so `gradlew test` runs the plain-Java unit tests
+// in `src/test/java`. The NeoForge MDK does not configure `src/test` at all.
+configurations {
+    junitConsole
+}
+
+dependencies {
+    testImplementation platform('org.junit:junit-bom:5.10.2')
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+    junitConsole platform('org.junit:junit-bom:5.10.2')
+    junitConsole 'org.junit.platform:junit-platform-console'
+}
+
+// NeoGradle's userdev plugin replaces the Gradle daemon's test-worker classloader
+// stack with MixIn classloaders. With it in place Gradle's test executor cannot
+// resolve classes from `src/test/java` (every run fails with "Could not execute
+// test class ... ClassNotFoundException") even though a plain JVM loads them fine.
+// So `test` and `check` run the tests through a plain forked JVM with the JUnit
+// Platform console launcher instead.
+def testTask = tasks.register('runUnitTests', JavaExec) {
+    group = 'verification'
+    description = 'Runs the plain-Java JUnit tests on src/test/java in a forked JVM.'
+    dependsOn tasks.named('testClasses')
+    classpath = sourceSets.test.runtimeClasspath + configurations.junitConsole
+    mainClass = 'org.junit.platform.console.ConsoleLauncher'
+    args 'execute', '--scan-classpath', sourceSets.test.output.classesDirs.singleFile.absolutePath
+}
+
+tasks.named('test') {
+    dependsOn testTask
+    enabled = false
+}
+tasks.named('check') { dependsOn testTask }
+tasks.named('build') { dependsOn testTask }
+
 //minecraft.accessTransformers.file rootProject.file('src/main/resources/META-INF/accesstransformer.cfg')
 //minecraft.accessTransformers.entry public net.minecraft.client.Minecraft textureManager # textureManager
 
