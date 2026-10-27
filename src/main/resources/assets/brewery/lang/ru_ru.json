@@ -5,5 +5,8 @@
   "block.brewery.spout": "Носик для розлива",
   "container.brewery.kettle": "Пивоваренный котёл",
   "fluid_type.brewery.wort": "Сусло",
-  "tooltip.brewery.drink_data": "Качество: %s/5"
+  "tooltip.brewery.drink_data": "Качество: %s/5",
+  "tooltip.brewery.kettle_progress": "Варка: %s%%",
+  "tooltip.brewery.kettle_water": "Вода: %s мВ",
+  "tooltip.brewery.kettle_wort": "Сусло: %s мВ"
 }

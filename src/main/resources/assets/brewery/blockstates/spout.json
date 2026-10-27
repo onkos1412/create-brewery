@@ -1,5 +1,8 @@
 {
   "variants": {
-    "": { "model": "brewery:block/spout" }
+    "facing=north": { "model": "brewery:block/spout" },
+    "facing=east": { "model": "brewery:block/spout", "y": 90 },
+    "facing=south": { "model": "brewery:block/spout", "y": 180 },
+    "facing=west": { "model": "brewery:block/spout", "y": 270 }
   }
 }

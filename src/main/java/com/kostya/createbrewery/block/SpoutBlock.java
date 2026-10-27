@@ -9,11 +9,15 @@ import net.minecraft.world.ItemInteractionResult;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.EntityBlock;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.StateDefinition;
+import net.minecraft.world.level.block.state.properties.BlockStateProperties;
+import net.minecraft.world.level.block.state.properties.DirectionProperty;
 import net.minecraft.world.phys.BlockHitResult;
 import org.jetbrains.annotations.Nullable;
 
@@ -22,12 +26,33 @@ import org.jetbrains.annotations.Nullable;
  * glass bottle to draw one bottle of the finished drink.
  *
  * <p>The spout finds its kettle among its six neighbours, so it can be mounted on any
- * side of the kettle.
+ * side of the kettle. {@code facing} is the direction the tap points, away from the
+ * block it is mounted on, and drives the block model.
  */
 public class SpoutBlock extends Block implements EntityBlock {
 
+    /** The direction the tap points, away from its mounting block. */
+    public static final DirectionProperty FACING = BlockStateProperties.HORIZONTAL_FACING;
+
     public SpoutBlock(Properties properties) {
         super(properties);
+        registerDefaultState(stateDefinition.any().setValue(FACING, Direction.NORTH));
+    }
+
+    @Override
+    protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
+        builder.add(FACING);
+    }
+
+    @Override
+    public BlockState getStateForPlacement(BlockPlaceContext context) {
+        Direction clickedFace = context.getClickedFace();
+        // Mounted on a wall the tap points away from that wall. On a floor or ceiling
+        // there is no wall to align to, so point it the way the player is looking.
+        Direction facing = clickedFace.getAxis().isHorizontal()
+                ? clickedFace
+                : context.getHorizontalDirection();
+        return defaultBlockState().setValue(FACING, facing);
     }
 
     @Nullable

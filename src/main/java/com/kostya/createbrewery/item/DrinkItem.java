@@ -28,6 +28,11 @@ import java.util.List;
 public class DrinkItem extends Item {
     /** How many ticks the drinking animation takes. */
     public static final int DRINK_DURATION_TICKS = 32;
+    /**
+     * Drunk level added per quality star. Sobering removes one level per second, so a
+     * five-star bottle keeps the player swaying for forty seconds.
+     */
+    public static final int DRUNK_PER_STAR = 8;
 
     public DrinkItem(Properties properties) {
         super(properties);
@@ -60,8 +65,9 @@ public class DrinkItem extends Item {
         if (entity instanceof Player player) {
             DrinkData data = stack.getOrDefault(ModDataComponents.DRINK_DATA.get(), new DrinkData(DrinkData.MAX_STARS));
             if (!level.isClientSide) {
-                // A better drink gets you drunker; the amount is the star rating.
-                DrunkManager.addDrunk(player, data.stars());
+                // Each star worth of quality adds a step of alcohol; a five-star bottle
+                // gives a sway that lasts about forty seconds before the player sobers up.
+                DrunkManager.addDrunk(player, data.stars() * DRUNK_PER_STAR);
             }
             player.playSound(SoundEvents.PLAYER_BURP, 0.5f, level.random.nextFloat() * 0.1f + 0.9f);
             stack.consume(1, player);

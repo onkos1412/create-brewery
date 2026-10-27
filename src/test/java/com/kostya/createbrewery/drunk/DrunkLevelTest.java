@@ -87,6 +87,16 @@ class DrunkLevelTest {
     }
 
     @Test
+    void aSingleDrinkIsAlreadyVisible() {
+        DrunkLevel level = new DrunkLevel();
+
+        level.add(5);
+
+        assertTrue(level.distortionStrength() >= 0.3f,
+                "one drink must produce a clearly visible sway, got " + level.distortionStrength());
+    }
+
+    @Test
     void resetClearsTheLevel() {
         DrunkLevel level = new DrunkLevel();
         level.add(80);

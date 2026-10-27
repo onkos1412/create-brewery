@@ -13,6 +13,11 @@ public final class DrunkLevel {
     public static final int MAX = 100;
     /** How much the level drops per sober tick. */
     public static final int SOBER_RATE = 1;
+    /**
+     * The weakest sway applied as soon as the player has had any alcohol, so a single
+     * drink already visibly distorts the camera.
+     */
+    public static final float MIN_DISTORTION = 0.35f;
 
     private int level;
 
@@ -51,7 +56,10 @@ public final class DrunkLevel {
 
     /** How strongly to distort the screen, from {@code 0} (sober) to {@code 1} (max). */
     public float distortionStrength() {
-        return (float) level / MAX;
+        if (level == 0) {
+            return 0f;
+        }
+        return Math.max(MIN_DISTORTION, (float) level / MAX);
     }
 
     /** Back to sober, e.g. on death or respawn. */
