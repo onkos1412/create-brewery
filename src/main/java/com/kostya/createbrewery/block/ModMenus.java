@@ -23,6 +23,9 @@ public final class ModMenus {
     public static final DeferredHolder<MenuType<?>, MenuType<DistilleryMenu>> DISTILLERY =
             MENUS.register("distillery", () -> IMenuTypeExtension.create(DistilleryMenu::new));
 
+    public static final DeferredHolder<MenuType<?>, MenuType<BarrelMenu>> BARREL =
+            MENUS.register("barrel", () -> IMenuTypeExtension.create(BarrelMenu::new));
+
     private ModMenus() {
     }
 

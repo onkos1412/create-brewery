@@ -1,6 +1,7 @@
 package com.kostya.createbrewery.client;
 
 import com.kostya.createbrewery.CreateBrewery;
+import com.kostya.createbrewery.block.BarrelScreen;
 import com.kostya.createbrewery.block.DistilleryScreen;
 import com.kostya.createbrewery.block.KettleScreen;
 import com.kostya.createbrewery.block.ModMenus;
@@ -22,5 +23,6 @@ public final class ModClientSetup {
     public static void registerScreens(RegisterMenuScreensEvent event) {
         event.register(ModMenus.KETTLE.get(), KettleScreen::new);
         event.register(ModMenus.DISTILLERY.get(), DistilleryScreen::new);
+        event.register(ModMenus.BARREL.get(), BarrelScreen::new);
     }
 }

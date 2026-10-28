@@ -68,6 +68,17 @@ public final class ModBlocks {
             BLOCK_ENTITIES.register("distillery",
                     () -> BlockEntityType.Builder.of(DistilleryBlockEntity::new, DISTILLERY.get()).build(null));
 
+    public static final DeferredBlock<BarrelBlock> BARREL = BLOCKS.registerBlock("barrel",
+            BarrelBlock::new,
+            BlockBehaviour.Properties.of().mapColor(MapColor.WOOD).strength(2.0f, 3.0f));
+
+    public static final DeferredHolder<Item, BlockItem> BARREL_ITEM = BLOCK_ITEMS.register("barrel",
+            () -> new BlockItem(BARREL.get(), new Item.Properties()));
+
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<BarrelBlockEntity>> BARREL_BLOCK_ENTITY =
+            BLOCK_ENTITIES.register("barrel",
+                    () -> BlockEntityType.Builder.of(BarrelBlockEntity::new, BARREL.get()).build(null));
+
     private ModBlocks() {
     }
 

@@ -26,6 +26,7 @@ public final class ModCreativeTabs {
                         output.accept(ModBlocks.KETTLE_ITEM.get());
                         output.accept(ModBlocks.SPOUT_ITEM.get());
                         output.accept(ModBlocks.DISTILLERY_ITEM.get());
+                        output.accept(ModBlocks.BARREL_ITEM.get());
                         output.accept(ModItems.DRINK_BOTTLE.get());
                         output.accept(ModItems.DISTILLATE.get());
                     })
