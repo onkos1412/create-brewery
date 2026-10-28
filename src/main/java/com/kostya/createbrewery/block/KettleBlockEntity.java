@@ -211,7 +211,8 @@ public class KettleBlockEntity extends BlockEntity {
 
     private List<String> inputIds() {
         return inputContents().stream()
-                .map(stack -> BuiltInRegistries.ITEM.getKey(stack.getItem()).toString())
+                .flatMap(stack -> java.util.stream.Stream.generate(() -> BuiltInRegistries.ITEM.getKey(stack.getItem()).toString())
+                        .limit(stack.getCount()))
                 .toList();
     }
 

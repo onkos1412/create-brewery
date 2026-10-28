@@ -109,7 +109,8 @@ public class BarrelBlockEntity extends BlockEntity {
         aged.set(ModDataComponents.DRINK_DATA.get(),
                 new DrinkData(result.stars(), result.alcohol(), "aged_whiskey"));
         output.setStackInSlot(0, aged);
-        input.setStackInSlot(0, ItemStack.EMPTY);
+        distillate.shrink(1);
+        input.setStackInSlot(0, distillate);
         startedAt = -1L;
         setChanged();
     }
@@ -126,7 +127,7 @@ public class BarrelBlockEntity extends BlockEntity {
     @Override
     protected void loadAdditional(CompoundTag tag, HolderLookup.Provider registries) {
         super.loadAdditional(tag, registries);
-        startedAt = tag.getLong("StartedAt");
+        startedAt = tag.contains("StartedAt") ? tag.getLong("StartedAt") : -1L;
         woodId = tag.getString("Wood");
         if (tag.contains("Input")) {
             input.deserializeNBT(registries, tag.getCompound("Input"));

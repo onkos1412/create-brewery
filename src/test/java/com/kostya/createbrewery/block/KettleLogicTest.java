@@ -19,6 +19,12 @@ class KettleLogicTest {
                     "brewery:wort", 1000, 200, 1);
 
     @Test
+    void twoWheatFromOneStackMatchesTheRecipe() {
+        assertTrue(KettleLogic.brewsAtAll(BEER, KettleLogic.HEAT_HEATED,
+                List.of("minecraft:wheat", "minecraft:wheat"), 1000));
+    }
+
+    @Test
     void noHeatDoesNotBrew() {
         // 400 ticks of progress is well past 200, but with no heat nothing happens.
         assertFalse(KettleLogic.tryBrew(BEER, KettleLogic.HEAT_NONE, List.of("minecraft:wheat", "minecraft:wheat"),
