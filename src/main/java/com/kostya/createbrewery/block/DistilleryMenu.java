@@ -1,0 +1,115 @@
+package com.kostya.createbrewery.block;
+
+import net.minecraft.network.RegistryFriendlyByteBuf;
+import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.inventory.AbstractContainerMenu;
+import net.minecraft.world.inventory.ContainerData;
+import net.minecraft.world.inventory.Slot;
+import net.minecraft.world.item.ItemStack;
+import net.neoforged.neoforge.items.SlotItemHandler;
+
+public class DistilleryMenu extends AbstractContainerMenu {
+    private static final int SLOT_SIZE = 18;
+    private final DistilleryBlockEntity distillery;
+    private final ContainerData data = new Data();
+
+    public DistilleryMenu(int containerId, Inventory inventory, RegistryFriendlyByteBuf buffer) {
+        this(containerId, inventory, find(inventory, buffer.readBlockPos()));
+    }
+
+    public DistilleryMenu(int containerId, Inventory inventory, DistilleryBlockEntity distillery) {
+        super(ModMenus.DISTILLERY.get(), containerId);
+        this.distillery = distillery;
+        addSlot(new SlotItemHandler(distillery == null ? new net.neoforged.neoforge.items.ItemStackHandler(1)
+                : distillery.getOutput(), 0, 80, 35) {
+            @Override
+            public boolean mayPlace(ItemStack stack) {
+                return false;
+            }
+        });
+        for (int row = 0; row < 3; row++) {
+            for (int col = 0; col < 9; col++) {
+                addSlot(new Slot(inventory, col + row * 9 + 9,
+                        8 + col * SLOT_SIZE, 84 + row * SLOT_SIZE));
+            }
+        }
+        for (int col = 0; col < 9; col++) {
+            addSlot(new Slot(inventory, col, 8 + col * SLOT_SIZE, 142));
+        }
+        addDataSlots(data);
+    }
+
+    private static DistilleryBlockEntity find(Inventory inventory, net.minecraft.core.BlockPos pos) {
+        var entity = inventory.player.level().getBlockEntity(pos);
+        return entity instanceof DistilleryBlockEntity distillery ? distillery : null;
+    }
+
+    public int getProgress() {
+        return data.get(0);
+    }
+
+    public int getHeat() {
+        return data.get(1);
+    }
+
+    public int getRpm() {
+        return data.get(2);
+    }
+
+    @Override
+    public boolean stillValid(Player player) {
+        return distillery == null || stillValid(
+                net.minecraft.world.inventory.ContainerLevelAccess.create(distillery.getLevel(), distillery.getBlockPos()),
+                player, ModBlocks.DISTILLERY.get());
+    }
+
+    @Override
+    public boolean clickMenuButton(Player player, int id) {
+        return id == 0 && distillery != null && distillery.loadFromKettle();
+    }
+
+    @Override
+    public ItemStack quickMoveStack(Player player, int index) {
+        Slot slot = slots.get(index);
+        if (!slot.hasItem()) {
+            return ItemStack.EMPTY;
+        }
+        ItemStack original = slot.getItem().copy();
+        if (index == 0) {
+            if (!moveItemStackTo(slot.getItem(), 1, slots.size(), true)) {
+                return ItemStack.EMPTY;
+            }
+        } else if (!moveItemStackTo(slot.getItem(), 0, 1, false)) {
+            return ItemStack.EMPTY;
+        }
+        return original;
+    }
+
+    private final class Data implements ContainerData {
+        private final int[] synced = new int[3];
+
+        @Override
+        public int get(int index) {
+            if (distillery == null) {
+                return synced[index];
+            }
+            return switch (index) {
+                case 0 -> distillery.getProgressTicks();
+                case 1 -> distillery.getHeatLevel();
+                case 2 -> Math.round(distillery.getRpm());
+                default -> 0;
+            };
+        }
+
+        @Override
+        public void set(int index, int value) {
+            synced[index] = value;
+        }
+
+        @Override
+        public int getCount() {
+            return synced.length;
+        }
+    }
+}

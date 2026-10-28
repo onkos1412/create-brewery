@@ -57,6 +57,17 @@ public final class ModBlocks {
             BLOCK_ENTITIES.register("spout",
                     () -> BlockEntityType.Builder.of(SpoutBlockEntity::new, SPOUT.get()).build(null));
 
+    public static final DeferredBlock<DistilleryBlock> DISTILLERY = BLOCKS.registerBlock("distillery",
+            DistilleryBlock::new,
+            BlockBehaviour.Properties.of().mapColor(MapColor.METAL).strength(3.0f, 6.0f));
+
+    public static final DeferredHolder<Item, BlockItem> DISTILLERY_ITEM = BLOCK_ITEMS.register("distillery",
+            () -> new BlockItem(DISTILLERY.get(), new Item.Properties()));
+
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<DistilleryBlockEntity>> DISTILLERY_BLOCK_ENTITY =
+            BLOCK_ENTITIES.register("distillery",
+                    () -> BlockEntityType.Builder.of(DistilleryBlockEntity::new, DISTILLERY.get()).build(null));
+
     private ModBlocks() {
     }
 

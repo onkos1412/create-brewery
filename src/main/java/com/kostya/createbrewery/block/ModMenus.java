@@ -20,6 +20,9 @@ public final class ModMenus {
     public static final DeferredHolder<MenuType<?>, MenuType<KettleMenu>> KETTLE =
             MENUS.register("kettle", () -> IMenuTypeExtension.create(KettleMenu::new));
 
+    public static final DeferredHolder<MenuType<?>, MenuType<DistilleryMenu>> DISTILLERY =
+            MENUS.register("distillery", () -> IMenuTypeExtension.create(DistilleryMenu::new));
+
     private ModMenus() {
     }
 

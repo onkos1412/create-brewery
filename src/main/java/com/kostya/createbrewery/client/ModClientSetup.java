@@ -1,6 +1,7 @@
 package com.kostya.createbrewery.client;
 
 import com.kostya.createbrewery.CreateBrewery;
+import com.kostya.createbrewery.block.DistilleryScreen;
 import com.kostya.createbrewery.block.KettleScreen;
 import com.kostya.createbrewery.block.ModMenus;
 import net.neoforged.api.distmarker.Dist;
@@ -20,5 +21,6 @@ public final class ModClientSetup {
     @SubscribeEvent
     public static void registerScreens(RegisterMenuScreensEvent event) {
         event.register(ModMenus.KETTLE.get(), KettleScreen::new);
+        event.register(ModMenus.DISTILLERY.get(), DistilleryScreen::new);
     }
 }
