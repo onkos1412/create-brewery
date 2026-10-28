@@ -52,6 +52,10 @@ public class BarrelBlockEntity extends BlockEntity {
         return output;
     }
 
+    public ItemStack takeFinishedBottle() {
+        return output.extractItem(0, 1, false);
+    }
+
     public long getStartedAt() {
         return startedAt;
     }

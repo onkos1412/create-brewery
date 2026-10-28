@@ -18,4 +18,8 @@ public final class SpoutLogic {
     public static boolean fillBottle(boolean hasWort, boolean hasEmptyBottle) {
         return hasWort && hasEmptyBottle;
     }
+
+    public static boolean fillFinishedBottle(boolean hasFinishedBottle, boolean hasEmptyBottle) {
+        return hasFinishedBottle && hasEmptyBottle;
+    }
 }

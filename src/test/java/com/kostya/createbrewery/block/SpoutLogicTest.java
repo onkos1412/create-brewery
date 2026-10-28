@@ -30,4 +30,10 @@ class SpoutLogicTest {
     void wortAndBottleFills() {
         assertTrue(SpoutLogic.fillBottle(true, true));
     }
+
+    @Test
+    void finishedDrinkAndBottleFills() {
+        assertTrue(SpoutLogic.fillFinishedBottle(true, true));
+        assertFalse(SpoutLogic.fillFinishedBottle(false, true));
+    }
 }

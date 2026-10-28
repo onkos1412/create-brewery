@@ -71,13 +71,16 @@ public class SpoutBlock extends Block implements EntityBlock {
             return ItemInteractionResult.SUCCESS;
         }
 
-        KettleBlockEntity kettle = findKettle(level, pos);
-        boolean hasWort = kettle != null && kettle.getWortAmount() >= KettleBlockEntity.WORT_PER_BREW;
-        if (!SpoutLogic.fillBottle(hasWort, true)) {
-            return ItemInteractionResult.FAIL;
+        BarrelBlockEntity barrel = findBarrel(level, pos);
+        ItemStack bottle = barrel == null ? ItemStack.EMPTY : barrel.takeFinishedBottle();
+        if (!SpoutLogic.fillFinishedBottle(!bottle.isEmpty(), true)) {
+            KettleBlockEntity kettle = findKettle(level, pos);
+            boolean hasWort = kettle != null && kettle.getWortAmount() >= KettleBlockEntity.WORT_PER_BREW;
+            if (!SpoutLogic.fillBottle(hasWort, true)) {
+                return ItemInteractionResult.FAIL;
+            }
+            bottle = kettle.bottleWort(KettleMenu.SKELETON_STARS);
         }
-
-        ItemStack bottle = kettle.bottleWort(KettleMenu.SKELETON_STARS);
         if (bottle.isEmpty()) {
             return ItemInteractionResult.FAIL;
         }
@@ -90,6 +93,18 @@ public class SpoutBlock extends Block implements EntityBlock {
         }
         level.playSound(null, pos, SoundEvents.BOTTLE_FILL, SoundSource.BLOCKS, 1.0f, 1.0f);
         return ItemInteractionResult.SUCCESS;
+    }
+
+    /** The barrel this spout pours from, or {@code null} when there is none adjacent. */
+    @Nullable
+    static BarrelBlockEntity findBarrel(Level level, BlockPos pos) {
+        for (Direction direction : Direction.values()) {
+            BlockEntity neighbour = level.getBlockEntity(pos.relative(direction));
+            if (neighbour instanceof BarrelBlockEntity barrel) {
+                return barrel;
+            }
+        }
+        return null;
     }
 
     /** The kettle this spout pours from, or {@code null} when there is none adjacent. */
