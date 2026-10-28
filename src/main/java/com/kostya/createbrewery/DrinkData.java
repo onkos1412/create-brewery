@@ -3,27 +3,29 @@ package com.kostya.createbrewery;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 
-/**
- * Data component describing the quality of a drink, measured in "stars".
- *
- * <p>The number of stars is clamped into the range {@code [1, 5]}: anything below
- * 1 becomes 1 and anything above 5 becomes 5. In the skeleton this is fixed at 5
- * by the drink bottle; the real quality scale is introduced in a later task.
- *
- * @param stars the quality of the drink, clamped to {@code [1, 5]}
- */
-public record DrinkData(int stars) {
+/** Persistent metadata carried by drink and intermediate-product stacks. */
+public record DrinkData(int stars, int alcohol, String stage) {
     public static final int MIN_STARS = 1;
     public static final int MAX_STARS = 5;
+    public static final int MIN_ALCOHOL = 0;
+    public static final int MAX_ALCOHOL = 100;
+    public static final int DEFAULT_ALCOHOL = 40;
+    public static final String DEFAULT_STAGE = "whiskey";
 
+    /** Optional fields keep components written by the skeleton readable. */
     public static final Codec<DrinkData> CODEC = RecordCodecBuilder.create(instance -> instance.group(
-            Codec.INT.fieldOf("stars").forGetter(DrinkData::stars)
+            Codec.INT.fieldOf("stars").forGetter(DrinkData::stars),
+            Codec.INT.optionalFieldOf("alcohol", DEFAULT_ALCOHOL).forGetter(DrinkData::alcohol),
+            Codec.STRING.optionalFieldOf("stage", DEFAULT_STAGE).forGetter(DrinkData::stage)
     ).apply(instance, DrinkData::new));
 
-    /**
-     * Canonical constructor which clamps {@code stars} into {@code [1, 5]}.
-     */
+    public DrinkData(int stars) {
+        this(stars, DEFAULT_ALCOHOL, DEFAULT_STAGE);
+    }
+
     public DrinkData {
         stars = Math.max(MIN_STARS, Math.min(MAX_STARS, stars));
+        alcohol = Math.max(MIN_ALCOHOL, Math.min(MAX_ALCOHOL, alcohol));
+        stage = stage == null || stage.isBlank() ? DEFAULT_STAGE : stage;
     }
 }

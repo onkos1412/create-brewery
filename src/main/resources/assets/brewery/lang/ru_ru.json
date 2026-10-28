@@ -1,6 +1,8 @@
 {
   "itemGroup.brewery": "Create Brewery",
   "item.brewery.drink_bottle": "Бутылка напитка",
+  "item.brewery.distillate": "Дистиллят виски",
+  "tooltip.brewery.distillate_data": "Качество дистиллята: %s/5",
   "block.brewery.kettle": "Пивоваренный котёл",
   "block.brewery.spout": "Носик для розлива",
   "container.brewery.kettle": "Пивоваренный котёл",

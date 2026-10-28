@@ -1,6 +1,7 @@
 package com.kostya.createbrewery.registry;
 
 import com.kostya.createbrewery.CreateBrewery;
+import com.kostya.createbrewery.item.DistillateItem;
 import com.kostya.createbrewery.item.DrinkItem;
 import net.minecraft.world.item.Item;
 import net.neoforged.bus.api.IEventBus;
@@ -19,6 +20,9 @@ public final class ModItems {
      */
     public static final DeferredItem<Item> DRINK_BOTTLE = ITEMS.register("drink_bottle",
             () -> new DrinkItem(new Item.Properties().stacksTo(16)));
+
+    public static final DeferredItem<Item> DISTILLATE = ITEMS.register("distillate",
+            () -> new DistillateItem(new Item.Properties().stacksTo(16)));
 
     private ModItems() {
     }

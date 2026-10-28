@@ -65,9 +65,8 @@ public class DrinkItem extends Item {
         if (entity instanceof Player player) {
             DrinkData data = stack.getOrDefault(ModDataComponents.DRINK_DATA.get(), new DrinkData(DrinkData.MAX_STARS));
             if (!level.isClientSide) {
-                // Each star worth of quality adds a step of alcohol; a five-star bottle
-                // gives a sway that lasts about forty seconds before the player sobers up.
-                DrunkManager.addDrunk(player, data.stars() * DRUNK_PER_STAR);
+                // Alcohol is stored on the product, while quality remains a separate value.
+                DrunkManager.addDrunk(player, data.alcohol() / 5);
             }
             player.playSound(SoundEvents.PLAYER_BURP, 0.5f, level.random.nextFloat() * 0.1f + 0.9f);
             stack.consume(1, player);
