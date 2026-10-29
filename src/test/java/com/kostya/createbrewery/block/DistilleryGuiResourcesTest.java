@@ -2,6 +2,7 @@ package com.kostya.createbrewery.block;
 
 import org.junit.jupiter.api.Test;
 
+import javax.imageio.ImageIO;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
@@ -15,6 +16,8 @@ class DistilleryGuiResourcesTest {
         String screen = Files.readString(Path.of("src/main/java/com/kostya/createbrewery/block/DistilleryScreen.java"));
 
         assertTrue(Files.exists(distilleryTexture));
+        var image = ImageIO.read(distilleryTexture.toFile());
+        assertTrue(image.getWidth() == 176 && image.getHeight() == 166);
         assertTrue(Files.mismatch(distilleryTexture, kettleTexture) != -1,
                 "distillery GUI must not be a copy of the kettle GUI");
         assertTrue(screen.contains("gui.brewery.distillery_load"));

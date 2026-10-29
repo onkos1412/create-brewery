@@ -14,7 +14,7 @@ public class BarrelScreen extends AbstractContainerScreen<BarrelMenu> {
         super(menu, inventory, title);
         imageWidth = 176;
         imageHeight = 166;
-        inventoryLabelY = imageHeight - 94;
+        inventoryLabelY = 74;
     }
 
     @Override
@@ -25,7 +25,7 @@ public class BarrelScreen extends AbstractContainerScreen<BarrelMenu> {
                 leftPos + 11, topPos + 59, 0xFFFFFF, false);
         int days = menu.getDays();
         graphics.drawString(font, Component.translatable("gui.brewery.barrel_days", days),
-                leftPos + 8, topPos + 73, 0x404040, false);
+                leftPos + 84, topPos + 73, 0x404040, false);
         graphics.drawString(font, Component.translatable(
                         days >= 3 ? "gui.brewery.barrel_ready" : "gui.brewery.barrel_waiting"),
                 leftPos + 84, topPos + 57, 0x404040, false);

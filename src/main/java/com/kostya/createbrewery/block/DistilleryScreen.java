@@ -15,7 +15,7 @@ public class DistilleryScreen extends AbstractContainerScreen<DistilleryMenu> {
         super(menu, inventory, title);
         imageWidth = 176;
         imageHeight = 166;
-        inventoryLabelY = imageHeight - 94;
+        inventoryLabelY = 74;
     }
 
     @Override
@@ -27,9 +27,11 @@ public class DistilleryScreen extends AbstractContainerScreen<DistilleryMenu> {
         graphics.fill(leftPos + 8, topPos + 56, leftPos + 72, topPos + 70, 0xFF806040);
         graphics.drawString(font, Component.translatable("gui.brewery.distillery_load"),
                 leftPos + 11, topPos + 59, 0xFFFFFF, false);
+        graphics.drawString(font, Component.translatable("gui.brewery.distillery_status"),
+                leftPos + 82, topPos + 57, 0x404040, false);
         graphics.drawString(font, Component.translatable("gui.brewery.distillery_stats",
                         menu.getHeat(), menu.getRpm(), progress),
-                leftPos + 82, topPos + 59, 0x404040, false);
+                leftPos + 82, topPos + 73, 0x404040, false);
     }
 
     @Override

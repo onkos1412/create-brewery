@@ -22,9 +22,9 @@ public class BarrelMenu extends AbstractContainerMenu {
         this.barrel = barrel;
         var handler = barrel == null ? new net.neoforged.neoforge.items.ItemStackHandler(2) : barrel.getInput();
         addSlot(new SlotItemHandler(handler, 0, 44, 35));
-        addSlot(new SlotItemHandler(handler, 1, 116, 35));
+        addSlot(new SlotItemHandler(handler, 1, 80, 35));
         addSlot(new SlotItemHandler(barrel == null ? new net.neoforged.neoforge.items.ItemStackHandler(1)
-                : barrel.getOutput(), 0, 80, 35) {
+                : barrel.getOutput(), 0, 116, 35) {
             @Override
             public boolean mayPlace(ItemStack stack) {
                 return false;
