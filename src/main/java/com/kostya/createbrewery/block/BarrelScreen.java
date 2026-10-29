@@ -23,8 +23,12 @@ public class BarrelScreen extends AbstractContainerScreen<BarrelMenu> {
         graphics.fill(leftPos + 8, topPos + 56, leftPos + 72, topPos + 70, 0xFF806040);
         graphics.drawString(font, Component.translatable("gui.brewery.barrel_start"),
                 leftPos + 11, topPos + 59, 0xFFFFFF, false);
-        graphics.drawString(font, Component.translatable("gui.brewery.barrel_days", menu.getDays()),
+        int days = menu.getDays();
+        graphics.drawString(font, Component.translatable("gui.brewery.barrel_days", days),
                 leftPos + 8, topPos + 73, 0x404040, false);
+        graphics.drawString(font, Component.translatable(
+                        days >= 3 ? "gui.brewery.barrel_ready" : "gui.brewery.barrel_waiting"),
+                leftPos + 84, topPos + 57, 0x404040, false);
     }
 
     @Override

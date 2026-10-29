@@ -20,5 +20,6 @@ class BarrelGuiResourcesTest {
                 "barrel GUI must not be a copy of the kettle GUI");
         assertTrue(screen.contains("gui.brewery.barrel_start"));
         assertTrue(screen.contains("gui.brewery.barrel_days"));
+        assertTrue(screen.contains("gui.brewery.barrel_ready"));
     }
 }
