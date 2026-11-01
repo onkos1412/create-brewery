@@ -17,7 +17,7 @@ class MachineGuiLayoutTest {
 
         assertTrue(menu.contains("handler, 0, 44, 35"));
         assertTrue(menu.contains("handler, 1, 80, 35"));
-        assertTrue(menu.contains("getOutput(), 0, 116, 35"));
+        assertTrue(menu.contains("drinks, 0, 116, 35"));
         assertTrue(menu.contains("84 + row * 18"));
         assertTrue(menu.contains("142"));
         assertTrue(screen.contains("inventoryLabelY = 74"));

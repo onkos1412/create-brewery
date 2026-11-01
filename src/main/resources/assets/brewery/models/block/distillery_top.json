@@ -5,7 +5,7 @@
     "casing": "create:block/andesite_casing",
     "gearbox": "create:block/gearbox",
     "tank": "create:block/fluid_tank",
-    "brass": "create:block/brass_casing",
+    "brass": "create:block/brass_block",
     "top": "create:block/fluid_tank_top",
     "copper": "create:block/copper_casing"
   },
@@ -13,7 +13,7 @@
     {
       "from": [
         5,
-        -2,
+        0,
         5
       ],
       "to": [
@@ -23,40 +23,16 @@
       ],
       "faces": {
         "north": {
-          "texture": "#tank",
-          "uv": [
-            0,
-            0,
-            16,
-            16
-          ]
+          "texture": "#tank"
         },
         "south": {
-          "texture": "#tank",
-          "uv": [
-            0,
-            0,
-            16,
-            16
-          ]
+          "texture": "#tank"
         },
         "east": {
-          "texture": "#tank",
-          "uv": [
-            0,
-            0,
-            16,
-            16
-          ]
+          "texture": "#tank"
         },
         "west": {
-          "texture": "#tank",
-          "uv": [
-            0,
-            0,
-            16,
-            16
-          ]
+          "texture": "#tank"
         }
       }
     },
@@ -169,48 +145,24 @@
       ],
       "faces": {
         "north": {
-          "texture": "#tank",
-          "uv": [
-            4,
-            4,
-            12,
-            12
-          ]
+          "texture": "#tank"
         },
         "south": {
-          "texture": "#tank",
-          "uv": [
-            4,
-            4,
-            12,
-            12
-          ]
+          "texture": "#tank"
         },
         "east": {
-          "texture": "#tank",
-          "uv": [
-            4,
-            4,
-            12,
-            12
-          ]
+          "texture": "#tank"
         },
         "west": {
-          "texture": "#tank",
-          "uv": [
-            4,
-            4,
-            12,
-            12
-          ]
+          "texture": "#tank"
         },
         "up": {
           "texture": "#top",
           "uv": [
-            4,
-            4,
-            12,
-            12
+            6,
+            6,
+            10,
+            10
           ]
         }
       }
@@ -228,47 +180,23 @@
       ],
       "faces": {
         "north": {
-          "texture": "#tank",
-          "uv": [
-            4,
-            4,
-            12,
-            12
-          ]
+          "texture": "#tank"
         },
         "south": {
-          "texture": "#tank",
-          "uv": [
-            4,
-            4,
-            12,
-            12
-          ]
+          "texture": "#tank"
         },
         "up": {
-          "texture": "#tank",
-          "uv": [
-            4,
-            4,
-            12,
-            12
-          ]
+          "texture": "#tank"
         },
         "down": {
-          "texture": "#tank",
-          "uv": [
-            4,
-            4,
-            12,
-            12
-          ]
+          "texture": "#tank"
         }
       }
     },
     {
       "from": [
         12,
-        -3,
+        0,
         6.5
       ],
       "to": [
@@ -278,40 +206,16 @@
       ],
       "faces": {
         "north": {
-          "texture": "#tank",
-          "uv": [
-            4,
-            4,
-            12,
-            12
-          ]
+          "texture": "#tank"
         },
         "south": {
-          "texture": "#tank",
-          "uv": [
-            4,
-            4,
-            12,
-            12
-          ]
+          "texture": "#tank"
         },
         "east": {
-          "texture": "#tank",
-          "uv": [
-            4,
-            4,
-            12,
-            12
-          ]
+          "texture": "#tank"
         },
         "west": {
-          "texture": "#tank",
-          "uv": [
-            4,
-            4,
-            12,
-            12
-          ]
+          "texture": "#tank"
         }
       }
     },

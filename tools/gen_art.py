@@ -47,21 +47,6 @@ def solid(color):
     return img
 
 
-def staves():
-    """Barrel staves running along the texture's U axis, since the barrel lies on its side."""
-    rng = random.Random(11)
-    img = tex()
-    for y in range(16):
-        row = y // 4
-        base = (3, 2, 3, 4)[row]
-        for x in range(16):
-            shade = base + rng.choice((0, 0, 0, -1, 1))
-            if y % 4 == 3:
-                shade = 0
-            img.putpixel((x, y), rgb(OAK[max(0, min(5, shade))]))
-    return img
-
-
 def surface(frames, ramp, seed):
     """An animated vertical strip of a boiling liquid."""
     rng = random.Random(seed)
@@ -82,7 +67,6 @@ def surface(frames, ramp, seed):
 
 
 def write_block_textures():
-    save(staves(), BLOCK, "barrel_staves")
     save(solid("#2a1610"), BLOCK, "kettle_inside")
     wort = surface(8, ["#6b3d10", "#8c5518", "#b07422", "#cf9334", "#efc56a"], 5)
     save(wort, BLOCK, "kettle_boil")
@@ -157,18 +141,23 @@ def write_item_textures():
 # its basin, tanks and spouts. Create is a required dependency, so they are always there.
 
 FULL = [0, 0, 16, 16]
-SIDES = ("north", "south", "east", "west")
 
 
-def face(texture, uv=None):
+def face(texture, uv=None, rotation=None):
     built = {"texture": f"#{texture}"}
     if uv:
         built["uv"] = uv
+    if rotation:
+        built["rotation"] = rotation
     return built
 
 
 def box(start, end, texture, faces="north south east west up down", **overrides):
-    """A cuboid. Unlisted faces are left off; keyword overrides set a face's (texture, uv)."""
+    """A cuboid. Unlisted faces are left off; keyword overrides set a face's (texture, uv, rotation).
+
+    Faces without a uv take the part of the texture under them, at the game's own pixel size.
+    A face given a uv must keep that size too: ModelTexelTest fails on a stretched one.
+    """
     built = {name: face(texture) for name in faces.split()}
     for name, value in overrides.items():
         built[name] = face(*value) if isinstance(value, tuple) else face(value)
@@ -182,13 +171,12 @@ def model(particle, textures, elements):
 
 
 def walls(lo, hi, outer, inner):
-    """A square vessel's four walls, two thick: each shows `outer` whole outside, `inner` inside."""
-    side = (outer, FULL)
+    """A square vessel's four walls, two thick: `outer` outside, `inner` inside."""
     return [
-        box([0, lo, 0], [16, hi, 2], outer, "", north=side, south=inner, east=outer, west=outer),
-        box([0, lo, 14], [16, hi, 16], outer, "", south=side, north=inner, east=outer, west=outer),
-        box([0, lo, 2], [2, hi, 14], outer, "", west=side, east=inner),
-        box([14, lo, 2], [16, hi, 14], outer, "", east=side, west=inner),
+        box([0, lo, 0], [16, hi, 2], outer, "", north=outer, south=inner, east=outer, west=outer),
+        box([0, lo, 14], [16, hi, 16], outer, "", south=outer, north=inner, east=outer, west=outer),
+        box([0, lo, 2], [2, hi, 14], outer, "", west=outer, east=inner),
+        box([14, lo, 2], [16, hi, 14], outer, "", east=outer, west=inner),
     ]
 
 
@@ -216,45 +204,44 @@ def kettle_elements():
 def distillery_elements():
     """A sealed copper tank on an andesite machine base, collared to take the column above it."""
     return [
-        box([0, 0, 0], [16, 4, 16], "casing", south=("gearbox", [0, 6, 16, 10]), down=("casing", FULL)),
-        box([1, 4, 1], [15, 12, 15], "tank", "north south east west",
-            north=("tank", FULL), south=("tank", FULL), east=("tank", FULL), west=("tank", FULL)),
+        box([0, 0, 0], [16, 4, 16], "casing", down=("casing", FULL)),
+        box([1, 4, 1], [15, 12, 15], "tank", "north south east west"),
         box([0, 12, 0], [16, 13, 16], "brass", down=("brass", FULL), up=("top", FULL)),
         box([4, 13, 4], [12, 14, 12], "brass", "north south east west up"),
+        # The foot of the column and of its return pipe, which the block above carries on.
+        box([5, 14, 5], [11, 16, 11], "tank", "north south east west"),
+        box([12, 13, 6.5], [15, 16, 9.5], "tank", "north south east west"),
         # A collar around the shaft that enters the back; the turning shaft itself is rendered live.
-        box([5, 5, 15], [11, 11, 15.5], "casing", "north east west up down", south=("gearbox", FULL)),
+        box([5, 5, 15], [11, 11, 15.5], "casing", "north east west up down", south=("gearbox", [5, 5, 11, 11])),
     ]
 
 
 def distillery_top_elements():
     """The still's column: a brass-banded tank, an arm over the top, and a pipe back down to the base."""
-    side = ("tank", FULL)
-    pipe = ("tank", [4, 4, 12, 12])
     return [
-        box([5, -2, 5], [11, 9, 11], "tank", "north south east west",
-            north=side, south=side, east=side, west=side),
+        box([5, 0, 5], [11, 9, 11], "tank", "north south east west"),
         box([4.5, 1, 4.5], [11.5, 2, 11.5], "brass", "north south east west up down"),
         box([4.5, 6, 4.5], [11.5, 7, 11.5], "brass", "north south east west up down"),
         box([5, 9, 5], [11, 10, 11], "brass"),
-        box([6, 10, 6], [10, 13, 10], "tank", "north south east west up",
-            north=pipe, south=pipe, east=pipe, west=pipe, up=("top", [4, 4, 12, 12])),
-        box([10, 10, 6.5], [15, 13, 9.5], "tank", "north south up down",
-            north=pipe, south=pipe, up=pipe, down=pipe),
-        box([12, -3, 6.5], [15, 10, 9.5], "tank", "north south east west",
-            north=pipe, south=pipe, east=pipe, west=pipe),
+        box([6, 10, 6], [10, 13, 10], "tank", "north south east west", up=("top", [6, 6, 10, 10])),
+        box([10, 10, 6.5], [15, 13, 9.5], "tank", "north south up down"),
+        box([12, 0, 6.5], [15, 10, 9.5], "tank", "north south east west"),
         box([11.5, 4, 6], [15.5, 5, 10], "brass", "north south east west up down"),
     ]
 
 
+def along_z(texture):
+    """Top and bottom faces whose planks run along the barrel, like those on its sides."""
+    return {"up": (texture, None, 90), "down": (texture, None, 90)}
+
+
 def barrel_elements():
-    """An oak cask squared off like a Create casing: andesite heads and hoops around staves."""
+    """A single-block cask, as barrels placed before they grew remain."""
     tap = "north south east west up down"
     return [
-        box([1, 1, 1], [15, 15, 15], "staves", "east west up down"),
-        box([0, 0, 0], [16, 16, 2], "head", north=("head", FULL), south="staves", up="hoop", down="hoop",
-            east="hoop", west="hoop"),
-        box([0, 0, 14], [16, 16, 16], "head", south=("head", FULL), north="staves", up="hoop", down="hoop",
-            east="hoop", west="hoop"),
+        box([1, 1, 1], [15, 15, 15], "staves", "east west", **along_z("staves")),
+        box([0, 0, 0], [16, 16, 2], "hoop", "east west up down", north=("head", FULL), south="staves"),
+        box([0, 0, 14], [16, 16, 16], "hoop", "east west up down", south=("head", FULL), north="staves"),
         box([0, 0, 6], [16, 16, 7], "hoop", "up down east west"),
         box([0, 0, 9], [16, 16, 10], "hoop", "up down east west"),
         box([6.5, 3, -1], [9.5, 5, 0], "brass", tap),
@@ -262,16 +249,75 @@ def barrel_elements():
     ]
 
 
+def tiled(start, end, texture, faces, **overrides):
+    """A box wider than one block, cut on block lines so each face shows the texture at its true size."""
+    cuts = []
+    for axis in range(3):
+        points = {start[axis], end[axis]} | {v for v in (0, 16, 32) if start[axis] < v < end[axis]}
+        cuts.append(sorted(points))
+    parts = []
+    for x0, x1 in zip(cuts[0], cuts[0][1:]):
+        for y0, y1 in zip(cuts[1], cuts[1][1:]):
+            for z0, z1 in zip(cuts[2], cuts[2][1:]):
+                u0, v0, w0 = x0 % 16, y0 % 16, z0 % 16
+                u1, v1, w1 = u0 + (x1 - x0), v0 + (y1 - y0), w0 + (z1 - z0)
+                uvs = {
+                    "north": [16 - u1, 16 - v1, 16 - u0, 16 - v0], "south": [u0, 16 - v1, u1, 16 - v0],
+                    "west": [w0, 16 - v1, w1, 16 - v0], "east": [16 - w1, 16 - v1, 16 - w0, 16 - v0],
+                    "up": [u0, w0, u1, w1], "down": [u0, 16 - w1, u1, 16 - w0],
+                }
+                outer = {"north": z0 == start[2], "south": z1 == end[2], "west": x0 == start[0],
+                         "east": x1 == end[0], "down": y0 == start[1], "up": y1 == end[1]}
+                built = {}
+                for name in faces.split():
+                    if outer[name]:
+                        use, rotation = overrides.get(name, (texture, None))
+                        built[name] = face(use, uvs[name], rotation)
+                if built:
+                    parts.append({"from": [x0, y0, z0], "to": [x1, y1, z1], "faces": built})
+    return parts
+
+
+def big_barrel_elements():
+    """The 2x2x2 cask, anchored on the barrel block: casing heads, oak staves and andesite hoops."""
+    sides = "east west up down"
+    planks = {"up": ("staves", 90), "down": ("staves", 90)}
+    tap = "north south east west up down"
+    return [
+        *tiled([1, 1, 3], [31, 31, 29], "staves", sides, **planks),
+        *tiled([0, 0, 0], [32, 32, 3], "hoop", "north south " + sides, north=("head", None), south=("staves", None)),
+        *tiled([0, 0, 29], [32, 32, 32], "hoop", "north south " + sides, south=("head", None), north=("staves", None)),
+        *tiled([0, 0, 9], [32, 32, 11], "hoop", sides),
+        *tiled([0, 0, 21], [32, 32, 23], "hoop", sides),
+        box([14, 6, -1], [18, 10, 0], "brass", tap),
+        box([15, 3, -1], [17, 6, 0], "brass", tap),
+    ]
+
+
+def raised(elements):
+    """Elements moved up a block, for an item showing two blocks. Their uvs are pinned first,
+    since uvs worked out from a position above the block would run off the texture."""
+    lifted = []
+    for element in elements:
+        x0, y0, z0 = element["from"]
+        x1, y1, z1 = element["to"]
+        uvs = {
+            "north": [16 - x1, 16 - y1, 16 - x0, 16 - y0], "south": [x0, 16 - y1, x1, 16 - y0],
+            "west": [z0, 16 - y1, z1, 16 - y0], "east": [16 - z1, 16 - y1, 16 - z0, 16 - y0],
+            "up": [x0, z0, x1, z1], "down": [x0, 16 - z1, x1, 16 - z0],
+        }
+        faces = {name: {"uv": uvs[name], **spec} for name, spec in element["faces"].items()}
+        lifted.append({"from": [x0, y0 + 16, z0], "to": [x1, y1 + 16, z1], "faces": faces})
+    return lifted
+
+
 def spout_elements():
     """A copper tap in Create's manner: a casing bracket, a square pipe, a brass collar and nozzle."""
-    side = ("tank", [4, 4, 12, 12])
     return [
-        box([3, 3, 14], [13, 13, 16], "casing", north=("casing", FULL), south=("casing", FULL)),
-        box([6, 6, 9], [10, 10, 14], "tank", "east west up down",
-            east=side, west=side, up=side, down=side),
+        box([3, 3, 14], [13, 13, 16], "casing"),
+        box([6, 6, 9], [10, 10, 14], "tank", "east west up down"),
         box([5, 5, 11], [11, 11, 12], "brass", "north south east west up down"),
-        box([5, 4, 3], [11, 10, 9], "tank", "north south east west up down",
-            north=side, south=side, east=side, west=side, up=("top", [5, 5, 11, 11])),
+        box([5, 4, 3], [11, 10, 9], "tank", "north south east west down", up=("top", [5, 5, 11, 11])),
         box([5.5, 2, 3.5], [10.5, 4, 8.5], "brass", "north south east west"),
         box([6.5, 1, 4.5], [9.5, 2, 7.5], "casing", "north south east west down"),
         box([7, 10, 5], [9, 12, 7], "brass", "north south east west"),
@@ -291,7 +337,7 @@ def create(name):
 def write_models():
     dump(MODELS / "kettle.json", model(create("copper_casing"), {
         "foot": create("andesite_casing"), "copper": create("copper_casing"), "tank": create("fluid_tank"),
-        "brass": create("brass_casing"), "inside": "brewery:block/kettle_inside",
+        "brass": create("brass_block"), "inside": "brewery:block/kettle_inside",
         "liquid": "brewery:block/kettle_inside",
     }, kettle_elements()))
     dump(MODELS / "kettle_brewing.json", {
@@ -300,14 +346,19 @@ def write_models():
     })
     still_textures = {
         "casing": create("andesite_casing"), "gearbox": create("gearbox"), "tank": create("fluid_tank"),
-        "brass": create("brass_casing"), "top": create("fluid_tank_top"), "copper": create("copper_casing"),
+        "brass": create("brass_block"), "top": create("fluid_tank_top"), "copper": create("copper_casing"),
     }
     dump(MODELS / "distillery.json", model(create("fluid_tank"), still_textures, distillery_elements()))
     dump(MODELS / "distillery_top.json", model(create("fluid_tank"), still_textures, distillery_top_elements()))
-    dump(MODELS / "barrel.json", model("brewery:block/barrel_staves", {
-        "staves": "brewery:block/barrel_staves", "head": create("andesite_casing"),
+    barrel_textures = {
+        "staves": "minecraft:block/spruce_planks", "head": create("andesite_casing"),
         "hoop": create("andesite_block"), "brass": create("brass_block"),
-    }, barrel_elements()))
+    }
+    dump(MODELS / "barrel.json", model("minecraft:block/spruce_planks", barrel_textures, barrel_elements()))
+    # Smooth lighting samples around one block only, and smears shadows across a model this size.
+    dump(MODELS / "barrel_big.json", {**model("minecraft:block/spruce_planks", barrel_textures, big_barrel_elements()),
+                                      "ambientocclusion": False})
+    dump(MODELS / "barrel_part.json", {"textures": {"particle": "minecraft:block/spruce_planks"}})
     dump(MODELS / "spout.json", model(create("copper_casing"), {
         "casing": create("copper_casing"), "tank": create("fluid_tank"), "top": create("fluid_tank_top"),
         "brass": create("brass_block"),
@@ -317,7 +368,14 @@ def write_models():
         "brewing=false": {"model": "brewery:block/kettle"},
         "brewing=true": {"model": "brewery:block/kettle_brewing"},
     }})
-    for name in ("distillery", "distillery_top", "barrel"):
+    variants = {}
+    for facing, y in (("north", 0), ("east", 90), ("south", 180), ("west", 270)):
+        variants[f"facing={facing},formed=false"] = {"model": "brewery:block/barrel", "y": y}
+        variants[f"facing={facing},formed=true"] = {"model": "brewery:block/barrel_big", "y": y}
+    dump(STATES / "barrel.json", {"variants": variants})
+    # Parts draw nothing, but breaking one still needs particles from a model.
+    dump(STATES / "barrel_part.json", {"variants": {"": {"model": "brewery:block/barrel_part"}}})
+    for name in ("distillery", "distillery_top"):
         dump(STATES / f"{name}.json", {"variants": {
             "facing=north": {"model": f"brewery:block/{name}"},
             "facing=east": {"model": f"brewery:block/{name}", "y": 90},
@@ -326,12 +384,19 @@ def write_models():
         }})
 
     items = ROOT / "models/item"
+    dump(items / "barrel.json", {
+        **model("minecraft:block/spruce_planks", barrel_textures, big_barrel_elements()),
+        "display": {
+            "gui": {"rotation": [30, 225, 0], "translation": [0, -2.5, 0], "scale": [0.31, 0.31, 0.31]},
+            "ground": {"rotation": [0, 0, 0], "translation": [0, 1, 0], "scale": [0.12, 0.12, 0.12]},
+            "fixed": {"rotation": [0, 0, 0], "translation": [0, 0, 0], "scale": [0.31, 0.31, 0.31]},
+            "thirdperson_righthand": {"rotation": [75, 45, 0], "translation": [0, 1.5, 0], "scale": [0.2, 0.2, 0.2]},
+            "firstperson_righthand": {"rotation": [0, 45, 0], "translation": [0, 0, 0], "scale": [0.2, 0.2, 0.2]},
+        },
+    })
     # The item shows the whole two-block still, scaled down to fit a slot.
-    raised = [{**element, "from": [element["from"][0], element["from"][1] + 16, element["from"][2]],
-               "to": [element["to"][0], element["to"][1] + 16, element["to"][2]]}
-              for element in distillery_top_elements()]
     dump(items / "distillery.json", {
-        **model(create("fluid_tank"), still_textures, distillery_elements() + raised),
+        **model(create("fluid_tank"), still_textures, distillery_elements() + raised(distillery_top_elements())),
         "display": {
             "gui": {"rotation": [30, 225, 0], "translation": [0, -3.5, 0], "scale": [0.4, 0.4, 0.4]},
             "ground": {"rotation": [0, 0, 0], "translation": [0, 1, 0], "scale": [0.15, 0.15, 0.15]},
@@ -479,13 +544,15 @@ def write_gui():
     img, d = machine_sheet(3)
     # The gap between the slots is short, so the arrow's tail tucks under the wood slot's frame.
     arrow(d, 92, 36, rgb("#a8986f"))
-    slot(d, 44, 35)
-    ghost_bottle(img, 44, 35)
+    for x, y in ((26, 17), (44, 17), (26, 35), (44, 35)):
+        slot(d, x, y)
+        ghost_bottle(img, x, y)
     slot(d, 80, 35)
     ghost_log(img, 80, 35)
-    slot(d, 116, 35)
-    slot(d, 116, 15)
-    ghost_bottle(img, 116, 15)
+    for x, y in ((116, 17), (134, 17), (116, 35), (134, 35)):
+        slot(d, x, y)
+    slot(d, 152, 35)
+    ghost_bottle(img, 152, 35)
     d.rectangle((64, 41, 76, 45), fill=rgb("#a8986f"))
     save(img, GUI, "barrel")
 
@@ -584,9 +651,12 @@ def write_ponder():
         (0, 1, 2): fire,
     })
     write_scene("barrel", {
-        (2, 1, 2): ("brewery:barrel", {"facing": "north"}),
-        (2, 2, 2): ("create:andesite_funnel", {"facing": "up"}),
-        (3, 1, 2): ("brewery:spout", {"facing": "east"}),
+        (1, 1, 1): ("brewery:barrel", {"facing": "north", "formed": "true"}),
+        **{(1 + x, 1 + y, 1 + z): ("brewery:barrel_part", {"facing": "north", "x": str(x == 1).lower(),
+                                                           "y": str(y == 1).lower(), "z": str(z == 1).lower()})
+           for x in range(2) for y in range(2) for z in range(2) if x + y + z > 0},
+        (1, 3, 1): ("create:andesite_funnel", {"facing": "up"}),
+        (3, 1, 1): ("brewery:spout", {"facing": "east"}),
     })
 
 

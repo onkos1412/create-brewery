@@ -1,5 +1,6 @@
 {
   "values": [
-    "brewery:barrel"
+    "brewery:barrel",
+    "brewery:barrel_part"
   ]
 }

@@ -130,18 +130,19 @@ public final class BreweryPonder implements PonderPlugin {
     }
 
     private static void barrel(SceneBuilder scene, SceneBuildingUtil util) {
-        BlockPos barrel = new BlockPos(2, 1, 2);
-        BlockPos funnel = barrel.above();
-        BlockPos spout = barrel.east();
+        BlockPos barrel = new BlockPos(1, 1, 1);
+        BlockPos funnel = barrel.above(2);
+        BlockPos spout = barrel.east(2);
         start(scene, "barrel", "Aging and bottling");
 
-        show(scene, util, barrel, Direction.DOWN);
-        scene.overlay().showControls(util.vector().topOf(barrel), Pointing.DOWN, 40)
+        scene.world().showSection(util.select().fromTo(barrel, barrel.offset(1, 1, 1)), Direction.DOWN);
+        scene.idle(10);
+        scene.overlay().showControls(util.vector().topOf(barrel.above()), Pointing.DOWN, 40)
                 .withItem(new ItemStack(ModItems.DISTILLATE.get()));
         scene.idle(50);
-        say(scene, util, barrel, Direction.WEST, "The barrel takes distillate, or a bottle of young wine or mead");
+        say(scene, util, barrel, Direction.WEST, "The big barrel ages up to four stacks of one drink at once: distillate, or bottles of young wine or mead");
 
-        scene.overlay().showControls(util.vector().topOf(barrel), Pointing.DOWN, 40)
+        scene.overlay().showControls(util.vector().topOf(barrel.above()), Pointing.DOWN, 40)
                 .withItem(new ItemStack(Items.DARK_OAK_LOG));
         scene.idle(50);
         say(scene, util, barrel, Direction.NORTH, "Wood goes in too and is not used up. Each drink ages best in its own wood");

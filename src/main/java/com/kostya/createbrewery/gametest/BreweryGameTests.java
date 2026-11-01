@@ -3,8 +3,10 @@ package com.kostya.createbrewery.gametest;
 import com.kostya.createbrewery.CreateBrewery;
 import com.kostya.createbrewery.DrinkData;
 import com.kostya.createbrewery.barrel.AgingRules;
+import com.kostya.createbrewery.block.BarrelBlock;
 import com.kostya.createbrewery.block.BarrelBlockEntity;
 import com.kostya.createbrewery.block.BarrelMenu;
+import com.kostya.createbrewery.block.BarrelPartBlock;
 import com.kostya.createbrewery.block.DistilleryBlockEntity;
 import com.kostya.createbrewery.block.KettleBlockEntity;
 import com.kostya.createbrewery.block.ModBlocks;
@@ -388,6 +390,99 @@ public class BreweryGameTests {
 
         helper.assertBlockNotPresent(ModBlocks.DISTILLERY.get(), DISTILLERY);
         helper.assertBlockNotPresent(ModBlocks.DISTILLERY_TOP.get(), DISTILLERY.above());
+        helper.succeed();
+    }
+
+    /** Placing a barrel raises the whole 2x2x2 structure, whichever way it faces, and it acts as one. */
+    @GameTest(template = "empty", timeoutTicks = 100)
+    public static void bigBarrelFormsAndActsAsOne(GameTestHelper helper) {
+        for (Direction facing : Direction.Plane.HORIZONTAL) {
+            BlockPos at = BARREL.above(0).west(2);
+            BlockPos abs = helper.absolutePos(at);
+            var state = ModBlocks.BARREL.get().defaultBlockState()
+                    .setValue(BarrelBlock.FACING, facing).setValue(BarrelBlock.FORMED, true);
+            helper.getLevel().setBlock(abs, state, 3);
+            state.getBlock().setPlacedBy(helper.getLevel(), abs, state, null, new ItemStack(ModBlocks.BARREL_ITEM.get()));
+
+            int found = 0;
+            for (BlockPos pos : BlockPos.betweenClosed(abs.offset(-2, 0, -2), abs.offset(2, 2, 2))) {
+                var other = helper.getLevel().getBlockState(pos);
+                if (other.is(ModBlocks.BARREL_PART.get())) {
+                    found++;
+                    helper.assertTrue(BarrelPartBlock.controller(helper.getLevel(), pos, other)
+                            instanceof BarrelBlockEntity, facing + " part lost its barrel");
+                }
+            }
+            helper.assertTrue(found == 7, facing + " formed " + found + " parts");
+
+            // Breaking any part takes the rest with it and drops the contents.
+            BarrelBlockEntity barrel = (BarrelBlockEntity) helper.getLevel().getBlockEntity(abs);
+            barrel.getInput().setStackInSlot(1, new ItemStack(Items.OAK_LOG, 3));
+            BlockPos part = abs.above();
+            helper.getLevel().setBlock(part, Blocks.AIR.defaultBlockState(), 3);
+            helper.assertTrue(helper.getLevel().getBlockState(abs).isAir(), facing + " barrel survived its part");
+            for (BlockPos pos : BlockPos.betweenClosed(abs.offset(-2, 0, -2), abs.offset(2, 2, 2))) {
+                helper.assertFalse(helper.getLevel().getBlockState(pos).is(ModBlocks.BARREL_PART.get()),
+                        facing + " left a part behind");
+            }
+            helper.assertTrue(helper.getLevel().getEntitiesOfClass(ItemEntity.class,
+                            new net.minecraft.world.phys.AABB(abs).inflate(2)).stream()
+                    .anyMatch(item -> item.getItem().is(Items.OAK_LOG)), facing + " lost its contents");
+            helper.killAllEntities();
+        }
+        helper.succeed();
+    }
+
+    /** Four stacks of one drink age together and come out together, each keeping its own rating. */
+    @GameTest(template = "empty", timeoutTicks = 200, batch = "aging_big_batch")
+    public static void barrelAgesFourStacksTogether(GameTestHelper helper) {
+        helper.setBlock(BARREL, ModBlocks.BARREL.get());
+        BarrelBlockEntity barrel = helper.getBlockEntity(BARREL);
+        IItemHandler items = items(helper, BARREL);
+        ItemStack rum5 = new ItemStack(ModItems.DISTILLATE.get(), 16);
+        rum5.set(ModDataComponents.DRINK_DATA.get(), new DrinkData(5, 45, "rum"));
+        ItemStack rum3 = new ItemStack(ModItems.DISTILLATE.get(), 7);
+        rum3.set(ModDataComponents.DRINK_DATA.get(), new DrinkData(3, 45, "rum"));
+        ItemStack whiskey = new ItemStack(ModItems.DISTILLATE.get());
+        whiskey.set(ModDataComponents.DRINK_DATA.get(), new DrinkData(5, 40, "whiskey"));
+
+        helper.assertTrue(items.insertItem(0, rum5, false).isEmpty(), "first stack refused");
+        helper.assertTrue(items.insertItem(4, rum3, false).isEmpty(), "second stack refused");
+        helper.assertTrue(items.insertItem(5, whiskey, false).getCount() == 1, "mixed whiskey into a rum batch");
+        barrel.getInput().setStackInSlot(1, new ItemStack(Items.DARK_OAK_LOG));
+        helper.assertTrue(barrel.startAging(), "barrel did not start");
+
+        helper.startSequence()
+                .thenExecute(() -> helper.getLevel().setDayTime(helper.getLevel().getDayTime() + barrel.getRequiredTicks()))
+                .thenWaitUntil(() -> helper.assertFalse(items.getStackInSlot(2).isEmpty(), "not finished"))
+                .thenExecute(() -> {
+                    helper.assertTrue(items.getStackInSlot(2).getCount() == 16, "first stack " + items.getStackInSlot(2));
+                    helper.assertTrue(data(items.getStackInSlot(2)).stars() == 5, "first stack stars");
+                    helper.assertTrue(items.getStackInSlot(7).getCount() == 7, "second stack " + items.getStackInSlot(7));
+                    helper.assertTrue(data(items.getStackInSlot(7)).stars() == 3, "second stack stars");
+                    helper.assertTrue(items.extractItem(2, 16, false).isEmpty(), "drinks taken without bottles");
+                    items.insertItem(3, new ItemStack(Items.GLASS_BOTTLE, 5), false);
+                    helper.assertTrue(items.extractItem(2, 16, false).getCount() == 5, "bottles did not limit the take");
+                    helper.assertTrue(barrel.getBottleCount() == 0, "bottles not spent");
+                })
+                .thenSucceed();
+    }
+
+    /** A barrel saved with the old two slots keeps its items and gains the new ones. */
+    @GameTest(template = "empty")
+    public static void oldBarrelSaveGrows(GameTestHelper helper) {
+        helper.setBlock(BARREL, ModBlocks.BARREL.get());
+        BarrelBlockEntity barrel = helper.getBlockEntity(BARREL);
+        var registries = helper.getLevel().registryAccess();
+        var tag = barrel.saveWithFullMetadata(registries);
+        var oldInput = new net.neoforged.neoforge.items.ItemStackHandler(2);
+        oldInput.setStackInSlot(1, new ItemStack(Items.OAK_LOG, 2));
+        tag.put("Input", oldInput.serializeNBT(registries));
+        tag.put("Output", new net.neoforged.neoforge.items.ItemStackHandler(1).serializeNBT(registries));
+
+        barrel.loadWithComponents(tag, registries);
+        helper.assertTrue(barrel.getInput().getSlots() == 5 && barrel.getOutput().getSlots() == 4, "barrel stayed small");
+        helper.assertTrue(barrel.getInput().getStackInSlot(1).getCount() == 2, "old wood lost");
         helper.succeed();
     }
 

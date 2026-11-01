@@ -11,9 +11,9 @@ import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.items.SlotItemHandler;
 
 public class BarrelMenu extends AbstractContainerMenu {
-    private static final int OUTPUT_SLOT = 2;
     private static final int BOTTLE_SLOT = 3;
-    private static final int MACHINE_SLOTS = 4;
+    private static final int FIRST_EXTRA_DRINK = 7;
+    private static final int MACHINE_SLOTS = 10;
 
     private final BarrelBlockEntity barrel;
     private final ContainerData data = new Data();
@@ -25,32 +25,19 @@ public class BarrelMenu extends AbstractContainerMenu {
     public BarrelMenu(int containerId, Inventory inventory, BarrelBlockEntity barrel) {
         super(ModMenus.BARREL.get(), containerId);
         this.barrel = barrel;
-        var handler = barrel == null ? new net.neoforged.neoforge.items.ItemStackHandler(2) : barrel.getInput();
+        var handler = barrel == null ? new net.neoforged.neoforge.items.ItemStackHandler(5) : barrel.getInput();
+        var drinks = barrel == null ? new net.neoforged.neoforge.items.ItemStackHandler(4) : barrel.getOutput();
         addSlot(new SlotItemHandler(handler, 0, 44, 35));
         addSlot(new SlotItemHandler(handler, 1, 80, 35));
+        addSlot(new DrinkSlot(drinks, 0, 116, 35));
         addSlot(new SlotItemHandler(barrel == null ? new net.neoforged.neoforge.items.ItemStackHandler(1)
-                : barrel.getOutput(), 0, 116, 35) {
-            @Override
-            public boolean mayPlace(ItemStack stack) {
-                return false;
-            }
-
-            /** Taking the drink here costs an empty bottle, the same as at a funnel or the spout. */
-            @Override
-            public boolean mayPickup(Player player) {
-                return (barrel == null || barrel.hasBottle()) && super.mayPickup(player);
-            }
-
-            @Override
-            public void onTake(Player player, ItemStack stack) {
-                if (barrel != null) {
-                    barrel.spendBottle();
-                }
-                super.onTake(player, stack);
-            }
-        });
-        addSlot(new SlotItemHandler(barrel == null ? new net.neoforged.neoforge.items.ItemStackHandler(1)
-                : barrel.getBottles(), 0, 116, 15));
+                : barrel.getBottles(), 0, 152, 35));
+        addSlot(new SlotItemHandler(handler, 2, 26, 35));
+        addSlot(new SlotItemHandler(handler, 3, 26, 17));
+        addSlot(new SlotItemHandler(handler, 4, 44, 17));
+        addSlot(new DrinkSlot(drinks, 1, 134, 35));
+        addSlot(new DrinkSlot(drinks, 2, 116, 17));
+        addSlot(new DrinkSlot(drinks, 3, 134, 17));
         for (int row = 0; row < 3; row++) {
             for (int col = 0; col < 9; col++) {
                 addSlot(new Slot(inventory, col + row * 9 + 9, 8 + col * 18, 84 + row * 18));
@@ -85,7 +72,37 @@ public class BarrelMenu extends AbstractContainerMenu {
     }
 
     public boolean isReady() {
-        return slots.get(2).hasItem();
+        for (int slot = 0; slot < MACHINE_SLOTS; slot++) {
+            if (BarrelBlockEntity.drinkSlot(slot) >= 0 && slots.get(slot).hasItem()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** Taking drinks here costs an empty bottle each, the same as at a funnel or the spout. */
+    private final class DrinkSlot extends SlotItemHandler {
+        DrinkSlot(net.neoforged.neoforge.items.IItemHandler handler, int index, int x, int y) {
+            super(handler, index, x, y);
+        }
+
+        @Override
+        public boolean mayPlace(ItemStack stack) {
+            return false;
+        }
+
+        @Override
+        public boolean mayPickup(Player player) {
+            return (barrel == null || barrel.getBottleCount() >= getItem().getCount()) && super.mayPickup(player);
+        }
+
+        @Override
+        public void onTake(Player player, ItemStack stack) {
+            if (barrel != null) {
+                barrel.spendBottles(stack.getCount());
+            }
+            super.onTake(player, stack);
+        }
     }
 
     @Override
@@ -107,11 +124,11 @@ public class BarrelMenu extends AbstractContainerMenu {
             if (!moveItemStackTo(stack, MACHINE_SLOTS, slots.size(), true)) {
                 return ItemStack.EMPTY;
             }
-            if (index == OUTPUT_SLOT && barrel != null) {
-                barrel.spendBottle();
+            if (BarrelBlockEntity.drinkSlot(index) >= 0 && barrel != null) {
+                barrel.spendBottles(original.getCount() - stack.getCount());
             }
-        } else if (!moveItemStackTo(stack, 0, OUTPUT_SLOT, false)
-                && !moveItemStackTo(stack, BOTTLE_SLOT, MACHINE_SLOTS, false)) {
+        } else if (!moveItemStackTo(stack, 0, 2, false)
+                && !moveItemStackTo(stack, BOTTLE_SLOT, FIRST_EXTRA_DRINK, false)) {
             return ItemStack.EMPTY;
         }
         // Go through the slot: the move edited the live stack, and the block entity must learn of it to save.

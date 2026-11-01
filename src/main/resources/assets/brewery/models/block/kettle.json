@@ -5,7 +5,7 @@
     "foot": "create:block/andesite_casing",
     "copper": "create:block/copper_casing",
     "tank": "create:block/fluid_tank",
-    "brass": "create:block/brass_casing",
+    "brass": "create:block/brass_block",
     "inside": "brewery:block/kettle_inside",
     "liquid": "brewery:block/kettle_inside"
   },
@@ -84,13 +84,7 @@
       ],
       "faces": {
         "north": {
-          "texture": "#tank",
-          "uv": [
-            0,
-            0,
-            16,
-            16
-          ]
+          "texture": "#tank"
         },
         "south": {
           "texture": "#inside"
@@ -116,13 +110,7 @@
       ],
       "faces": {
         "south": {
-          "texture": "#tank",
-          "uv": [
-            0,
-            0,
-            16,
-            16
-          ]
+          "texture": "#tank"
         },
         "north": {
           "texture": "#inside"
@@ -148,13 +136,7 @@
       ],
       "faces": {
         "west": {
-          "texture": "#tank",
-          "uv": [
-            0,
-            0,
-            16,
-            16
-          ]
+          "texture": "#tank"
         },
         "east": {
           "texture": "#inside"
@@ -174,13 +156,7 @@
       ],
       "faces": {
         "east": {
-          "texture": "#tank",
-          "uv": [
-            0,
-            0,
-            16,
-            16
-          ]
+          "texture": "#tank"
         },
         "west": {
           "texture": "#inside"

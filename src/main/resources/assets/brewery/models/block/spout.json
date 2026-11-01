@@ -21,22 +21,10 @@
       ],
       "faces": {
         "north": {
-          "texture": "#casing",
-          "uv": [
-            0,
-            0,
-            16,
-            16
-          ]
+          "texture": "#casing"
         },
         "south": {
-          "texture": "#casing",
-          "uv": [
-            0,
-            0,
-            16,
-            16
-          ]
+          "texture": "#casing"
         },
         "east": {
           "texture": "#casing"
@@ -65,40 +53,16 @@
       ],
       "faces": {
         "east": {
-          "texture": "#tank",
-          "uv": [
-            4,
-            4,
-            12,
-            12
-          ]
+          "texture": "#tank"
         },
         "west": {
-          "texture": "#tank",
-          "uv": [
-            4,
-            4,
-            12,
-            12
-          ]
+          "texture": "#tank"
         },
         "up": {
-          "texture": "#tank",
-          "uv": [
-            4,
-            4,
-            12,
-            12
-          ]
+          "texture": "#tank"
         },
         "down": {
-          "texture": "#tank",
-          "uv": [
-            4,
-            4,
-            12,
-            12
-          ]
+          "texture": "#tank"
         }
       }
     },
@@ -147,40 +111,19 @@
       ],
       "faces": {
         "north": {
-          "texture": "#tank",
-          "uv": [
-            4,
-            4,
-            12,
-            12
-          ]
+          "texture": "#tank"
         },
         "south": {
-          "texture": "#tank",
-          "uv": [
-            4,
-            4,
-            12,
-            12
-          ]
+          "texture": "#tank"
         },
         "east": {
-          "texture": "#tank",
-          "uv": [
-            4,
-            4,
-            12,
-            12
-          ]
+          "texture": "#tank"
         },
         "west": {
-          "texture": "#tank",
-          "uv": [
-            4,
-            4,
-            12,
-            12
-          ]
+          "texture": "#tank"
+        },
+        "down": {
+          "texture": "#tank"
         },
         "up": {
           "texture": "#top",
@@ -190,9 +133,6 @@
             11,
             11
           ]
-        },
-        "down": {
-          "texture": "#tank"
         }
       }
     },

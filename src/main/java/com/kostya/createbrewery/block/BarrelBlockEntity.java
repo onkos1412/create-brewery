@@ -20,11 +20,16 @@ import net.neoforged.neoforge.items.IItemHandler;
 import net.neoforged.neoforge.items.ItemStackHandler;
 import org.jetbrains.annotations.Nullable;
 
-/** Server state for a single manually loaded whiskey barrel. */
+/** A barrel ageing up to four stacks of one drink at a time, with one kind of wood. */
 public class BarrelBlockEntity extends BlockEntity {
     private static final int WOOD_SLOT = 1;
-    private static final int OUTPUT_SLOT = 2;
+    private static final int FIRST_DRINK_SLOT = 2;
     private static final int BOTTLE_SLOT = 3;
+    private static final int FIRST_EXTRA_INPUT = 4;
+    private static final int FIRST_EXTRA_DRINK = 7;
+    private static final int AUTOMATION_SLOTS = 10;
+    /** The slots of {@link #input} that hold a batch; slot 1 is the wood. */
+    private static final int[] BATCH_SLOTS = {0, 2, 3, 4};
 
     private long startedAt = -1L;
     private long finishedAt = -1L;
@@ -32,12 +37,12 @@ public class BarrelBlockEntity extends BlockEntity {
     private long lastDayTime = -1L;
     private long agedTicks;
     private long overAgedTicks;
-    private int finishedStars = DrinkData.MAX_STARS;
+    private long overAgedPeriods;
     private int finishedDays = 1;
     private String woodId = "";
     /** Set once automation feeds the barrel, so it keeps aging without the GUI button. */
     private boolean autoStart;
-    private final ItemStackHandler input = new ItemStackHandler(2) {
+    private final ItemStackHandler input = new ItemStackHandler(5) {
         @Override
         protected void onContentsChanged(int slot) {
             setChanged();
@@ -50,7 +55,7 @@ public class BarrelBlockEntity extends BlockEntity {
             }
             return slot == WOOD_SLOT
                     ? AgingRules.isAcceptedWood(BuiltInRegistries.ITEM.getKey(stack.getItem()).toString())
-                    : isYoungDrink(stack) || stack.is(ModItems.DISTILLATE.get()) && agedStage(stack) != null;
+                    : isAgeable(stack) && fitsTheBatch(slot, stack);
         }
 
         /** A running batch stays sealed, or its contents could be swapped out before it finishes. */
@@ -59,7 +64,7 @@ public class BarrelBlockEntity extends BlockEntity {
             return startedAt >= 0 ? ItemStack.EMPTY : super.extractItem(slot, amount, simulate);
         }
     };
-    private final ItemStackHandler output = new ItemStackHandler(1) {
+    private final ItemStackHandler output = new ItemStackHandler(BATCH_SLOTS.length) {
         @Override
         protected void onContentsChanged(int slot) {
             setChanged();
@@ -85,33 +90,34 @@ public class BarrelBlockEntity extends BlockEntity {
     };
 
     /**
-     * Funnels may fill distillate (0), wood (1) and empty bottles (3), and take only the
-     * finished drink (2), which costs one of those bottles.
+     * Funnels may fill distillate and wood and empty bottles, and take only finished drinks,
+     * which cost one bottle each. Slots 0 to 3 are the first distillate, the wood, the first
+     * drink and the bottles, with the extra batches after them.
      */
     private final IItemHandler automationItems = new IItemHandler() {
         @Override
         public int getSlots() {
-            return 4;
+            return AUTOMATION_SLOTS;
         }
 
         @Override
         public ItemStack getStackInSlot(int slot) {
-            return switch (slot) {
-                case OUTPUT_SLOT -> output.getStackInSlot(0);
-                case BOTTLE_SLOT -> bottles.getStackInSlot(0);
-                default -> input.getStackInSlot(slot);
-            };
+            if (slot == BOTTLE_SLOT) {
+                return bottles.getStackInSlot(0);
+            }
+            int drink = drinkSlot(slot);
+            return drink >= 0 ? output.getStackInSlot(drink) : input.getStackInSlot(inputSlot(slot));
         }
 
         @Override
         public ItemStack insertItem(int slot, ItemStack stack, boolean simulate) {
-            if (slot == OUTPUT_SLOT) {
+            if (drinkSlot(slot) >= 0) {
                 return stack;
             }
             if (slot == BOTTLE_SLOT) {
                 return bottles.insertItem(0, stack, simulate);
             }
-            ItemStack remainder = input.insertItem(slot, stack, simulate);
+            ItemStack remainder = input.insertItem(inputSlot(slot), stack, simulate);
             if (!simulate && remainder.getCount() < stack.getCount()) {
                 autoStart = true;
                 setChanged();
@@ -121,46 +127,62 @@ public class BarrelBlockEntity extends BlockEntity {
 
         @Override
         public ItemStack extractItem(int slot, int amount, boolean simulate) {
-            if (slot != OUTPUT_SLOT || !hasBottle()) {
+            int drink = drinkSlot(slot);
+            int paid = Math.min(amount, bottles.getStackInSlot(0).getCount());
+            if (drink < 0 || paid <= 0) {
                 return ItemStack.EMPTY;
             }
-            ItemStack taken = output.extractItem(0, amount, simulate);
-            if (!simulate && !taken.isEmpty()) {
-                spendBottle();
+            ItemStack taken = output.extractItem(drink, paid, simulate);
+            if (!simulate) {
+                spendBottles(taken.getCount());
             }
             return taken;
         }
 
         @Override
         public int getSlotLimit(int slot) {
-            return switch (slot) {
-                case OUTPUT_SLOT -> output.getSlotLimit(0);
-                case BOTTLE_SLOT -> bottles.getSlotLimit(0);
-                default -> input.getSlotLimit(slot);
-            };
+            if (slot == BOTTLE_SLOT) {
+                return bottles.getSlotLimit(0);
+            }
+            int drink = drinkSlot(slot);
+            return drink >= 0 ? output.getSlotLimit(drink) : input.getSlotLimit(inputSlot(slot));
         }
 
         @Override
         public boolean isItemValid(int slot, ItemStack stack) {
-            return switch (slot) {
-                case OUTPUT_SLOT -> false;
-                case BOTTLE_SLOT -> bottles.isItemValid(0, stack);
-                default -> input.isItemValid(slot, stack);
-            };
+            if (slot == BOTTLE_SLOT) {
+                return bottles.isItemValid(0, stack);
+            }
+            return drinkSlot(slot) < 0 && input.isItemValid(inputSlot(slot), stack);
         }
     };
+
+    /** Which of the {@link #output} slots an automation or menu slot is, or -1 when it is none. */
+    static int drinkSlot(int slot) {
+        if (slot == FIRST_DRINK_SLOT) {
+            return 0;
+        }
+        return slot >= FIRST_EXTRA_DRINK && slot < AUTOMATION_SLOTS ? slot - FIRST_EXTRA_DRINK + 1 : -1;
+    }
+
+    /** Which of the {@link #input} slots an automation or menu slot is. */
+    private static int inputSlot(int slot) {
+        return slot < FIRST_DRINK_SLOT ? slot : slot - FIRST_EXTRA_INPUT + 2;
+    }
 
     public ItemStackHandler getBottles() {
         return bottles;
     }
 
-    public boolean hasBottle() {
-        return !bottles.getStackInSlot(0).isEmpty();
+    public int getBottleCount() {
+        return bottles.getStackInSlot(0).getCount();
     }
 
-    /** Pays for a drink taken without the spout. */
-    public void spendBottle() {
-        bottles.extractItem(0, 1, false);
+    /** Pays for drinks taken without the spout. */
+    public void spendBottles(int count) {
+        if (count > 0) {
+            bottles.extractItem(0, count, false);
+        }
     }
 
     public BarrelBlockEntity(BlockPos pos, BlockState state) {
@@ -188,6 +210,39 @@ public class BarrelBlockEntity extends BlockEntity {
                 : BrewingRecipe.profileDistilledTo(level, data.stage());
     }
 
+    private boolean isAgeable(ItemStack stack) {
+        return isYoungDrink(stack) || stack.is(ModItems.DISTILLATE.get()) && agedStage(stack) != null;
+    }
+
+    /** One batch ages as one: every slot must hold the same drink, since they share wood and days. */
+    private boolean fitsTheBatch(int slot, ItemStack stack) {
+        for (int other : BATCH_SLOTS) {
+            ItemStack held = input.getStackInSlot(other);
+            if (other != slot && !held.isEmpty() && !profileOf(held).equals(profileOf(stack))) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private ItemStack firstInBatch() {
+        for (int slot : BATCH_SLOTS) {
+            if (!input.getStackInSlot(slot).isEmpty()) {
+                return input.getStackInSlot(slot);
+            }
+        }
+        return ItemStack.EMPTY;
+    }
+
+    private boolean drinksWaiting() {
+        for (int slot = 0; slot < output.getSlots(); slot++) {
+            if (!output.getStackInSlot(slot).isEmpty()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     /** A bottle of something that matures here without distilling, like young wine. */
     private boolean isYoungDrink(ItemStack stack) {
         DrinkData data = stack.get(ModDataComponents.DRINK_DATA.get());
@@ -200,7 +255,7 @@ public class BarrelBlockEntity extends BlockEntity {
 
     /** How long the batch inside takes. */
     public long getRequiredTicks() {
-        return profileOf(input.getStackInSlot(0)).agingDays() * AgingRules.TICKS_PER_DAY;
+        return profileOf(firstInBatch()).agingDays() * AgingRules.TICKS_PER_DAY;
     }
 
     public IItemHandler getAutomationItems() {
@@ -216,7 +271,12 @@ public class BarrelBlockEntity extends BlockEntity {
     }
 
     public ItemStack takeFinishedBottle() {
-        return output.extractItem(0, 1, false);
+        for (int slot = 0; slot < output.getSlots(); slot++) {
+            if (!output.getStackInSlot(slot).isEmpty()) {
+                return output.extractItem(slot, 1, false);
+            }
+        }
+        return ItemStack.EMPTY;
     }
 
     public long getStartedAt() {
@@ -248,9 +308,8 @@ public class BarrelBlockEntity extends BlockEntity {
     }
 
     public boolean startAging() {
-        ItemStack distillate = input.getStackInSlot(0);
-        ItemStack wood = input.getStackInSlot(1);
-        if (startedAt >= 0 || distillate.isEmpty() || !input.isItemValid(0, distillate) || wood.isEmpty()) {
+        ItemStack wood = input.getStackInSlot(WOOD_SLOT);
+        if (startedAt >= 0 || firstInBatch().isEmpty() || !isAgeable(firstInBatch()) || wood.isEmpty()) {
             return false;
         }
         String id = BuiltInRegistries.ITEM.getKey(wood.getItem()).toString();
@@ -266,19 +325,25 @@ public class BarrelBlockEntity extends BlockEntity {
         return true;
     }
 
-    /** Takes stars off a finished drink nobody has collected. */
+    /** Takes stars off finished drinks nobody has collected, one for each aging period they wait. */
     private void overAge() {
-        ItemStack drink = output.getStackInSlot(0);
-        DrinkData data = drink.get(ModDataComponents.DRINK_DATA.get());
-        if (finishedAt < 0 || data == null) {
+        long periods = overAgedTicks / (finishedDays * AgingRules.TICKS_PER_DAY);
+        if (finishedAt < 0 || periods <= overAgedPeriods) {
             return;
         }
-        int stars = AgingRules.overAgedStars(finishedStars, overAgedTicks, finishedDays);
-        if (stars != data.stars()) {
-            ItemStack worse = drink.copy();
-            worse.set(ModDataComponents.DRINK_DATA.get(), new DrinkData(stars, data.alcohol(), data.stage()));
-            output.setStackInSlot(0, worse);
+        long lost = periods - overAgedPeriods;
+        overAgedPeriods = periods;
+        for (int slot = 0; slot < output.getSlots(); slot++) {
+            ItemStack drink = output.getStackInSlot(slot);
+            DrinkData data = drink.get(ModDataComponents.DRINK_DATA.get());
+            if (data != null) {
+                ItemStack worse = drink.copy();
+                int stars = (int) Math.max(DrinkData.MIN_STARS, data.stars() - lost);
+                worse.set(ModDataComponents.DRINK_DATA.get(), new DrinkData(stars, data.alcohol(), data.stage()));
+                output.setStackInSlot(slot, worse);
+            }
         }
+        setChanged();
     }
 
     public void serverTick() {
@@ -286,7 +351,7 @@ public class BarrelBlockEntity extends BlockEntity {
             return;
         }
         advanceClocks();
-        if (!output.getStackInSlot(0).isEmpty()) {
+        if (drinksWaiting()) {
             overAge();
             return;
         }
@@ -294,38 +359,41 @@ public class BarrelBlockEntity extends BlockEntity {
         if (startedAt < 0 && (!autoStart || !startAging())) {
             return;
         }
-        ItemStack distillate = input.getStackInSlot(0);
-        DrinkProfile profile = profileOf(distillate);
-        if (getElapsedTicks() < profile.agingDays() * AgingRules.TICKS_PER_DAY) {
+        DrinkProfile profile = profileOf(firstInBatch());
+        if (firstInBatch().isEmpty() || getElapsedTicks() < profile.agingDays() * AgingRules.TICKS_PER_DAY) {
             return;
         }
-        DrinkData data = distillate.getOrDefault(ModDataComponents.DRINK_DATA.get(),
-                new DrinkData(DrinkData.MAX_STARS, DrinkData.DEFAULT_ALCOHOL, "distillate"));
-        BarrelLogic.Result result = BarrelLogic.process(data.stars(), data.alcohol(), woodId, profile.wood(),
-                distillate.getCount() * 1000, getElapsedTicks(), profile.agingDays());
-        if (!result.ready()) {
-            return;
+        for (int index = 0; index < BATCH_SLOTS.length; index++) {
+            ItemStack batch = input.getStackInSlot(BATCH_SLOTS[index]);
+            if (!batch.isEmpty()) {
+                finish(batch, profile, index);
+                input.setStackInSlot(BATCH_SLOTS[index], ItemStack.EMPTY);
+            }
         }
-        String stage = agedStage(distillate);
-        ItemStack aged = new ItemStack(ModItems.DRINK_BOTTLE.get());
-        boolean young = distillate.is(ModItems.DRINK_BOTTLE.get());
-        aged.set(ModDataComponents.DRINK_DATA.get(), new DrinkData(result.stars(),
-                young ? profile.distilledAlcohol() : result.alcohol(),
-                stage == null ? DrinkProfile.BEER.aged() : stage));
-        output.setStackInSlot(0, aged);
         finishedAt = level.getDayTime();
         overAgedTicks = 0L;
-        finishedStars = result.stars();
+        overAgedPeriods = 0L;
         finishedDays = profile.agingDays();
-        if (young) {
-            // The bottle it came in is empty now: it waits with the others, or falls out if they are full.
-            ItemStack spare = bottles.insertItem(0, new ItemStack(Items.GLASS_BOTTLE), false);
-            Containers.dropItemStack(level, worldPosition.getX(), worldPosition.getY() + 1, worldPosition.getZ(), spare);
-        }
-        distillate.shrink(1);
-        input.setStackInSlot(0, distillate);
         startedAt = -1L;
         setChanged();
+    }
+
+    /** Turns a whole stack into finished drinks. */
+    private void finish(ItemStack batch, DrinkProfile profile, int outputSlot) {
+        DrinkData data = batch.getOrDefault(ModDataComponents.DRINK_DATA.get(),
+                new DrinkData(DrinkData.MAX_STARS, DrinkData.DEFAULT_ALCOHOL, "distillate"));
+        BarrelLogic.Result result = BarrelLogic.process(data.stars(), data.alcohol(), woodId, profile.wood(),
+                batch.getCount() * 1000, getElapsedTicks(), profile.agingDays());
+        boolean young = batch.is(ModItems.DRINK_BOTTLE.get());
+        ItemStack aged = new ItemStack(ModItems.DRINK_BOTTLE.get(), batch.getCount());
+        aged.set(ModDataComponents.DRINK_DATA.get(), new DrinkData(result.stars(),
+                young ? profile.distilledAlcohol() : result.alcohol(), profile.aged()));
+        output.setStackInSlot(outputSlot, aged);
+        if (young) {
+            // The bottles they came in are empty now: they wait with the others, or fall out if those are full.
+            ItemStack spare = bottles.insertItem(0, new ItemStack(Items.GLASS_BOTTLE, batch.getCount()), false);
+            Containers.dropItemStack(level, worldPosition.getX(), worldPosition.getY() + 1, worldPosition.getZ(), spare);
+        }
     }
 
     @Override
@@ -336,13 +404,28 @@ public class BarrelBlockEntity extends BlockEntity {
         tag.putLong("LastDayTime", lastDayTime);
         tag.putLong("AgedTicks", agedTicks);
         tag.putLong("OverAgedTicks", overAgedTicks);
-        tag.putInt("FinishedStars", finishedStars);
+        tag.putLong("OverAgedPeriods", overAgedPeriods);
         tag.putInt("FinishedDays", finishedDays);
         tag.putString("Wood", woodId);
         tag.putBoolean("AutoStart", autoStart);
         tag.put("Input", input.serializeNBT(registries));
         tag.put("Output", output.serializeNBT(registries));
         tag.put("Bottles", bottles.serializeNBT(registries));
+    }
+
+    /** Barrels saved before they grew have fewer slots; loading must not shrink them. */
+    private static void load(ItemStackHandler handler, int size, CompoundTag tag, HolderLookup.Provider registries) {
+        handler.deserializeNBT(registries, tag);
+        if (handler.getSlots() < size) {
+            ItemStack[] kept = new ItemStack[handler.getSlots()];
+            for (int slot = 0; slot < kept.length; slot++) {
+                kept[slot] = handler.getStackInSlot(slot);
+            }
+            handler.setSize(size);
+            for (int slot = 0; slot < kept.length; slot++) {
+                handler.setStackInSlot(slot, kept[slot]);
+            }
+        }
     }
 
     @Override
@@ -354,15 +437,15 @@ public class BarrelBlockEntity extends BlockEntity {
         lastDayTime = tag.contains("LastDayTime") ? tag.getLong("LastDayTime") : startedAt;
         agedTicks = tag.getLong("AgedTicks");
         overAgedTicks = tag.getLong("OverAgedTicks");
-        finishedStars = tag.contains("FinishedStars") ? tag.getInt("FinishedStars") : DrinkData.MAX_STARS;
+        overAgedPeriods = tag.getLong("OverAgedPeriods");
         finishedDays = tag.contains("FinishedDays") ? tag.getInt("FinishedDays") : 1;
         woodId = tag.getString("Wood");
         autoStart = tag.getBoolean("AutoStart");
         if (tag.contains("Input")) {
-            input.deserializeNBT(registries, tag.getCompound("Input"));
+            load(input, 5, tag.getCompound("Input"), registries);
         }
         if (tag.contains("Output")) {
-            output.deserializeNBT(registries, tag.getCompound("Output"));
+            load(output, BATCH_SLOTS.length, tag.getCompound("Output"), registries);
         }
         if (tag.contains("Bottles")) {
             bottles.deserializeNBT(registries, tag.getCompound("Bottles"));

@@ -37,6 +37,10 @@ public final class ModCapabilities {
         event.registerBlock(Capabilities.ItemHandler.BLOCK, (level, pos, state, entity, side) ->
                 level.getBlockEntity(pos.below()) instanceof DistilleryBlockEntity still ? still.getOutput() : null,
                 ModBlocks.DISTILLERY_TOP.get());
+        event.registerBlock(Capabilities.ItemHandler.BLOCK, (level, pos, state, entity, side) -> {
+            BarrelBlockEntity barrel = BarrelPartBlock.controller(level, pos, state);
+            return barrel == null ? null : barrel.getAutomationItems();
+        }, ModBlocks.BARREL_PART.get());
         event.registerBlockEntity(Capabilities.ItemHandler.BLOCK, ModBlocks.BARREL_BLOCK_ENTITY.get(),
                 (barrel, side) -> barrel.getAutomationItems());
         event.registerBlockEntity(Capabilities.ItemHandler.BLOCK, ModBlocks.SPOUT_BLOCK_ENTITY.get(),

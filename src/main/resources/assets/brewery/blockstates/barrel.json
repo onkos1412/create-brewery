@@ -1,18 +1,35 @@
 {
   "variants": {
-    "facing=north": {
-      "model": "brewery:block/barrel"
+    "facing=north,formed=false": {
+      "model": "brewery:block/barrel",
+      "y": 0
     },
-    "facing=east": {
+    "facing=north,formed=true": {
+      "model": "brewery:block/barrel_big",
+      "y": 0
+    },
+    "facing=east,formed=false": {
       "model": "brewery:block/barrel",
       "y": 90
     },
-    "facing=south": {
+    "facing=east,formed=true": {
+      "model": "brewery:block/barrel_big",
+      "y": 90
+    },
+    "facing=south,formed=false": {
       "model": "brewery:block/barrel",
       "y": 180
     },
-    "facing=west": {
+    "facing=south,formed=true": {
+      "model": "brewery:block/barrel_big",
+      "y": 180
+    },
+    "facing=west,formed=false": {
       "model": "brewery:block/barrel",
+      "y": 270
+    },
+    "facing=west,formed=true": {
+      "model": "brewery:block/barrel_big",
       "y": 270
     }
   }

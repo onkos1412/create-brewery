@@ -1,8 +1,8 @@
 {
   "parent": "minecraft:block/block",
   "textures": {
-    "particle": "brewery:block/barrel_staves",
-    "staves": "brewery:block/barrel_staves",
+    "particle": "minecraft:block/spruce_planks",
+    "staves": "minecraft:block/spruce_planks",
     "head": "create:block/andesite_casing",
     "hoop": "create:block/andesite_block",
     "brass": "create:block/brass_block"
@@ -27,10 +27,12 @@
           "texture": "#staves"
         },
         "up": {
-          "texture": "#staves"
+          "texture": "#staves",
+          "rotation": 90
         },
         "down": {
-          "texture": "#staves"
+          "texture": "#staves",
+          "rotation": 90
         }
       }
     },
@@ -46,18 +48,6 @@
         2
       ],
       "faces": {
-        "north": {
-          "texture": "#head",
-          "uv": [
-            0,
-            0,
-            16,
-            16
-          ]
-        },
-        "south": {
-          "texture": "#staves"
-        },
         "east": {
           "texture": "#hoop"
         },
@@ -69,6 +59,18 @@
         },
         "down": {
           "texture": "#hoop"
+        },
+        "north": {
+          "texture": "#head",
+          "uv": [
+            0,
+            0,
+            16,
+            16
+          ]
+        },
+        "south": {
+          "texture": "#staves"
         }
       }
     },
@@ -84,18 +86,6 @@
         16
       ],
       "faces": {
-        "north": {
-          "texture": "#staves"
-        },
-        "south": {
-          "texture": "#head",
-          "uv": [
-            0,
-            0,
-            16,
-            16
-          ]
-        },
         "east": {
           "texture": "#hoop"
         },
@@ -107,6 +97,18 @@
         },
         "down": {
           "texture": "#hoop"
+        },
+        "south": {
+          "texture": "#head",
+          "uv": [
+            0,
+            0,
+            16,
+            16
+          ]
+        },
+        "north": {
+          "texture": "#staves"
         }
       }
     },

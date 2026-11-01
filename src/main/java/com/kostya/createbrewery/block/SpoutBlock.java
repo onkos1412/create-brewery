@@ -145,6 +145,10 @@ public class SpoutBlock extends Block implements EntityBlock {
             if (neighbour instanceof BarrelBlockEntity barrel) {
                 return barrel;
             }
+            BlockState state = level.getBlockState(pos.relative(direction));
+            if (state.is(ModBlocks.BARREL_PART.get()) && BarrelPartBlock.controller(level, pos.relative(direction), state) != null) {
+                return BarrelPartBlock.controller(level, pos.relative(direction), state);
+            }
         }
         return null;
     }
