@@ -1,5 +1,6 @@
 package com.kostya.createbrewery.block;
 
+import com.kostya.createbrewery.barrel.AgingRules;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
@@ -52,7 +53,15 @@ public class BarrelMenu extends AbstractContainerMenu {
     }
 
     public int getDays() {
-        return Math.min(3, data.get(0) / 24_000);
+        return data.get(0);
+    }
+
+    public boolean isAging() {
+        return data.get(1) != 0;
+    }
+
+    public boolean isReady() {
+        return slots.get(2).hasItem();
     }
 
     @Override
@@ -85,7 +94,11 @@ public class BarrelMenu extends AbstractContainerMenu {
             if (barrel == null) {
                 return 0;
             }
-            return index == 0 ? (int) Math.min(Integer.MAX_VALUE, barrel.getElapsedTicks()) : 0;
+            // Menu data travels as a short: three days of raw ticks would overflow it.
+            return index == 0
+                    ? (int) Math.min(AgingRules.REQUIRED_TICKS / AgingRules.TICKS_PER_DAY,
+                            barrel.getElapsedTicks() / AgingRules.TICKS_PER_DAY)
+                    : barrel.getStartedAt() >= 0 ? 1 : 0;
         }
 
         @Override
@@ -94,7 +107,7 @@ public class BarrelMenu extends AbstractContainerMenu {
 
         @Override
         public int getCount() {
-            return 1;
+            return 2;
         }
     }
 }

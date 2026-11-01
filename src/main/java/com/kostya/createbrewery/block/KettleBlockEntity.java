@@ -4,6 +4,7 @@ import com.kostya.createbrewery.DrinkData;
 import com.kostya.createbrewery.recipe.BrewingRecipe;
 import com.kostya.createbrewery.recipe.ModRecipeTypes;
 import com.kostya.createbrewery.registry.ModDataComponents;
+import com.kostya.createbrewery.registry.ModFluids;
 import com.kostya.createbrewery.registry.ModItems;
 import com.simibubi.create.content.processing.burner.BlazeBurnerBlock;
 import net.minecraft.core.BlockPos;
@@ -16,6 +17,9 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.material.Fluids;
+import net.neoforged.neoforge.fluids.FluidStack;
+import net.neoforged.neoforge.fluids.capability.IFluidHandler;
 import net.neoforged.neoforge.items.ItemStackHandler;
 import org.jetbrains.annotations.Nullable;
 
@@ -35,6 +39,8 @@ public class KettleBlockEntity extends BlockEntity {
     public static final int TANK_CAPACITY = 4000;
     /** How much wort a finished brew yields. */
     public static final int WORT_PER_BREW = 1000;
+    /** Strength of a bottle of beer, half that of whiskey. */
+    public static final int BEER_ALCOHOL = 20;
 
     /** How much extra room is needed to start a brew with this recipe. */
     private static int brewRoom(KettleLogic.RecipeView recipe) {
@@ -45,6 +51,53 @@ public class KettleBlockEntity extends BlockEntity {
         @Override
         protected void onContentsChanged(int slot) {
             setChanged();
+        }
+    };
+
+    /** Pipes fill the water tank (0) and drain the wort tank (1). */
+    private final IFluidHandler fluidHandler = new IFluidHandler() {
+        @Override
+        public int getTanks() {
+            return 2;
+        }
+
+        @Override
+        public FluidStack getFluidInTank(int tank) {
+            if (tank == 0) {
+                return waterAmount > 0 ? new FluidStack(Fluids.WATER, waterAmount) : FluidStack.EMPTY;
+            }
+            return wortAmount > 0 ? new FluidStack(ModFluids.WORT.get(), wortAmount) : FluidStack.EMPTY;
+        }
+
+        @Override
+        public int getTankCapacity(int tank) {
+            return TANK_CAPACITY;
+        }
+
+        @Override
+        public boolean isFluidValid(int tank, FluidStack stack) {
+            return tank == 0 && stack.is(Fluids.WATER);
+        }
+
+        @Override
+        public int fill(FluidStack resource, FluidAction action) {
+            if (!resource.is(Fluids.WATER)) {
+                return 0;
+            }
+            return action.execute()
+                    ? fillWater(resource.getAmount())
+                    : Math.max(0, Math.min(resource.getAmount(), TANK_CAPACITY - waterAmount - wortAmount));
+        }
+
+        @Override
+        public FluidStack drain(FluidStack resource, FluidAction action) {
+            return resource.is(ModFluids.WORT.get()) ? drain(resource.getAmount(), action) : FluidStack.EMPTY;
+        }
+
+        @Override
+        public FluidStack drain(int maxDrain, FluidAction action) {
+            int drained = action.execute() ? drainWort(maxDrain) : Math.min(maxDrain, wortAmount);
+            return drained > 0 ? new FluidStack(ModFluids.WORT.get(), drained) : FluidStack.EMPTY;
         }
     };
 
@@ -59,6 +112,10 @@ public class KettleBlockEntity extends BlockEntity {
 
     public ItemStackHandler getInput() {
         return input;
+    }
+
+    public IFluidHandler getFluidHandler() {
+        return fluidHandler;
     }
 
     public int getWaterAmount() {
@@ -111,7 +168,8 @@ public class KettleBlockEntity extends BlockEntity {
         wortAmount -= WORT_PER_BREW;
         setChanged();
         ItemStack bottle = new ItemStack(ModItems.DRINK_BOTTLE.get());
-        bottle.set(ModDataComponents.DRINK_DATA.get(), new DrinkData(stars));
+        // Wort bottled straight from the kettle is beer; distilling it is what makes whiskey.
+        bottle.set(ModDataComponents.DRINK_DATA.get(), new DrinkData(stars, BEER_ALCOHOL, "beer"));
         return bottle;
     }
 

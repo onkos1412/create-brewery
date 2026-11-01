@@ -26,8 +26,9 @@ public class BarrelScreen extends AbstractContainerScreen<BarrelMenu> {
         int days = menu.getDays();
         graphics.drawString(font, Component.translatable("gui.brewery.barrel_days", days),
                 leftPos + 84, topPos + 73, 0x404040, false);
-        graphics.drawString(font, Component.translatable(
-                        days >= 3 ? "gui.brewery.barrel_ready" : "gui.brewery.barrel_waiting"),
+        String status = menu.isReady() ? "gui.brewery.barrel_ready"
+                : menu.isAging() ? "gui.brewery.barrel_waiting" : "gui.brewery.barrel_idle";
+        graphics.drawString(font, Component.translatable(status),
                 leftPos + 84, topPos + 57, 0x404040, false);
     }
 

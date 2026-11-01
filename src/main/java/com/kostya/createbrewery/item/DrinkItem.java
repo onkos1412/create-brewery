@@ -88,6 +88,7 @@ public class DrinkItem extends Item {
     public void appendHoverText(ItemStack stack, TooltipContext context, List<Component> tooltip, TooltipFlag flag) {
         DrinkData data = stack.get(ModDataComponents.DRINK_DATA.get());
         if (data != null) {
+            tooltip.add(Component.translatable("drink.brewery." + data.stage()).withStyle(ChatFormatting.GRAY));
             tooltip.add(Component.translatable("tooltip.brewery.drink_data", data.stars())
                     .withStyle(ChatFormatting.GOLD));
         }

@@ -17,6 +17,13 @@ class AgingRulesTest {
     }
 
     @Test
+    void acceptsAnyWoodButNothingElse() {
+        assertTrue(AgingRules.isAcceptedWood("minecraft:oak_log"));
+        assertTrue(AgingRules.isAcceptedWood("minecraft:spruce_planks"));
+        assertFalse(AgingRules.isAcceptedWood("minecraft:stone"));
+    }
+
+    @Test
     void requiresExactlyThreeGameDays() {
         assertFalse(AgingRules.isComplete(0));
         assertFalse(AgingRules.isComplete(AgingRules.REQUIRED_TICKS - 1));

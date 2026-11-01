@@ -108,6 +108,14 @@ public class KettleBlock extends BaseEntityBlock {
         return super.useItemOn(stack, state, level, pos, player, hand, hit);
     }
 
+    @Override
+    protected void onRemove(BlockState state, Level level, BlockPos pos, BlockState newState, boolean movedByPiston) {
+        if (!state.is(newState.getBlock()) && level.getBlockEntity(pos) instanceof KettleBlockEntity kettle) {
+            ModCapabilities.dropContents(level, pos, kettle.getInput());
+        }
+        super.onRemove(state, level, pos, newState, movedByPiston);
+    }
+
     private static MenuProvider menuProvider(KettleBlockEntity kettle) {
         return new SimpleMenuProvider(
                 (containerId, inventory, player) -> new KettleMenu(containerId, inventory, kettle),

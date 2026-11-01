@@ -61,6 +61,14 @@ public class BarrelBlock extends BaseEntityBlock {
         return InteractionResult.sidedSuccess(level.isClientSide());
     }
 
+    @Override
+    protected void onRemove(BlockState state, Level level, BlockPos pos, BlockState newState, boolean movedByPiston) {
+        if (!state.is(newState.getBlock()) && level.getBlockEntity(pos) instanceof BarrelBlockEntity barrel) {
+            ModCapabilities.dropContents(level, pos, barrel.getInput(), barrel.getOutput());
+        }
+        super.onRemove(state, level, pos, newState, movedByPiston);
+    }
+
     private static MenuProvider menuProvider(BarrelBlockEntity barrel) {
         return new SimpleMenuProvider(
                 (containerId, inventory, player) -> new BarrelMenu(containerId, inventory, barrel),

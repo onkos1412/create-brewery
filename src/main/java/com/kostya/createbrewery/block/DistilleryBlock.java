@@ -62,6 +62,14 @@ public class DistilleryBlock extends BaseEntityBlock {
         return InteractionResult.sidedSuccess(level.isClientSide());
     }
 
+    @Override
+    protected void onRemove(BlockState state, Level level, BlockPos pos, BlockState newState, boolean movedByPiston) {
+        if (!state.is(newState.getBlock()) && level.getBlockEntity(pos) instanceof DistilleryBlockEntity distillery) {
+            ModCapabilities.dropContents(level, pos, distillery.getOutput());
+        }
+        super.onRemove(state, level, pos, newState, movedByPiston);
+    }
+
     private static MenuProvider menuProvider(DistilleryBlockEntity distillery) {
         return new SimpleMenuProvider(
                 (containerId, inventory, player) -> new DistilleryMenu(containerId, inventory, distillery),

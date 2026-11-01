@@ -1,0 +1,27 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "SPS",
+    "SCS",
+    "SKS"
+  ],
+  "key": {
+    "S": {
+      "item": "create:copper_sheet"
+    },
+    "P": {
+      "item": "create:fluid_pipe"
+    },
+    "C": {
+      "item": "minecraft:cauldron"
+    },
+    "K": {
+      "item": "create:shaft"
+    }
+  },
+  "result": {
+    "id": "brewery:distillery",
+    "count": 1
+  }
+}

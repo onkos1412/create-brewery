@@ -21,7 +21,7 @@ class MachineGuiLayoutTest {
         assertTrue(menu.contains("84 + row * 18"));
         assertTrue(menu.contains("142"));
         assertTrue(screen.contains("inventoryLabelY = 74"));
-        assertTrue(screen.contains("days >= 3 ? \"gui.brewery.barrel_ready\" : \"gui.brewery.barrel_waiting\""));
+        assertTrue(screen.contains("menu.isReady() ? \"gui.brewery.barrel_ready\""));
         assertTrue(screen.contains("leftPos + 84, topPos + 57"));
         assertTrue(screen.contains("leftPos + 84, topPos + 73"));
         assertTrue(!screen.contains("gui.brewery.barrel_status"));

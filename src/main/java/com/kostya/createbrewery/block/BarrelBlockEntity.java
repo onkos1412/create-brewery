@@ -7,25 +7,43 @@ import com.kostya.createbrewery.registry.ModDataComponents;
 import com.kostya.createbrewery.registry.ModItems;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
+import net.neoforged.neoforge.items.IItemHandler;
 import net.neoforged.neoforge.items.ItemStackHandler;
 
 /** Server state for a single manually loaded whiskey barrel. */
 public class BarrelBlockEntity extends BlockEntity {
-    private static final String OAK_PLANKS = "minecraft:oak_planks";
-    private static final String OAK_LOG = "minecraft:oak_log";
+    private static final int WOOD_SLOT = 1;
+    private static final int OUTPUT_SLOT = 2;
 
     private long startedAt = -1L;
     private String woodId = "";
+    /** Set once automation feeds the barrel, so it keeps aging without the GUI button. */
+    private boolean autoStart;
     private final ItemStackHandler input = new ItemStackHandler(2) {
         @Override
         protected void onContentsChanged(int slot) {
             setChanged();
+        }
+
+        @Override
+        public boolean isItemValid(int slot, ItemStack stack) {
+            if (startedAt >= 0) {
+                return false;
+            }
+            return slot == WOOD_SLOT
+                    ? AgingRules.isAcceptedWood(BuiltInRegistries.ITEM.getKey(stack.getItem()).toString())
+                    : stack.is(ModItems.DISTILLATE.get());
+        }
+
+        /** A running batch stays sealed, or its contents could be swapped out before it finishes. */
+        @Override
+        public ItemStack extractItem(int slot, int amount, boolean simulate) {
+            return startedAt >= 0 ? ItemStack.EMPTY : super.extractItem(slot, amount, simulate);
         }
     };
     private final ItemStackHandler output = new ItemStackHandler(1) {
@@ -40,8 +58,53 @@ public class BarrelBlockEntity extends BlockEntity {
         }
     };
 
+    /** Funnels may fill distillate (0) and wood (1) and take only the finished drink (2). */
+    private final IItemHandler automationItems = new IItemHandler() {
+        @Override
+        public int getSlots() {
+            return 3;
+        }
+
+        @Override
+        public ItemStack getStackInSlot(int slot) {
+            return slot == OUTPUT_SLOT ? output.getStackInSlot(0) : input.getStackInSlot(slot);
+        }
+
+        @Override
+        public ItemStack insertItem(int slot, ItemStack stack, boolean simulate) {
+            if (slot == OUTPUT_SLOT) {
+                return stack;
+            }
+            ItemStack remainder = input.insertItem(slot, stack, simulate);
+            if (!simulate && remainder.getCount() < stack.getCount()) {
+                autoStart = true;
+                setChanged();
+            }
+            return remainder;
+        }
+
+        @Override
+        public ItemStack extractItem(int slot, int amount, boolean simulate) {
+            return slot == OUTPUT_SLOT ? output.extractItem(0, amount, simulate) : ItemStack.EMPTY;
+        }
+
+        @Override
+        public int getSlotLimit(int slot) {
+            return slot == OUTPUT_SLOT ? output.getSlotLimit(0) : input.getSlotLimit(slot);
+        }
+
+        @Override
+        public boolean isItemValid(int slot, ItemStack stack) {
+            return slot != OUTPUT_SLOT && input.isItemValid(slot, stack);
+        }
+    };
+
     public BarrelBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlocks.BARREL_BLOCK_ENTITY.get(), pos, state);
+    }
+
+    public IItemHandler getAutomationItems() {
+        return automationItems;
     }
 
     public ItemStackHandler getInput() {
@@ -77,21 +140,22 @@ public class BarrelBlockEntity extends BlockEntity {
         if (startedAt >= 0 || distillate.isEmpty() || !distillate.is(ModItems.DISTILLATE.get()) || wood.isEmpty()) {
             return false;
         }
-        woodId = net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(wood.getItem()).toString();
-        if (!AgingRules.isValidWood(woodId) && !woodId.endsWith("_log")) {
-            // Non-oak wood is retained as a valid-but-lower-quality aging choice.
-            if (!woodId.endsWith("_planks")) {
-                return false;
-            }
+        String id = BuiltInRegistries.ITEM.getKey(wood.getItem()).toString();
+        // Non-oak wood is retained as a valid-but-lower-quality aging choice.
+        if (!AgingRules.isAcceptedWood(id)) {
+            return false;
         }
+        woodId = id;
         startedAt = level == null ? 0L : level.getGameTime();
-        input.setStackInSlot(1, wood.copyWithCount(1));
         setChanged();
         return true;
     }
 
     public void serverTick() {
-        if (level == null || level.isClientSide() || startedAt < 0 || !output.getStackInSlot(0).isEmpty()) {
+        if (level == null || level.isClientSide() || !output.getStackInSlot(0).isEmpty()) {
+            return;
+        }
+        if (startedAt < 0 && (!autoStart || !startAging())) {
             return;
         }
         if (!AgingRules.isComplete(getElapsedTicks())) {
@@ -120,6 +184,7 @@ public class BarrelBlockEntity extends BlockEntity {
         super.saveAdditional(tag, registries);
         tag.putLong("StartedAt", startedAt);
         tag.putString("Wood", woodId);
+        tag.putBoolean("AutoStart", autoStart);
         tag.put("Input", input.serializeNBT(registries));
         tag.put("Output", output.serializeNBT(registries));
     }
@@ -129,6 +194,7 @@ public class BarrelBlockEntity extends BlockEntity {
         super.loadAdditional(tag, registries);
         startedAt = tag.contains("StartedAt") ? tag.getLong("StartedAt") : -1L;
         woodId = tag.getString("Wood");
+        autoStart = tag.getBoolean("AutoStart");
         if (tag.contains("Input")) {
             input.deserializeNBT(registries, tag.getCompound("Input"));
         }

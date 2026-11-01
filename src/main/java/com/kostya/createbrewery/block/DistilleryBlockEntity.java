@@ -3,6 +3,7 @@ package com.kostya.createbrewery.block;
 import com.kostya.createbrewery.DrinkData;
 import com.kostya.createbrewery.distillery.DistilleryLogic;
 import com.kostya.createbrewery.registry.ModDataComponents;
+import com.kostya.createbrewery.registry.ModFluids;
 import com.kostya.createbrewery.registry.ModItems;
 import com.simibubi.create.content.kinetics.base.KineticBlockEntity;
 import net.minecraft.core.BlockPos;
@@ -13,6 +14,8 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
+import net.neoforged.neoforge.fluids.FluidStack;
+import net.neoforged.neoforge.fluids.capability.IFluidHandler;
 import net.neoforged.neoforge.items.ItemStackHandler;
 
 /** Server state for the first, manually loaded whiskey distillery. */
@@ -37,8 +40,58 @@ public class DistilleryBlockEntity extends BlockEntity {
         }
     };
 
+    /** Pipes can only fill the wort tank; the batch leaves as a distillate item. */
+    private final IFluidHandler fluidHandler = new IFluidHandler() {
+        @Override
+        public int getTanks() {
+            return 1;
+        }
+
+        @Override
+        public FluidStack getFluidInTank(int tank) {
+            return wortAmount > 0 ? new FluidStack(ModFluids.WORT.get(), wortAmount) : FluidStack.EMPTY;
+        }
+
+        @Override
+        public int getTankCapacity(int tank) {
+            return INPUT_WORT;
+        }
+
+        @Override
+        public boolean isFluidValid(int tank, FluidStack stack) {
+            return stack.is(ModFluids.WORT.get());
+        }
+
+        @Override
+        public int fill(FluidStack resource, FluidAction action) {
+            if (!isFluidValid(0, resource)) {
+                return 0;
+            }
+            int accepted = Math.min(resource.getAmount(), INPUT_WORT - wortAmount);
+            if (accepted > 0 && action.execute()) {
+                wortAmount += accepted;
+                setChanged();
+            }
+            return accepted;
+        }
+
+        @Override
+        public FluidStack drain(FluidStack resource, FluidAction action) {
+            return FluidStack.EMPTY;
+        }
+
+        @Override
+        public FluidStack drain(int maxDrain, FluidAction action) {
+            return FluidStack.EMPTY;
+        }
+    };
+
     public DistilleryBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlocks.DISTILLERY_BLOCK_ENTITY.get(), pos, state);
+    }
+
+    public IFluidHandler getFluidHandler() {
+        return fluidHandler;
     }
 
     public ItemStackHandler getOutput() {
