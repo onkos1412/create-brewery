@@ -15,6 +15,7 @@ import com.kostya.createbrewery.registry.ModFluids;
 import com.kostya.createbrewery.registry.ModItems;
 import com.simibubi.create.AllBlocks;
 import com.simibubi.create.content.kinetics.base.DirectionalKineticBlock;
+import com.simibubi.create.content.kinetics.base.KineticBlockEntity;
 import com.simibubi.create.content.kinetics.base.RotatedPillarKineticBlock;
 import com.simibubi.create.content.logistics.funnel.FunnelBlock;
 import com.simibubi.create.foundation.blockEntity.behaviour.BlockEntityBehaviour;
@@ -348,6 +349,75 @@ public class BreweryGameTests {
                     DrinkData wine = data(barrel.getOutput().getStackInSlot(0));
                     helper.assertTrue("wine".equals(wine.stage()) && wine.stars() == 5, "made " + wine);
                     helper.assertTrue(barrel.getBottles().getStackInSlot(0).is(Items.GLASS_BOTTLE), "bottle not back");
+                })
+                .thenSucceed();
+    }
+
+    /** An idle shaft and a running pump touching the still must not hide the motor driving it. */
+    @GameTest(template = "empty", timeoutTicks = 100)
+    public static void stillReadsTheMotorNotItsNeighbours(GameTestHelper helper) {
+        helper.setBlock(DISTILLERY, ModBlocks.DISTILLERY.get());
+        DistilleryBlockEntity distillery = helper.getBlockEntity(DISTILLERY);
+        helper.setBlock(DISTILLERY.above(), AllBlocks.SHAFT.get().defaultBlockState()
+                .setValue(RotatedPillarKineticBlock.AXIS, Direction.Axis.Y));
+
+        BlockPos pump = DISTILLERY.west();
+        helper.setBlock(pump, AllBlocks.MECHANICAL_PUMP.get().defaultBlockState()
+                .setValue(DirectionalKineticBlock.FACING, Direction.EAST));
+        helper.setBlock(pump.north(), AllBlocks.COGWHEEL.get().defaultBlockState()
+                .setValue(RotatedPillarKineticBlock.AXIS, Direction.Axis.X));
+        helper.setBlock(pump.north().west(), AllBlocks.CREATIVE_MOTOR.get().defaultBlockState()
+                .setValue(DirectionalKineticBlock.FACING, Direction.EAST));
+
+        BlockPos motor = DISTILLERY.east();
+        helper.setBlock(motor, AllBlocks.CREATIVE_MOTOR.get().defaultBlockState()
+                .setValue(DirectionalKineticBlock.FACING, Direction.WEST));
+        BlockEntityBehaviour.get(helper.getBlockEntity(motor), ScrollValueBehaviour.TYPE).setValue(48);
+
+        helper.succeedWhen(() -> {
+            helper.assertTrue(((KineticBlockEntity) helper.getBlockEntity(pump)).getSpeed() != 0f, "pump idle");
+            distillery.serverTick();
+            helper.assertTrue(distillery.getRpm() == 48f, "still reads " + distillery.getRpm());
+        });
+    }
+
+    /** The whole whiskey line with no player: pump, still, funnels, barrel, spout. */
+    @GameTest(template = "empty", timeoutTicks = 1200, batch = "aging_whiskey_line")
+    public static void whiskeyLineRunsWithoutAPlayer(GameTestHelper helper) {
+        placeHeatedKettle(helper);
+        helper.setBlock(KETTLE.east(), AllBlocks.MECHANICAL_PUMP.get().defaultBlockState()
+                .setValue(DirectionalKineticBlock.FACING, Direction.EAST));
+        helper.setBlock(KETTLE.east().above(), AllBlocks.COGWHEEL.get().defaultBlockState()
+                .setValue(RotatedPillarKineticBlock.AXIS, Direction.Axis.X));
+        helper.setBlock(KETTLE.above(), AllBlocks.CREATIVE_MOTOR.get().defaultBlockState()
+                .setValue(DirectionalKineticBlock.FACING, Direction.EAST));
+
+        BlockPos still = new BlockPos(3, 2, 1);
+        helper.setBlock(still.below(), Blocks.CAMPFIRE);
+        helper.setBlock(still, ModBlocks.DISTILLERY.get());
+        helper.setBlock(still.above(), AllBlocks.CREATIVE_MOTOR.get());
+        BlockEntityBehaviour.get(helper.getBlockEntity(still.above()), ScrollValueBehaviour.TYPE).setValue(32);
+
+        // The still's funnel drops the distillate onto the barrel's funnel.
+        helper.setBlock(still.east(), AllBlocks.ANDESITE_FUNNEL.get().defaultBlockState()
+                .setValue(FunnelBlock.FACING, Direction.EAST).setValue(FunnelBlock.POWERED, false)
+                .setValue(FunnelBlock.EXTRACTING, true));
+        BlockPos barrelPos = still.east().below(2);
+        helper.setBlock(barrelPos, ModBlocks.BARREL.get());
+        helper.setBlock(barrelPos.above(), AllBlocks.ANDESITE_FUNNEL.get().defaultBlockState()
+                .setValue(FunnelBlock.FACING, Direction.UP).setValue(FunnelBlock.POWERED, false));
+        BarrelBlockEntity barrel = helper.getBlockEntity(barrelPos);
+        items(helper, barrelPos).insertItem(1, new ItemStack(Items.OAK_LOG), false);
+
+        BlockPos spout = barrelPos.east();
+        helper.setBlock(spout, ModBlocks.SPOUT.get());
+        items(helper, spout).insertItem(0, new ItemStack(Items.GLASS_BOTTLE), false);
+        helper.startSequence()
+                .thenWaitUntil(() -> helper.assertTrue(barrel.getStartedAt() >= 0, "distillate never reached the barrel"))
+                .thenExecute(() -> helper.getLevel().setDayTime(helper.getLevel().getDayTime() + barrel.getRequiredTicks()))
+                .thenWaitUntil(() -> {
+                    DrinkData whiskey = data(items(helper, spout).getStackInSlot(1));
+                    helper.assertTrue("aged_whiskey".equals(whiskey.stage()) && whiskey.stars() == 5, "made " + whiskey);
                 })
                 .thenSucceed();
     }
@@ -716,7 +786,7 @@ public class BreweryGameTests {
         helper.succeed();
     }
 
-    private static KettleBlockEntity placeHeatedKettle(GameTestHelper helper) {
+private static KettleBlockEntity placeHeatedKettle(GameTestHelper helper) {
         return placeKettle(helper, Items.WHEAT);
     }
 

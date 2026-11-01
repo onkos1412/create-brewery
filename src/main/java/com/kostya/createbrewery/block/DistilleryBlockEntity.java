@@ -7,6 +7,8 @@ import com.kostya.createbrewery.recipe.DrinkProfile;
 import com.kostya.createbrewery.registry.ModDataComponents;
 import com.kostya.createbrewery.registry.ModFluids;
 import com.kostya.createbrewery.registry.ModItems;
+import com.simibubi.create.AllBlocks;
+import com.simibubi.create.content.kinetics.base.IRotate;
 import com.simibubi.create.content.kinetics.base.KineticBlockEntity;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -222,14 +224,28 @@ public class DistilleryBlockEntity extends BlockEntity {
         setChanged();
     }
 
+    /**
+     * The speed driving the cube. A neighbour whose shaft points at the cube wins over one that
+     * merely touches it; idle blocks are ignored, and so are pumps feeding the cube wort.
+     */
     private static float readRpm(Level level, BlockPos pos) {
+        float touching = 0f;
         for (Direction direction : Direction.values()) {
-            BlockEntity neighbour = level.getBlockEntity(pos.relative(direction));
-            if (neighbour instanceof KineticBlockEntity kinetic) {
+            BlockPos neighbourPos = pos.relative(direction);
+            BlockState state = level.getBlockState(neighbourPos);
+            if (!(level.getBlockEntity(neighbourPos) instanceof KineticBlockEntity kinetic)
+                    || kinetic.getSpeed() == 0f || AllBlocks.MECHANICAL_PUMP.has(state)) {
+                continue;
+            }
+            if (state.getBlock() instanceof IRotate rotate
+                    && rotate.hasShaftTowards(level, neighbourPos, state, direction.getOpposite())) {
                 return Math.abs(kinetic.getSpeed());
             }
+            if (touching == 0f) {
+                touching = Math.abs(kinetic.getSpeed());
+            }
         }
-        return 0f;
+        return touching;
     }
 
     @Override
