@@ -237,7 +237,7 @@ public class KettleBlockEntity extends BlockEntity {
 
         waterAmount -= view.wortAmount();
         wortAmount += result.wortAmount();
-        consume(result.consumed().size());
+        result.consumed().forEach(this::consumeOne);
         brewProgressTicks = 0;
         setBrewingState(false);
         setChanged();
@@ -250,20 +250,18 @@ public class KettleBlockEntity extends BlockEntity {
         }
     }
 
-    private void consume(int count) {
-        int remaining = count;
-        for (int slot = 0; slot < input.getSlots() && remaining > 0; slot++) {
+    private void consumeOne(String itemId) {
+        for (int slot = 0; slot < input.getSlots(); slot++) {
             ItemStack stack = input.getStackInSlot(slot);
-            if (stack.isEmpty()) {
+            if (stack.isEmpty() || !BuiltInRegistries.ITEM.getKey(stack.getItem()).toString().equals(itemId)) {
                 continue;
             }
-            int taken = Math.min(remaining, stack.getCount());
             // Shrink a copy: ItemStackHandler hands out the live stack, so mutating it in
             // place and then calling setStackInSlot would leave one object in two slots.
             ItemStack leftover = stack.copy();
-            leftover.shrink(taken);
-            remaining -= taken;
+            leftover.shrink(1);
             input.setStackInSlot(slot, leftover);
+            return;
         }
     }
 

@@ -1,0 +1,6 @@
+{
+  "parent": "brewery:block/kettle",
+  "textures": {
+    "liquid": "brewery:block/kettle_boil"
+  }
+}

@@ -47,14 +47,16 @@ public final class BrewingRules {
      *
      * <p>The heat must be at least {@code idealHeatLevel}: a hotter source still brews,
      * matching Create's basin behaviour where superheated satisfies a heated recipe.
-     * The ingredient multiset must match exactly.
+     * The kettle must hold at least one batch of the ingredients; a surplus waits for the
+     * next batch, so funnels can keep it stocked. Any item the recipe does not use blocks
+     * it, so a simpler recipe never fires on the contents of a richer one.
      */
     public static boolean matches(List<String> requiredInputs, List<String> givenInputs,
                                   int idealHeatLevel, int availableHeat) {
         if (availableHeat < idealHeatLevel) {
             return false;
         }
-        if (givenInputs.size() != requiredInputs.size()) {
+        if (!requiredInputs.containsAll(givenInputs)) {
             return false;
         }
         List<String> given = new ArrayList<>(givenInputs);
@@ -63,6 +65,6 @@ public final class BrewingRules {
                 return false;
             }
         }
-        return given.isEmpty();
+        return true;
     }
 }

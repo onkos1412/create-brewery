@@ -57,6 +57,10 @@ public class DistilleryMenu extends AbstractContainerMenu {
         return data.get(2);
     }
 
+    public int getWort() {
+        return data.get(3);
+    }
+
     @Override
     public boolean stillValid(Player player) {
         return distillery == null || stillValid(
@@ -87,17 +91,19 @@ public class DistilleryMenu extends AbstractContainerMenu {
     }
 
     private final class Data implements ContainerData {
-        private final int[] synced = new int[3];
+        private final int[] synced = new int[4];
 
         @Override
         public int get(int index) {
-            if (distillery == null) {
+            // The client's block entity never learns these values; only the synced copy is right there.
+            if (distillery == null || distillery.getLevel() == null || distillery.getLevel().isClientSide()) {
                 return synced[index];
             }
             return switch (index) {
                 case 0 -> distillery.getProgressTicks();
                 case 1 -> distillery.getHeatLevel();
                 case 2 -> Math.round(distillery.getRpm());
+                case 3 -> distillery.getWortAmount();
                 default -> 0;
             };
         }

@@ -135,13 +135,16 @@ public class DistilleryBlockEntity extends BlockEntity {
     }
 
     public void serverTick() {
-        if (level == null || level.isClientSide() || wortAmount < INPUT_WORT
-                || !output.getStackInSlot(0).isEmpty()) {
+        if (level == null || level.isClientSide()) {
             return;
         }
 
+        // Read before the early return, so the GUI shows live values while the cube is idle.
         heatLevel = KettleBlockEntity.readHeatLevel(level, worldPosition.below());
         rpm = readRpm(level, worldPosition);
+        if (wortAmount < INPUT_WORT || !output.getStackInSlot(0).isEmpty()) {
+            return;
+        }
         if (!com.kostya.createbrewery.distillery.DistillingRules.canDistill(
                 heatLevel, DistilleryLogic.IDEAL_HEAT, rpm)) {
             return;

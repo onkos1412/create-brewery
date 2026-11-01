@@ -8,21 +8,23 @@ import net.minecraft.util.Mth;
 import net.minecraft.world.entity.player.Inventory;
 
 /**
- * Client screen for the kettle: ingredient slots, the output slot and a small progress
- * bar showing how far the current brew has come.
+ * Client screen for the kettle: ingredient slots, a brew progress bar, the heat source
+ * and the water and wort tanks.
  */
 public class KettleScreen extends AbstractContainerScreen<KettleMenu> {
 
     private static final ResourceLocation TEXTURE =
             ResourceLocation.fromNamespaceAndPath("brewery", "textures/gui/kettle.png");
 
-    /** Progress bar frame inside the GUI texture. */
-    private static final int BAR_X = 152;
-    private static final int BAR_Y = 20;
-    private static final int BAR_WIDTH = 8;
-    private static final int BAR_HEIGHT = 28;
-    /** Drawable interior of the frame, one pixel in from each side. */
-    private static final int BAR_INNER_HEIGHT = BAR_HEIGHT - 2;
+    private static final int BAR_X = 26;
+    private static final int BAR_Y = 44;
+    private static final int BAR_WIDTH = 72;
+    private static final int BAR_HEIGHT = 6;
+
+    private static final int TANK_Y = 18;
+    private static final int TANK_HEIGHT = 46;
+    private static final int WATER_X = 130;
+    private static final int WORT_X = 150;
 
     /** Brew time of the reference recipe; the bar fills against this. */
     private static final int FULL_BREW_TICKS = 200;
@@ -35,13 +37,13 @@ public class KettleScreen extends AbstractContainerScreen<KettleMenu> {
         super(menu, inventory, title);
         this.imageWidth = KettleMenu.Layout.WIDTH;
         this.imageHeight = KettleMenu.Layout.HEIGHT;
-        this.inventoryLabelY = this.imageHeight - 94;
+        this.inventoryLabelY = this.imageHeight - 92;
     }
 
     @Override
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         super.render(graphics, mouseX, mouseY, partialTick);
-        renderProgressTooltip(graphics, mouseX, mouseY);
+        renderGaugeTooltip(graphics, mouseX, mouseY);
         renderTooltip(graphics, mouseX, mouseY);
     }
 
@@ -49,39 +51,43 @@ public class KettleScreen extends AbstractContainerScreen<KettleMenu> {
     protected void renderBg(GuiGraphics graphics, float partialTick, int mouseX, int mouseY) {
         graphics.blit(TEXTURE, leftPos, topPos, 0, 0, imageWidth, imageHeight);
 
-        int innerX = leftPos + BAR_X + 1;
-        int innerY = topPos + BAR_Y + 1;
-        int innerRight = innerX + BAR_WIDTH - 2;
-
-        // Repaint the track so it stays readable whatever the frame art looks like.
-        graphics.fill(innerX, innerY, innerRight, innerY + BAR_INNER_HEIGHT, TRACK_COLOR);
-
-        int progress = Mth.clamp(menu.getBrewProgress(), 0, FULL_BREW_TICKS);
-        int fillHeight = progress * BAR_INNER_HEIGHT / FULL_BREW_TICKS;
-        if (fillHeight > 0) {
-            int fillTop = innerY + BAR_INNER_HEIGHT - fillHeight;
-            graphics.fill(innerX, fillTop, innerRight, innerY + BAR_INNER_HEIGHT, FILL_COLOR);
-            // One bright row on top sells the fill as a liquid column.
-            graphics.fill(innerX, fillTop, innerRight, fillTop + 1, FILL_HIGHLIGHT);
+        int barX = leftPos + BAR_X;
+        int barY = topPos + BAR_Y;
+        graphics.fill(barX, barY, barX + BAR_WIDTH, barY + BAR_HEIGHT, TRACK_COLOR);
+        int fill = Mth.clamp(menu.getBrewProgress(), 0, FULL_BREW_TICKS) * (BAR_WIDTH - 2) / FULL_BREW_TICKS;
+        if (fill > 0) {
+            graphics.fill(barX + 1, barY + 1, barX + 1 + fill, barY + BAR_HEIGHT - 1, FILL_COLOR);
+            graphics.fill(barX + 1, barY + 1, barX + 1 + fill, barY + 2, FILL_HIGHLIGHT);
         }
+
+        boolean heated = menu.getHeat() > KettleLogic.HEAT_NONE;
+        MachineWidgets.flame(graphics, leftPos + 108, topPos + 22, heated);
+        MachineWidgets.tank(graphics, leftPos + WATER_X, topPos + TANK_Y, TANK_HEIGHT,
+                menu.getWaterAmount(), KettleBlockEntity.TANK_CAPACITY, MachineWidgets.WATER_COLORS);
+        MachineWidgets.tank(graphics, leftPos + WORT_X, topPos + TANK_Y, TANK_HEIGHT,
+                menu.getWortAmount(), KettleBlockEntity.TANK_CAPACITY, MachineWidgets.WORT_COLORS);
+
+        String status = !heated ? "gui.brewery.kettle_status_no_heat"
+                : menu.getBrewProgress() > 0 ? "gui.brewery.kettle_status_brewing"
+                : "gui.brewery.kettle_status_idle";
+        graphics.drawString(font, Component.translatable(status), leftPos + BAR_X, topPos + 55, 0x404040, false);
     }
 
-    /** Hovering the bar shows the exact progress and what is inside the kettle. */
-    private void renderProgressTooltip(GuiGraphics graphics, int mouseX, int mouseY) {
-        int barLeft = leftPos + BAR_X - 1;
-        int barTop = topPos + BAR_Y - 1;
-        int barRight = barLeft + BAR_WIDTH + 2;
-        int barBottom = barTop + BAR_HEIGHT + 2;
-        if (mouseX < barLeft || mouseX >= barRight || mouseY < barTop || mouseY >= barBottom) {
-            return;
+    /** Hovering a gauge shows its exact value. */
+    private void renderGaugeTooltip(GuiGraphics graphics, int mouseX, int mouseY) {
+        Component line = null;
+        if (MachineWidgets.inside(mouseX, mouseY, leftPos + BAR_X, topPos + BAR_Y, BAR_WIDTH, BAR_HEIGHT)) {
+            int percent = Mth.clamp(menu.getBrewProgress(), 0, FULL_BREW_TICKS) * 100 / FULL_BREW_TICKS;
+            line = Component.translatable("tooltip.brewery.kettle_progress", percent);
+        } else if (MachineWidgets.inside(mouseX, mouseY, leftPos + WATER_X, topPos + TANK_Y,
+                MachineWidgets.TANK_WIDTH, TANK_HEIGHT)) {
+            line = Component.translatable("tooltip.brewery.kettle_water", menu.getWaterAmount());
+        } else if (MachineWidgets.inside(mouseX, mouseY, leftPos + WORT_X, topPos + TANK_Y,
+                MachineWidgets.TANK_WIDTH, TANK_HEIGHT)) {
+            line = Component.translatable("tooltip.brewery.kettle_wort", menu.getWortAmount());
         }
-
-        int percent = Mth.clamp(menu.getBrewProgress(), 0, FULL_BREW_TICKS) * 100 / FULL_BREW_TICKS;
-        graphics.renderComponentTooltip(font,
-                java.util.List.of(
-                        Component.translatable("tooltip.brewery.kettle_progress", percent),
-                        Component.translatable("tooltip.brewery.kettle_water", menu.getWaterAmount()),
-                        Component.translatable("tooltip.brewery.kettle_wort", menu.getWortAmount())),
-                mouseX, mouseY);
+        if (line != null) {
+            graphics.renderTooltip(font, line, mouseX, mouseY);
+        }
     }
 }

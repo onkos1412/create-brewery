@@ -1,6 +1,14 @@
 {
   "parent": "minecraft:item/generated",
   "textures": {
-    "layer0": "brewery:item/drink_bottle"
-  }
+    "layer0": "brewery:item/beer_bottle"
+  },
+  "overrides": [
+    {
+      "predicate": {
+        "brewery:whiskey": 1
+      },
+      "model": "brewery:item/whiskey_bottle"
+    }
+  ]
 }

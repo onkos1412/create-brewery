@@ -31,7 +31,8 @@ public final class ModBlocks {
             BlockBehaviour.Properties.of()
                     .mapColor(MapColor.METAL)
                     .strength(3.0f, 6.0f)
-                    .requiresCorrectToolForDrops());
+                    .requiresCorrectToolForDrops()
+                    .noOcclusion());
 
     public static final DeferredHolder<Item, BlockItem> KETTLE_ITEM = BLOCK_ITEMS.register("kettle",
             () -> new BlockItem(KETTLE.get(), new Item.Properties()));
@@ -59,7 +60,7 @@ public final class ModBlocks {
 
     public static final DeferredBlock<DistilleryBlock> DISTILLERY = BLOCKS.registerBlock("distillery",
             DistilleryBlock::new,
-            BlockBehaviour.Properties.of().mapColor(MapColor.METAL).strength(3.0f, 6.0f));
+            BlockBehaviour.Properties.of().mapColor(MapColor.METAL).strength(3.0f, 6.0f).noOcclusion());
 
     public static final DeferredHolder<Item, BlockItem> DISTILLERY_ITEM = BLOCK_ITEMS.register("distillery",
             () -> new BlockItem(DISTILLERY.get(), new Item.Properties()));
@@ -70,7 +71,7 @@ public final class ModBlocks {
 
     public static final DeferredBlock<BarrelBlock> BARREL = BLOCKS.registerBlock("barrel",
             BarrelBlock::new,
-            BlockBehaviour.Properties.of().mapColor(MapColor.WOOD).strength(2.0f, 3.0f));
+            BlockBehaviour.Properties.of().mapColor(MapColor.WOOD).strength(2.0f, 3.0f).noOcclusion());
 
     public static final DeferredHolder<Item, BlockItem> BARREL_ITEM = BLOCK_ITEMS.register("barrel",
             () -> new BlockItem(BARREL.get(), new Item.Properties()));

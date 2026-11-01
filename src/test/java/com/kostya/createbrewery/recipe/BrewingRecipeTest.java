@@ -57,6 +57,18 @@ class BrewingRecipeTest {
     }
 
     @Test
+    void surplusOfRecipeIngredientsStillMatches() {
+        assertTrue(BrewingRules.matches(BEER_INGREDIENTS,
+                List.of("minecraft:wheat", "minecraft:wheat", "minecraft:wheat"), BEER_HEAT, BrewingRules.HEAT_HEATED));
+    }
+
+    @Test
+    void itemTheRecipeDoesNotUseBlocksIt() {
+        assertFalse(BrewingRules.matches(BEER_INGREDIENTS,
+                List.of("minecraft:wheat", "minecraft:wheat", "minecraft:carrot"), BEER_HEAT, BrewingRules.HEAT_HEATED));
+    }
+
+    @Test
     void matchesIgnoresIngredientOrder() {
         List<String> reversed = List.of("minecraft:wheat", "minecraft:wheat");
         assertTrue(BrewingRules.matches(reversed, List.of("minecraft:wheat", "minecraft:wheat"),

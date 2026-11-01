@@ -68,7 +68,7 @@ public final class KettleLogic {
         if (progressTicks < recipe.brewTimeTicks()) {
             return Result.nothing();
         }
-        return new Result(true, recipe.wortFluid(), recipe.wortAmount(), List.copyOf(itemIds));
+        return new Result(true, recipe.wortFluid(), recipe.wortAmount(), List.copyOf(recipe.inputs()));
     }
 
     /**

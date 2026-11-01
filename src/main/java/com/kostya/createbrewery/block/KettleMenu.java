@@ -30,7 +30,8 @@ public class KettleMenu extends AbstractContainerMenu {
     public static final int DATA_WATER = 0;
     public static final int DATA_WORT = 1;
     public static final int DATA_PROGRESS = 2;
-    public static final int DATA_COUNT = 3;
+    public static final int DATA_HEAT = 3;
+    public static final int DATA_COUNT = 4;
 
     private static final int SLOT_SIZE = 18;
 
@@ -72,6 +73,7 @@ public class KettleMenu extends AbstractContainerMenu {
         bound.water = kettle::getWaterAmount;
         bound.wort = kettle::getWortAmount;
         bound.progress = kettle::getBrewProgressTicks;
+        bound.heat = kettle::getHeatLevel;
     }
 
     private static KettleBlockEntity findKettle(Inventory inventory, net.minecraft.core.BlockPos pos) {
@@ -103,6 +105,11 @@ public class KettleMenu extends AbstractContainerMenu {
     /** Current brew progress in ticks. */
     public int getBrewProgress() {
         return data.get(DATA_PROGRESS);
+    }
+
+    /** Heat level of the source under the kettle. */
+    public int getHeat() {
+        return data.get(DATA_HEAT);
     }
 
     /** Whether the kettle holds enough wort for one bottle. */
@@ -165,6 +172,7 @@ public class KettleMenu extends AbstractContainerMenu {
         private IntSupplier water = () -> 0;
         private IntSupplier wort = () -> 0;
         private IntSupplier progress = () -> 0;
+        private IntSupplier heat = () -> 0;
         private final int[] synced = new int[DATA_COUNT];
 
         @Override
@@ -173,6 +181,7 @@ public class KettleMenu extends AbstractContainerMenu {
                 case DATA_WATER -> water.getAsInt();
                 case DATA_WORT -> wort.getAsInt();
                 case DATA_PROGRESS -> progress.getAsInt();
+                case DATA_HEAT -> heat.getAsInt();
                 default -> 0;
             };
         }
@@ -186,6 +195,7 @@ public class KettleMenu extends AbstractContainerMenu {
                 case DATA_WATER -> water = () -> synced[DATA_WATER];
                 case DATA_WORT -> wort = () -> synced[DATA_WORT];
                 case DATA_PROGRESS -> progress = () -> synced[DATA_PROGRESS];
+                case DATA_HEAT -> heat = () -> synced[DATA_HEAT];
                 default -> {
                 }
             }

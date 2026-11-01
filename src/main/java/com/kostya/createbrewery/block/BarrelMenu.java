@@ -56,6 +56,10 @@ public class BarrelMenu extends AbstractContainerMenu {
         return data.get(0);
     }
 
+    public int getPercent() {
+        return data.get(2);
+    }
+
     public boolean isAging() {
         return data.get(1) != 0;
     }
@@ -89,25 +93,32 @@ public class BarrelMenu extends AbstractContainerMenu {
     }
 
     private final class Data implements ContainerData {
+        private final int[] synced = new int[3];
+
         @Override
         public int get(int index) {
-            if (barrel == null) {
-                return 0;
+            // The client's block entity never learns these values; only the synced copy is right there.
+            if (barrel == null || barrel.getLevel() == null || barrel.getLevel().isClientSide()) {
+                return synced[index];
             }
             // Menu data travels as a short: three days of raw ticks would overflow it.
-            return index == 0
-                    ? (int) Math.min(AgingRules.REQUIRED_TICKS / AgingRules.TICKS_PER_DAY,
-                            barrel.getElapsedTicks() / AgingRules.TICKS_PER_DAY)
-                    : barrel.getStartedAt() >= 0 ? 1 : 0;
+            long elapsed = Math.min(AgingRules.REQUIRED_TICKS, barrel.getElapsedTicks());
+            return switch (index) {
+                case 0 -> (int) (elapsed / AgingRules.TICKS_PER_DAY);
+                case 1 -> barrel.getStartedAt() >= 0 ? 1 : 0;
+                case 2 -> (int) (elapsed * 100 / AgingRules.REQUIRED_TICKS);
+                default -> 0;
+            };
         }
 
         @Override
         public void set(int index, int value) {
+            synced[index] = value;
         }
 
         @Override
         public int getCount() {
-            return 2;
+            return synced.length;
         }
     }
 }

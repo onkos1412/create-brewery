@@ -1,6 +1,6 @@
 {
   "parent": "minecraft:item/generated",
   "textures": {
-    "layer0": "brewery:item/drink_bottle"
+    "layer0": "brewery:item/distillate"
   }
 }

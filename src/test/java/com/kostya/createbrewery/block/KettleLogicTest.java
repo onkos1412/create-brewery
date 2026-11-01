@@ -63,6 +63,15 @@ class KettleLogicTest {
     }
 
     @Test
+    void brewConsumesOneBatchAndLeavesTheSurplus() {
+        KettleLogic.Result result = KettleLogic.tryBrew(BEER, KettleLogic.HEAT_HEATED,
+                List.of("minecraft:wheat", "minecraft:wheat", "minecraft:wheat", "minecraft:wheat"), 1000, 200);
+
+        assertTrue(result.brewed());
+        assertEquals(List.of("minecraft:wheat", "minecraft:wheat"), result.consumed());
+    }
+
+    @Test
     void tooEarlyDoesNotBrew() {
         KettleLogic.Result result = KettleLogic.tryBrew(BEER, KettleLogic.HEAT_HEATED,
                 List.of("minecraft:wheat", "minecraft:wheat"), 1000, 199);

@@ -1,5 +1,19 @@
 {
   "variants": {
-    "": { "model": "brewery:block/distillery" }
+    "facing=north": {
+      "model": "brewery:block/distillery"
+    },
+    "facing=east": {
+      "model": "brewery:block/distillery",
+      "y": 90
+    },
+    "facing=south": {
+      "model": "brewery:block/distillery",
+      "y": 180
+    },
+    "facing=west": {
+      "model": "brewery:block/distillery",
+      "y": 270
+    }
   }
 }

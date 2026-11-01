@@ -1,6 +1,10 @@
 {
   "variants": {
-    "brewing=false": { "model": "brewery:block/kettle" },
-    "brewing=true": { "model": "brewery:block/kettle" }
+    "brewing=false": {
+      "model": "brewery:block/kettle"
+    },
+    "brewing=true": {
+      "model": "brewery:block/kettle_brewing"
+    }
   }
 }

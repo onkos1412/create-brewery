@@ -158,6 +158,19 @@ public class BreweryGameTests {
                 .thenSucceed();
     }
 
+    /** A funnel fills the slot well past one batch; only water should limit the brewing. */
+    @GameTest(template = "empty", timeoutTicks = 400)
+    public static void surplusWheatBrewsOneBatchAtATime(GameTestHelper helper) {
+        KettleBlockEntity kettle = placeHeatedKettle(helper);
+        items(helper, KETTLE).insertItem(0, new ItemStack(Items.WHEAT, 14), false);
+
+        helper.succeedWhen(() -> {
+            helper.assertTrue(kettle.getWortAmount() == 1000, "wort: " + kettle.getWortAmount());
+            int wheat = kettle.getInput().getStackInSlot(0).getCount();
+            helper.assertTrue(wheat == 14, "wheat left: " + wheat);
+        });
+    }
+
     @GameTest(template = "empty")
     public static void brokenMachineDropsContents(GameTestHelper helper) {
         helper.setBlock(BARREL, ModBlocks.BARREL.get());
