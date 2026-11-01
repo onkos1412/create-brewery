@@ -91,13 +91,14 @@ public final class BreweryPonder implements PonderPlugin {
     private static void distillery(SceneBuilder scene, SceneBuildingUtil util) {
         CreateSceneBuilder create = new CreateSceneBuilder(scene);
         BlockPos still = new BlockPos(2, 2, 2);
-        BlockPos motor = still.above();
+        BlockPos motor = still.north();
         BlockPos pump = still.west();
         BlockPos kettle = pump.west();
         start(scene, "distillery", "Distilling");
 
         show(scene, util, still.below(), Direction.DOWN);
         show(scene, util, still, Direction.DOWN);
+        show(scene, util, still.above(), Direction.DOWN);
         say(scene, util, still.below(), Direction.WEST, "The distillery turns wort into distillate. It also needs heat beneath it");
 
         show(scene, util, kettle.below(), Direction.DOWN);
@@ -108,7 +109,7 @@ public final class BreweryPonder implements PonderPlugin {
         create.world().setKineticSpeed(util.select().fromTo(kettle.above(), pump), 16);
         say(scene, util, pump, Direction.NORTH, "Pipe in wort from a kettle. A kettle right next to it also works, with the Load button");
 
-        show(scene, util, motor, Direction.DOWN);
+        show(scene, util, motor, Direction.SOUTH);
         create.world().setKineticSpeed(util.select().position(motor), 32);
         say(scene, util, motor, Direction.NORTH, "Give it rotation. Each drink has its own ideal speed, shown in the menu");
 

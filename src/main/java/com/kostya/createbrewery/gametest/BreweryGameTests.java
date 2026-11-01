@@ -352,6 +352,51 @@ public class BreweryGameTests {
         });
     }
 
+    /** The still stands two blocks tall: its column forwards everything and shares its fate. */
+    @GameTest(template = "empty", timeoutTicks = 100)
+    public static void distilleryColumnActsAsTheMachine(GameTestHelper helper) {
+        helper.setBlock(DISTILLERY, ModBlocks.DISTILLERY.get());
+        BlockPos abs = helper.absolutePos(DISTILLERY);
+        var state = helper.getLevel().getBlockState(abs);
+        state.getBlock().setPlacedBy(helper.getLevel(), abs, state, null, new ItemStack(ModBlocks.DISTILLERY_ITEM.get()));
+        BlockPos top = DISTILLERY.above();
+        helper.assertBlockPresent(ModBlocks.DISTILLERY_TOP.get(), top);
+
+        DistilleryBlockEntity still = helper.getBlockEntity(DISTILLERY);
+        fluids(helper, top).fill(new FluidStack(ModFluids.WORT.get(), 300), IFluidHandler.FluidAction.EXECUTE);
+        helper.assertTrue(still.getWortAmount() == 300, "column did not reach the tank: " + still.getWortAmount());
+
+        // Rotation on the column counts as well.
+        helper.setBlock(top.above(), AllBlocks.CREATIVE_MOTOR.get().defaultBlockState()
+                .setValue(DirectionalKineticBlock.FACING, Direction.DOWN));
+        BlockEntityBehaviour.get(helper.getBlockEntity(top.above()), ScrollValueBehaviour.TYPE).setValue(48);
+
+        helper.startSequence()
+                .thenWaitUntil(() -> helper.assertTrue(still.getRpm() == 48f, "rpm through the column " + still.getRpm()))
+                .thenExecute(() -> {
+                    helper.setBlock(DISTILLERY, Blocks.AIR);
+                    helper.assertBlockNotPresent(ModBlocks.DISTILLERY_TOP.get(), top);
+                })
+                .thenSucceed();
+    }
+
+    /** Breaking the column by hand takes the machine with it. */
+    @GameTest(template = "empty")
+    public static void breakingTheColumnBreaksTheStill(GameTestHelper helper) {
+        helper.setBlock(DISTILLERY, ModBlocks.DISTILLERY.get());
+        BlockPos abs = helper.absolutePos(DISTILLERY);
+        var state = helper.getLevel().getBlockState(abs);
+        state.getBlock().setPlacedBy(helper.getLevel(), abs, state, null, new ItemStack(ModBlocks.DISTILLERY_ITEM.get()));
+
+        BlockPos topAbs = abs.above();
+        var topState = helper.getLevel().getBlockState(topAbs);
+        topState.getBlock().playerWillDestroy(helper.getLevel(), topAbs, topState, helper.makeMockPlayer(GameType.SURVIVAL));
+
+        helper.assertBlockNotPresent(ModBlocks.DISTILLERY.get(), DISTILLERY);
+        helper.assertBlockNotPresent(ModBlocks.DISTILLERY_TOP.get(), DISTILLERY.above());
+        helper.succeed();
+    }
+
     /** Spec: contents survive a world restart. Each machine is saved and read back into a new block entity. */
     @GameTest(template = "empty", timeoutTicks = 100)
     public static void machineStateSurvivesSaving(GameTestHelper helper) {

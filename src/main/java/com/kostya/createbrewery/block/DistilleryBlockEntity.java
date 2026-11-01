@@ -204,6 +204,9 @@ public class DistilleryBlockEntity extends BlockEntity {
         // Read before the early return, so the GUI shows live values while the cube is idle.
         heatLevel = KettleBlockEntity.readHeatLevel(level, worldPosition.below());
         rpm = readRpm(level, worldPosition);
+        if (rpm == 0f && level.getBlockState(worldPosition.above()).is(ModBlocks.DISTILLERY_TOP.get())) {
+            rpm = readRpm(level, worldPosition.above());
+        }
         if (wortAmount < INPUT_WORT || !output.getStackInSlot(0).isEmpty()) {
             return;
         }

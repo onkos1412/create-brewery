@@ -214,16 +214,33 @@ def kettle_elements():
 
 
 def distillery_elements():
-    """A sealed copper tank on an andesite machine base, with a neck and a flanged outlet."""
+    """A sealed copper tank on an andesite machine base, collared to take the column above it."""
     return [
         box([0, 0, 0], [16, 4, 16], "casing", south=("gearbox", [0, 6, 16, 10]), down=("casing", FULL)),
         box([1, 4, 1], [15, 12, 15], "tank", "north south east west",
             north=("tank", FULL), south=("tank", FULL), east=("tank", FULL), west=("tank", FULL)),
         box([0, 12, 0], [16, 13, 16], "brass", down=("brass", FULL), up=("top", FULL)),
-        box([5, 13, 5], [11, 14, 11], "brass", "north south east west up"),
-        box([6, 14, 6], [10, 16, 10], "copper", "north south east west up"),
-        box([10, 14, 6], [15, 16, 10], "copper", "north south up down"),
-        box([15, 13.5, 5.5], [16, 16, 10.5], "brass"),
+        box([4, 13, 4], [12, 14, 12], "brass", "north south east west up"),
+    ]
+
+
+def distillery_top_elements():
+    """The still's column: a brass-banded tank, an arm over the top, and a pipe back down to the base."""
+    side = ("tank", FULL)
+    pipe = ("tank", [4, 4, 12, 12])
+    return [
+        box([5, -2, 5], [11, 9, 11], "tank", "north south east west",
+            north=side, south=side, east=side, west=side),
+        box([4.5, 1, 4.5], [11.5, 2, 11.5], "brass", "north south east west up down"),
+        box([4.5, 6, 4.5], [11.5, 7, 11.5], "brass", "north south east west up down"),
+        box([5, 9, 5], [11, 10, 11], "brass"),
+        box([6, 10, 6], [10, 13, 10], "tank", "north south east west up",
+            north=pipe, south=pipe, east=pipe, west=pipe, up=("top", [4, 4, 12, 12])),
+        box([10, 10, 6.5], [15, 13, 9.5], "tank", "north south up down",
+            north=pipe, south=pipe, up=pipe, down=pipe),
+        box([12, -3, 6.5], [15, 10, 9.5], "tank", "north south east west",
+            north=pipe, south=pipe, east=pipe, west=pipe),
+        box([11.5, 4, 6], [15.5, 5, 10], "brass", "north south east west up down"),
     ]
 
 
@@ -279,10 +296,12 @@ def write_models():
         "parent": "brewery:block/kettle",
         "textures": {"liquid": "brewery:block/kettle_boil"},
     })
-    dump(MODELS / "distillery.json", model(create("fluid_tank"), {
+    still_textures = {
         "casing": create("andesite_casing"), "gearbox": create("gearbox"), "tank": create("fluid_tank"),
         "brass": create("brass_casing"), "top": create("fluid_tank_top"), "copper": create("copper_casing"),
-    }, distillery_elements()))
+    }
+    dump(MODELS / "distillery.json", model(create("fluid_tank"), still_textures, distillery_elements()))
+    dump(MODELS / "distillery_top.json", model(create("fluid_tank"), still_textures, distillery_top_elements()))
     dump(MODELS / "barrel.json", model("brewery:block/barrel_staves", {
         "staves": "brewery:block/barrel_staves", "head": create("andesite_casing"),
         "hoop": create("andesite_block"), "brass": create("brass_block"),
@@ -296,7 +315,7 @@ def write_models():
         "brewing=false": {"model": "brewery:block/kettle"},
         "brewing=true": {"model": "brewery:block/kettle_brewing"},
     }})
-    for name in ("distillery", "barrel"):
+    for name in ("distillery", "distillery_top", "barrel"):
         dump(STATES / f"{name}.json", {"variants": {
             "facing=north": {"model": f"brewery:block/{name}"},
             "facing=east": {"model": f"brewery:block/{name}", "y": 90},
@@ -305,6 +324,20 @@ def write_models():
         }})
 
     items = ROOT / "models/item"
+    # The item shows the whole two-block still, scaled down to fit a slot.
+    raised = [{**element, "from": [element["from"][0], element["from"][1] + 16, element["from"][2]],
+               "to": [element["to"][0], element["to"][1] + 16, element["to"][2]]}
+              for element in distillery_top_elements()]
+    dump(items / "distillery.json", {
+        **model(create("fluid_tank"), still_textures, distillery_elements() + raised),
+        "display": {
+            "gui": {"rotation": [30, 225, 0], "translation": [0, -3.5, 0], "scale": [0.4, 0.4, 0.4]},
+            "ground": {"rotation": [0, 0, 0], "translation": [0, 1, 0], "scale": [0.15, 0.15, 0.15]},
+            "fixed": {"rotation": [0, 0, 0], "translation": [0, -3, 0], "scale": [0.4, 0.4, 0.4]},
+            "thirdperson_righthand": {"rotation": [75, 45, 0], "translation": [0, 1.5, 0], "scale": [0.25, 0.25, 0.25]},
+            "firstperson_righthand": {"rotation": [0, 45, 0], "translation": [0, 0, 0], "scale": [0.25, 0.25, 0.25]},
+        },
+    })
     dump(items / "distillate.json", {"parent": "minecraft:item/generated",
                                      "textures": {"layer0": "brewery:item/distillate"}})
     # The base model is beer; the `brewery:drink` property picks the others (see ModClientSetup).
@@ -540,7 +573,8 @@ def write_ponder():
     write_scene("distillery", {
         (2, 1, 2): fire,
         (2, 2, 2): ("brewery:distillery", {"facing": "south"}),
-        (2, 3, 2): ("create:creative_motor", {"facing": "up"}),
+        (2, 3, 2): ("brewery:distillery_top", {"facing": "south"}),
+        (2, 2, 1): ("create:creative_motor", {"facing": "south"}),
         (1, 2, 2): ("create:mechanical_pump", {"facing": "east"}),
         (1, 3, 2): ("create:cogwheel", {"axis": "x"}),
         (0, 3, 2): ("create:creative_motor", {"facing": "east"}),

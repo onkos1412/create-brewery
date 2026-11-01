@@ -27,6 +27,13 @@ public final class ModCapabilities {
                 (distillery, side) -> distillery.getFluidHandler());
         event.registerBlockEntity(Capabilities.ItemHandler.BLOCK, ModBlocks.DISTILLERY_BLOCK_ENTITY.get(),
                 (distillery, side) -> distillery.getOutput());
+        // Pipes and funnels on the distillery's column reach the machine below it.
+        event.registerBlock(Capabilities.FluidHandler.BLOCK, (level, pos, state, entity, side) ->
+                level.getBlockEntity(pos.below()) instanceof DistilleryBlockEntity still ? still.getFluidHandler() : null,
+                ModBlocks.DISTILLERY_TOP.get());
+        event.registerBlock(Capabilities.ItemHandler.BLOCK, (level, pos, state, entity, side) ->
+                level.getBlockEntity(pos.below()) instanceof DistilleryBlockEntity still ? still.getOutput() : null,
+                ModBlocks.DISTILLERY_TOP.get());
         event.registerBlockEntity(Capabilities.ItemHandler.BLOCK, ModBlocks.BARREL_BLOCK_ENTITY.get(),
                 (barrel, side) -> barrel.getAutomationItems());
         event.registerBlockEntity(Capabilities.ItemHandler.BLOCK, ModBlocks.SPOUT_BLOCK_ENTITY.get(),

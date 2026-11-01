@@ -8,6 +8,7 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.material.MapColor;
+import net.minecraft.world.level.material.PushReaction;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.neoforge.registries.DeferredBlock;
 import net.neoforged.neoforge.registries.DeferredHolder;
@@ -61,6 +62,12 @@ public final class ModBlocks {
     public static final DeferredBlock<DistilleryBlock> DISTILLERY = BLOCKS.registerBlock("distillery",
             DistilleryBlock::new,
             BlockBehaviour.Properties.of().mapColor(MapColor.METAL).strength(3.0f, 6.0f).noOcclusion());
+
+    /** The upper half of the distillery. It has no item: placing the distillery places it. */
+    public static final DeferredBlock<DistilleryTopBlock> DISTILLERY_TOP = BLOCKS.registerBlock("distillery_top",
+            DistilleryTopBlock::new,
+            BlockBehaviour.Properties.of().mapColor(MapColor.METAL).strength(3.0f, 6.0f).noOcclusion()
+                    .pushReaction(PushReaction.BLOCK));
 
     public static final DeferredHolder<Item, BlockItem> DISTILLERY_ITEM = BLOCK_ITEMS.register("distillery",
             () -> new BlockItem(DISTILLERY.get(), new Item.Properties()));

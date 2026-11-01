@@ -48,10 +48,10 @@ public class SpoutBlock extends Block implements EntityBlock {
     @Override
     protected VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
         return switch (state.getValue(FACING)) {
-            case EAST -> Block.box(0, 1, 3, 13, 14, 13);
-            case SOUTH -> Block.box(3, 1, 0, 13, 14, 13);
-            case WEST -> Block.box(3, 1, 3, 16, 14, 13);
-            default -> Block.box(3, 1, 3, 13, 14, 16);
+            case EAST -> Block.box(0, 1, 3, 13, 13, 13);
+            case SOUTH -> Block.box(3, 1, 0, 13, 13, 13);
+            case WEST -> Block.box(3, 1, 3, 16, 13, 13);
+            default -> Block.box(3, 1, 3, 13, 13, 16);
         };
     }
 
