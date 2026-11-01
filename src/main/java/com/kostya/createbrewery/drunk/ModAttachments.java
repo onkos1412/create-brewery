@@ -28,6 +28,13 @@ public final class ModAttachments {
                             buf -> new DrunkLevel(ByteBufCodecs.VAR_INT.decode(buf))))
                     .build());
 
+    /** Ticks of blackout left. Saved, so logging out does not sober a player up. */
+    public static final DeferredHolder<AttachmentType<?>, AttachmentType<Integer>> KNOCKOUT_TICKS =
+            ATTACHMENTS.register("knockout_ticks", () -> AttachmentType.builder(() -> 0)
+                    .serialize(Codec.INT)
+                    .sync(ByteBufCodecs.VAR_INT)
+                    .build());
+
     private ModAttachments() {
     }
 

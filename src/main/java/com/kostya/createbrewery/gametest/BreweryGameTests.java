@@ -7,19 +7,25 @@ import com.kostya.createbrewery.block.BarrelBlockEntity;
 import com.kostya.createbrewery.block.DistilleryBlockEntity;
 import com.kostya.createbrewery.block.KettleBlockEntity;
 import com.kostya.createbrewery.block.ModBlocks;
+import com.kostya.createbrewery.drunk.DrunkLevel;
+import com.kostya.createbrewery.drunk.DrunkManager;
 import com.kostya.createbrewery.registry.ModDataComponents;
 import com.kostya.createbrewery.registry.ModFluids;
 import com.kostya.createbrewery.registry.ModItems;
 import com.simibubi.create.AllBlocks;
+import com.simibubi.create.content.kinetics.base.DirectionalKineticBlock;
+import com.simibubi.create.content.kinetics.base.RotatedPillarKineticBlock;
 import com.simibubi.create.foundation.blockEntity.behaviour.BlockEntityBehaviour;
 import com.simibubi.create.foundation.blockEntity.behaviour.scrollValue.ScrollValueBehaviour;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.BeforeBatch;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.InteractionHand;
+import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
@@ -168,6 +174,48 @@ public class BreweryGameTests {
             helper.assertTrue(kettle.getWortAmount() == 1000, "wort: " + kettle.getWortAmount());
             int wheat = kettle.getInput().getStackInSlot(0).getCount();
             helper.assertTrue(wheat == 14, "wheat left: " + wheat);
+        });
+    }
+
+    /** Overdosing blacks the player out for a fixed time, then leaves them drunk but awake. */
+    @GameTest(template = "empty")
+    public static void overdosePassesOutThenRecovers(GameTestHelper helper) {
+        Player player = helper.makeMockPlayer(GameType.SURVIVAL);
+        DrunkManager.addDrunk(player, DrunkLevel.PASS_OUT_AT - 1);
+        DrunkManager.knockoutTick(player);
+        helper.assertFalse(DrunkManager.isKnockedOut(player), "passed out below the limit");
+
+        DrunkManager.addDrunk(player, 1);
+        DrunkManager.knockoutTick(player);
+        helper.assertTrue(DrunkManager.isKnockedOut(player), "overdose did not knock the player out");
+        helper.assertTrue(player.hasEffect(MobEffects.BLINDNESS), "no blackout effect");
+        helper.assertTrue(DrunkManager.getDrunk(player) == DrunkLevel.AFTER_PASS_OUT,
+                "level after passing out: " + DrunkManager.getDrunk(player));
+
+        for (int tick = 0; tick < DrunkManager.KNOCKOUT_TICKS; tick++) {
+            DrunkManager.knockoutTick(player);
+        }
+        helper.assertFalse(DrunkManager.isKnockedOut(player), "blackout never ended");
+        helper.succeed();
+    }
+
+    /** A real Create pump moves wort from the kettle into the still, and leaves the water behind. */
+    @GameTest(template = "empty", timeoutTicks = 600)
+    public static void createPumpMovesWort(GameTestHelper helper) {
+        KettleBlockEntity kettle = placeHeatedKettle(helper);
+        helper.setBlock(KETTLE.east(), AllBlocks.MECHANICAL_PUMP.get().defaultBlockState()
+                .setValue(DirectionalKineticBlock.FACING, Direction.EAST));
+        helper.setBlock(KETTLE.east().above(), AllBlocks.COGWHEEL.get().defaultBlockState()
+                .setValue(RotatedPillarKineticBlock.AXIS, Direction.Axis.X));
+        helper.setBlock(KETTLE.above(), AllBlocks.CREATIVE_MOTOR.get().defaultBlockState()
+                .setValue(DirectionalKineticBlock.FACING, Direction.EAST));
+        helper.setBlock(DISTILLERY, ModBlocks.DISTILLERY.get());
+        DistilleryBlockEntity distillery = helper.getBlockEntity(DISTILLERY);
+
+        helper.succeedWhen(() -> {
+            helper.assertTrue(distillery.getWortAmount() == 1000, "wort in still: " + distillery.getWortAmount()
+                    + ", in kettle: " + kettle.getWortAmount());
+            helper.assertTrue(kettle.getWaterAmount() == 0 && kettle.getWortAmount() == 0, "kettle not drained");
         });
     }
 

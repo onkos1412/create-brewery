@@ -1,11 +1,18 @@
 package com.kostya.createbrewery.drunk;
 
 import com.kostya.createbrewery.CreateBrewery;
+import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.event.ServerChatEvent;
 import net.neoforged.neoforge.event.entity.living.LivingDeathEvent;
+import net.neoforged.neoforge.event.entity.player.AttackEntityEvent;
+import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
 import net.neoforged.neoforge.event.tick.PlayerTickEvent;
+
+import java.util.Random;
 
 /**
  * Gameplay events for the drunk system: sobering over time and resetting on death.
@@ -28,6 +35,42 @@ public final class DrunkEvents {
         if (player.tickCount % SOBER_INTERVAL_TICKS == 0) {
             DrunkManager.soberTick(player);
         }
+        DrunkManager.knockoutTick(player);
+    }
+
+    /** Drunk players slur; a player who has passed out says nothing at all. */
+    @SubscribeEvent
+    public static void onChat(ServerChatEvent event) {
+        ServerPlayer player = event.getPlayer();
+        if (DrunkManager.isKnockedOut(player)) {
+            event.setCanceled(true);
+            return;
+        }
+        int level = DrunkManager.getDrunk(player);
+        if (level >= DrunkLevel.SLUR_FROM) {
+            event.setMessage(Component.literal(DrunkSpeech.slur(event.getRawText(), level, new Random())));
+        }
+    }
+
+    // The client already blocks these; the server refuses them from a modified client too.
+    @SubscribeEvent
+    public static void onUseBlock(PlayerInteractEvent.RightClickBlock event) {
+        event.setCanceled(DrunkManager.isKnockedOut(event.getEntity()));
+    }
+
+    @SubscribeEvent
+    public static void onUseItem(PlayerInteractEvent.RightClickItem event) {
+        event.setCanceled(DrunkManager.isKnockedOut(event.getEntity()));
+    }
+
+    @SubscribeEvent
+    public static void onHitBlock(PlayerInteractEvent.LeftClickBlock event) {
+        event.setCanceled(DrunkManager.isKnockedOut(event.getEntity()));
+    }
+
+    @SubscribeEvent
+    public static void onAttack(AttackEntityEvent event) {
+        event.setCanceled(DrunkManager.isKnockedOut(event.getEntity()));
     }
 
     @SubscribeEvent

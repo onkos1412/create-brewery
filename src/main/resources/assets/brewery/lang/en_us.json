@@ -13,6 +13,7 @@
   "gui.brewery.barrel_ready": "Ready",
   "gui.brewery.barrel_waiting": "Aging...",
   "gui.brewery.barrel_idle": "Empty",
+  "message.brewery.passed_out": "You passed out...",
   "drink.brewery.beer": "Beer",
   "drink.brewery.whiskey": "Whiskey",
   "drink.brewery.aged_whiskey": "Aged Whiskey",

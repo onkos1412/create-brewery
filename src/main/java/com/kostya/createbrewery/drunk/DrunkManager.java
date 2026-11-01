@@ -1,11 +1,17 @@
 package com.kostya.createbrewery.drunk;
 
+import net.minecraft.network.chat.Component;
+import net.minecraft.world.effect.MobEffectInstance;
+import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.player.Player;
 
 /**
  * Read/write access to a player's drunk level, hiding the attachment plumbing.
  */
 public final class DrunkManager {
+
+    /** How long passing out lasts: ten seconds. */
+    public static final int KNOCKOUT_TICKS = 200;
 
     private DrunkManager() {
     }
@@ -37,6 +43,31 @@ public final class DrunkManager {
     public static void reset(Player player) {
         levelOf(player).reset();
         markDirty(player);
+        player.setData(ModAttachments.KNOCKOUT_TICKS.get(), 0);
+    }
+
+    public static boolean isKnockedOut(Player player) {
+        return player.getData(ModAttachments.KNOCKOUT_TICKS.get()) > 0;
+    }
+
+    /** One server tick of the blackout: counts a running one down, or starts one on overdose. */
+    public static void knockoutTick(Player player) {
+        int remaining = player.getData(ModAttachments.KNOCKOUT_TICKS.get());
+        if (remaining > 0) {
+            player.setData(ModAttachments.KNOCKOUT_TICKS.get(), remaining - 1);
+        } else if (getDrunk(player) >= DrunkLevel.PASS_OUT_AT) {
+            passOut(player);
+        }
+    }
+
+    private static void passOut(Player player) {
+        levelOf(player).set(DrunkLevel.AFTER_PASS_OUT);
+        markDirty(player);
+        player.setData(ModAttachments.KNOCKOUT_TICKS.get(), KNOCKOUT_TICKS);
+        player.stopUsingItem();
+        player.addEffect(new MobEffectInstance(MobEffects.BLINDNESS, KNOCKOUT_TICKS + 20));
+        player.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, KNOCKOUT_TICKS, 6));
+        player.displayClientMessage(Component.translatable("message.brewery.passed_out"), true);
     }
 
     public static boolean isDrunk(Player player) {

@@ -97,6 +97,13 @@ class DrunkLevelTest {
     }
 
     @Test
+    void wakingUpLeavesRoomBeforeTheNextPassOut() {
+        assertTrue(DrunkLevel.SLUR_FROM < DrunkLevel.AFTER_PASS_OUT);
+        assertTrue(DrunkLevel.AFTER_PASS_OUT < DrunkLevel.PASS_OUT_AT);
+        assertTrue(DrunkLevel.PASS_OUT_AT <= DrunkLevel.MAX);
+    }
+
+    @Test
     void resetClearsTheLevel() {
         DrunkLevel level = new DrunkLevel();
         level.add(80);

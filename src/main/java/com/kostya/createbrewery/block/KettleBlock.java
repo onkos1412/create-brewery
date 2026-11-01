@@ -7,6 +7,7 @@ import net.minecraft.world.MenuProvider;
 import net.minecraft.world.SimpleMenuProvider;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.context.BlockPlaceContext;
+import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.BaseEntityBlock;
 import net.minecraft.world.level.block.Block;
@@ -18,6 +19,8 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.block.state.properties.BooleanProperty;
 import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.shapes.CollisionContext;
+import net.minecraft.world.phys.shapes.VoxelShape;
 import org.jetbrains.annotations.Nullable;
 
 /**
@@ -31,6 +34,7 @@ public class KettleBlock extends BaseEntityBlock {
 
     /** True while the kettle has a matching recipe and enough heat. */
     public static final BooleanProperty BREWING = BooleanProperty.create("brewing");
+    private static final VoxelShape SHAPE = Block.box(0.5, 0, 0.5, 15.5, 15, 15.5);
 
     public KettleBlock(Properties properties) {
         super(properties);
@@ -45,6 +49,11 @@ public class KettleBlock extends BaseEntityBlock {
     @Override
     protected com.mojang.serialization.MapCodec<? extends BaseEntityBlock> codec() {
         return simpleCodec(KettleBlock::new);
+    }
+
+    @Override
+    protected VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
+        return SHAPE;
     }
 
     @Override
