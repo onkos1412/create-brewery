@@ -34,7 +34,7 @@ public class KettleBlock extends BaseEntityBlock {
 
     /** True while the kettle has a matching recipe and enough heat. */
     public static final BooleanProperty BREWING = BooleanProperty.create("brewing");
-    private static final VoxelShape SHAPE = Block.box(0.5, 0, 0.5, 15.5, 15, 15.5);
+    private static final VoxelShape SHAPE = Block.box(0, 0, 0, 16, 16, 16);
 
     public KettleBlock(Properties properties) {
         super(properties);

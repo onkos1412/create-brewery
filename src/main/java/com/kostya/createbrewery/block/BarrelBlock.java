@@ -27,7 +27,7 @@ import org.jetbrains.annotations.Nullable;
 
 public class BarrelBlock extends BaseEntityBlock {
     public static final DirectionProperty FACING = BlockStateProperties.HORIZONTAL_FACING;
-    private static final VoxelShape SHAPE = Block.box(1, 0, 0.5, 15, 16, 15.5);
+    private static final VoxelShape SHAPE = Block.box(0, 0, 0, 16, 16, 16);
 
     public BarrelBlock(Properties properties) {
         super(properties);

@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
 """Generates the mod's block/item textures, GUI sheets, block models and Ponder structures.
 
-Usage: python tools/gen_art.py [preview.png]
-With an argument it also writes an isometric preview of the block models.
+Usage: python tools/gen_art.py
 """
 import gzip
 import json
@@ -42,54 +41,9 @@ def save(img, directory, name):
     img.save(directory / f"{name}.png")
 
 
-def plate(ramp, seed):
-    """Sheet metal: bright along the middle of a facet, darker at its edges, faint hammer marks."""
-    rng = random.Random(seed)
-    img = tex()
-    top = len(ramp) - 2
-    for y in range(16):
-        for x in range(16):
-            edge = abs(x - 7.5) / 7.5
-            shade = top - edge * 2.2 + rng.choice((0, 0, 0, 0, 0, 0, 0, 0.5, -0.5))
-            img.putpixel((x, y), rgb(ramp[max(0, min(top + 1, round(shade)))]))
-    return img
-
-
-def bands(ramp, seed):
-    """A plate with riveted horizontal seams, for the tall bellies of the vessels."""
-    img = plate(ramp, seed)
-    for y in (0, 15):
-        for x in range(16):
-            img.putpixel((x, y), rgb(ramp[1]))
-    for x in range(1, 16, 3):
-        img.putpixel((x, 2), rgb(ramp[5]))
-        img.putpixel((x, 3), rgb(ramp[0]))
-        img.putpixel((x, 12), rgb(ramp[5]))
-        img.putpixel((x, 13), rgb(ramp[0]))
-    return img
-
-
 def solid(color):
     img = tex()
     img.paste(rgb(color), (0, 0, 16, 16))
-    return img
-
-
-def casing():
-    """Andesite-and-brass machine base, matching Create's casings."""
-    rng = random.Random(7)
-    img = tex()
-    for y in range(16):
-        for x in range(16):
-            img.putpixel((x, y), rgb(ANDESITE[rng.choice((1, 2, 2, 2, 3))]))
-    d = ImageDraw.Draw(img)
-    d.rectangle((0, 0, 15, 15), outline=rgb(BRASS[2]))
-    d.line((0, 0, 15, 0), fill=rgb(BRASS[4]))
-    d.line((0, 0, 0, 15), fill=rgb(BRASS[3]))
-    d.line((15, 1, 15, 15), fill=rgb(BRASS[1]))
-    d.line((1, 15, 15, 15), fill=rgb(BRASS[1]))
-    for x, y in ((2, 2), (13, 2), (2, 13), (13, 13)):
-        img.putpixel((x, y), rgb(IRON[4]))
     return img
 
 
@@ -105,19 +59,6 @@ def staves():
             if y % 4 == 3:
                 shade = 0
             img.putpixel((x, y), rgb(OAK[max(0, min(5, shade))]))
-    return img
-
-
-def barrel_end():
-    rng = random.Random(13)
-    img = tex()
-    for y in range(16):
-        for x in range(16):
-            plank = x // 4
-            shade = (3, 2, 3, 4)[plank] + rng.choice((0, 0, 0, -1))
-            if x % 4 == 3:
-                shade = 1
-            img.putpixel((x, y), rgb(OAK[shade]))
     return img
 
 
@@ -141,23 +82,8 @@ def surface(frames, ramp, seed):
 
 
 def write_block_textures():
-    save(bands(COPPER, 1), BLOCK, "copper_belly")
-    save(plate(COPPER, 2), BLOCK, "copper_plate")
-    save(plate(BRASS, 3), BLOCK, "brass_plate")
-    save(plate(IRON, 4), BLOCK, "iron_hoop")
-    save(casing(), BLOCK, "machine_casing")
     save(staves(), BLOCK, "barrel_staves")
-    save(barrel_end(), BLOCK, "barrel_end")
-    save(solid(COPPER[1]), BLOCK, "copper_trim")
-    save(solid(BRASS[3]), BLOCK, "brass_trim")
-    save(solid(OAK[1]), BLOCK, "oak_trim")
     save(solid("#2a1610"), BLOCK, "kettle_inside")
-    save(solid(ANDESITE[0]), BLOCK, "casing_dark")
-    gauge = solid(BRASS[2])
-    d = ImageDraw.Draw(gauge)
-    d.ellipse((2, 2, 13, 13), fill=rgb("#efe7d0"), outline=rgb(IRON[0]))
-    d.line((7, 8, 11, 4), fill=rgb("#b02a20"))
-    save(gauge, BLOCK, "gauge")
     wort = surface(8, ["#6b3d10", "#8c5518", "#b07422", "#cf9334", "#efc56a"], 5)
     save(wort, BLOCK, "kettle_boil")
     (BLOCK / "kettle_boil.png.mcmeta").write_text(
@@ -227,180 +153,111 @@ def write_item_textures():
 
 
 # ---- models ------------------------------------------------------------------------
+# Square volumes dressed in Create's own textures, so the machines sit naturally beside
+# its basin, tanks and spouts. Create is a required dependency, so they are always there.
 
-TAN = math.tan(math.pi / 8)
-
-
-def face(texture, **extra):
-    return {"texture": f"#{texture}", **extra}
-
-
-def octagon(center, r, axis_range, side, cap=None, axis="y"):
-    """A regular octagonal prism: four rectangles whose short ends are the eight facets.
-
-    Coplanar caps overlap, so `cap` should be a flat-colour texture.
-    """
-    a, b = center
-    lo, hi = axis_range
-    s = r * TAN
-    parts = []
-    for long_first, angle in ((True, 0), (False, 0), (True, 45), (False, 45)):
-        du, dv = (r, s) if long_first else (s, r)
-        if axis == "y":
-            start = [a - du, lo, b - dv]
-            end = [a + du, hi, b + dv]
-            ends = ("east", "west") if long_first else ("north", "south")
-            caps = ("up", "down")
-            origin = [a, (lo + hi) / 2, b]
-        else:  # along z, the rectangle lies in the x/y plane
-            start = [a - du, b - dv, lo]
-            end = [a + du, b + dv, hi]
-            ends = ("east", "west") if long_first else ("up", "down")
-            caps = ("north", "south")
-            origin = [a, b, (lo + hi) / 2]
-        faces = {name: face(side) for name in ends}
-        if cap:
-            faces.update({name: face(cap) for name in caps})
-        element = {"from": rounded(start), "to": rounded(end), "faces": faces}
-        if angle:
-            element["rotation"] = {"origin": rounded(origin), "axis": axis, "angle": angle}
-        parts.append(element)
-    return parts
+FULL = [0, 0, 16, 16]
+SIDES = ("north", "south", "east", "west")
 
 
-def ring(center, r, y_range, thickness, side, cap):
-    """An open octagonal wall, for the rim of a vessel."""
-    a, b = center
-    lo, hi = y_range
-    s = r * TAN
-    parts = []
-    for rotated in (False, True):
-        for start, end, faces in (
-            ([a - s, lo, b - r], [a + s, hi, b - r + thickness], ("north", "south")),
-            ([a - s, lo, b + r - thickness], [a + s, hi, b + r], ("north", "south")),
-            ([a - r, lo, b - s], [a - r + thickness, hi, b + s], ("east", "west")),
-            ([a + r - thickness, lo, b - s], [a + r, hi, b + s], ("east", "west")),
-        ):
-            built = {name: face(side) for name in faces}
-            built["up"] = face(cap)
-            element = {"from": rounded(start), "to": rounded(end), "faces": built}
-            if rotated:
-                element["rotation"] = {"origin": rounded([a, (lo + hi) / 2, b]), "axis": "y", "angle": 45}
-            parts.append(element)
-    return parts
+def face(texture, uv=None):
+    built = {"texture": f"#{texture}"}
+    if uv:
+        built["uv"] = uv
+    return built
 
 
 def box(start, end, texture, faces="north south east west up down", **overrides):
+    """A cuboid. Unlisted faces are left off; keyword overrides set a face's (texture, uv)."""
     built = {name: face(texture) for name in faces.split()}
     for name, value in overrides.items():
-        built[name] = face(value)
-    return {"from": rounded(start), "to": rounded(end), "faces": built}
-
-
-def rounded(values):
-    return [round(v, 3) for v in values]
+        built[name] = face(*value) if isinstance(value, tuple) else face(value)
+    return {"from": start, "to": end, "faces": built}
 
 
 def model(particle, textures, elements):
-    all_textures = {"particle": f"brewery:block/{particle}"}
-    all_textures.update({key: f"brewery:block/{value}" for key, value in textures.items()})
-    return {"parent": "minecraft:block/block", "textures": all_textures, "elements": elements}
+    return {"parent": "minecraft:block/block",
+            "textures": {"particle": particle, **textures},
+            "elements": elements}
 
 
-KETTLE_TEXTURES = {
-    "belly": "copper_belly", "plate": "copper_plate", "trim": "copper_trim",
-    "brass": "brass_plate", "brass_trim": "brass_trim", "gauge": "gauge",
-    "liquid": "kettle_inside",
-}
+def walls(lo, hi, outer, inner):
+    """A square vessel's four walls, two thick: each shows `outer` whole outside, `inner` inside."""
+    side = (outer, FULL)
+    return [
+        box([0, lo, 0], [16, hi, 2], outer, "", north=side, south=inner, east=outer, west=outer),
+        box([0, lo, 14], [16, hi, 16], outer, "", south=side, north=inner, east=outer, west=outer),
+        box([0, lo, 2], [2, hi, 14], outer, "", west=side, east=inner),
+        box([14, lo, 2], [16, hi, 14], outer, "", east=side, west=inner),
+    ]
+
+
+def rim(lo, hi, texture):
+    """A flat frame closing the top of walls, like the lip of Create's basin."""
+    return [
+        box([0, lo, 0], [16, hi, 2], texture),
+        box([0, lo, 14], [16, hi, 16], texture),
+        box([0, lo, 2], [2, hi, 14], texture, "east west up down"),
+        box([14, lo, 2], [16, hi, 14], texture, "east west up down"),
+    ]
 
 
 def kettle_elements():
-    c = (8, 8)
-    parts = []
-    # Brass feet, so the fire underneath stays visible.
-    for x, z in ((2, 2), (12, 2), (2, 12), (12, 12)):
-        parts.append(box([x, 0, z], [x + 2, 4.5, z + 2], "brass"))
-    parts += octagon(c, 5.5, (2, 4), "plate", "trim")
-    parts += octagon(c, 7.5, (4, 10), "belly", "trim")
-    parts += octagon(c, 6.5, (10, 12), "plate", "trim")
-    parts += octagon(c, 5.5, (12, 13), "plate", "trim")
-    # The surface sits inside the rim.
-    parts.append(box([3, 13, 3], [13, 13.5, 13], "liquid", "up"))
-    parts += ring(c, 6.5, (13, 15), 1, "brass", "brass_trim")
-    # Thermometer and drain on the front.
-    parts.append(box([6.5, 6, 0.1], [9.5, 9, 1], "gauge", "north up down east west"))
-    parts.append(box([10, 3, 1], [12, 5, 3], "brass"))
-    return parts
+    """A copper basin with a brass lip on an andesite foot, open to show the brew."""
+    return [
+        box([2, 0, 2], [14, 2, 14], "foot"),
+        box([0, 2, 0], [16, 3, 16], "copper", "north south east west down"),
+        *walls(3, 13, "tank", "inside"),
+        box([2, 11, 2], [14, 11.5, 14], "liquid", "up"),
+        *rim(13, 16, "brass"),
+    ]
 
 
 def distillery_elements():
-    c = (8, 8)
-    parts = [box([0, 0, 0], [16, 2, 16], "casing")]
-    # Pot, shoulder, neck: the onion shape of a pot still.
-    parts += octagon(c, 6, (2, 7), "belly", "trim")
-    parts += octagon(c, 4.5, (7, 9), "plate", "trim")
-    parts += octagon(c, 2.5, (9, 13), "plate", "trim")
-    parts += octagon(c, 3, (13, 14), "brass", "brass_trim")
-    parts += octagon(c, 2, (14, 16), "plate", "trim")
-    # The lyne arm runs over to the condenser in the corner.
-    parts.append(box([9, 14, 7], [14.5, 16, 9], "plate"))
-    parts.append(box([12.5, 3, 7], [14.5, 14, 9], "plate"))
-    for y in (5, 8, 11):
-        parts.append(box([12, y, 6.5], [15, y + 1, 9.5], "brass"))
-    parts.append(box([11, 2, 6], [16, 3, 10], "brass"))
-    # Kinetic input and gauge.
-    parts.append(box([5, 2, 13], [11, 6, 16], "casing"))
-    parts.append(box([6.5, 3, 15.5], [9.5, 6, 16.1], "iron"))
-    parts.append(box([6.5, 3.5, 1.2], [9.5, 6.5, 2.1], "gauge", "north up down east west"))
-    return parts
+    """A sealed copper tank on an andesite machine base, with a neck and a flanged outlet."""
+    return [
+        box([0, 0, 0], [16, 4, 16], "casing", south=("gearbox", [0, 6, 16, 10]), down=("casing", FULL)),
+        box([1, 4, 1], [15, 12, 15], "tank", "north south east west",
+            north=("tank", FULL), south=("tank", FULL), east=("tank", FULL), west=("tank", FULL)),
+        box([0, 12, 0], [16, 13, 16], "brass", down=("brass", FULL), up=("top", FULL)),
+        box([5, 13, 5], [11, 14, 11], "brass", "north south east west up"),
+        box([6, 14, 6], [10, 16, 10], "copper", "north south east west up"),
+        box([10, 14, 6], [15, 16, 10], "copper", "north south up down"),
+        box([15, 13.5, 5.5], [16, 16, 10.5], "brass"),
+    ]
 
 
 def barrel_elements():
-    centre = (8, 8.5)
-    parts = []
-    # Cradle.
-    for z in (2, 11):
-        parts.append(box([1, 0, z], [15, 3, z + 3], "beam"))
-        parts.append(box([1, 3, z], [3, 5, z + 3], "beam"))
-        parts.append(box([13, 3, z], [15, 5, z + 3], "beam"))
-    # A bulge, stave by stave, with iron hoops proud of the wood.
-    for r, lo, hi, side in (
-        (5.8, 0.5, 2, "wood"), (6.3, 2, 5, "wood"), (6.9, 5, 11, "wood"),
-        (6.3, 11, 14, "wood"), (5.8, 14, 15.5, "wood"),
-        (6.1, 1, 2, "hoop"), (6.6, 3.5, 4.5, "hoop"), (7.2, 6.5, 7, "hoop"),
-        (7.2, 9, 9.5, "hoop"), (6.6, 11.5, 12.5, "hoop"), (6.1, 14, 15, "hoop"),
-    ):
-        parts += octagon(centre, r, (lo, hi), side, "trim", axis="z")
-    # Heads sit a hair proud so they win over the octagon's flat caps.
-    a = 5.8 * math.sqrt(0.5)
-    s = 5.8 * TAN
-    for z_lo, z_hi, name in ((0.45, 0.5, "north"), (15.5, 15.55, "south")):
-        for dx, dy in ((a, a), (5.8, s), (s, 5.8)):
-            parts.append(box([8 - dx, 8.5 - dy, z_lo], [8 + dx, 8.5 + dy, z_hi], "head", name))
-    # Tap in the front head.
-    parts.append(box([7, 4, 0], [9, 6, 0.5], "brass"))
-    parts.append(box([7.5, 6, 0.1], [8.5, 7, 0.4], "brass"))
-    return parts
+    """An oak cask squared off like a Create casing: andesite heads and hoops around staves."""
+    tap = "north south east west up down"
+    return [
+        box([1, 1, 1], [15, 15, 15], "staves", "east west up down"),
+        box([0, 0, 0], [16, 16, 2], "head", north=("head", FULL), south="staves", up="hoop", down="hoop",
+            east="hoop", west="hoop"),
+        box([0, 0, 14], [16, 16, 16], "head", south=("head", FULL), north="staves", up="hoop", down="hoop",
+            east="hoop", west="hoop"),
+        box([0, 0, 6], [16, 16, 7], "hoop", "up down east west"),
+        box([0, 0, 9], [16, 16, 10], "hoop", "up down east west"),
+        box([6.5, 3, -1], [9.5, 5, 0], "brass", tap),
+        box([7, 1.5, -1], [9, 3, 0], "brass", tap),
+    ]
 
 
 def spout_elements():
-    parts = [
-        # Bolted flange against the machine.
-        box([4, 4, 14.5], [12, 12, 16], "brass"),
-        box([3, 6, 14.5], [13, 10, 16], "brass"),
-        box([6, 3, 14.5], [10, 13, 16], "brass"),
-        # Pipe with a collar, then the elbow.
-        box([6, 7, 8], [10, 11, 14.5], "copper"),
-        box([5.5, 6.5, 12], [10.5, 11.5, 13], "brass"),
-        box([6, 4, 4], [10, 11, 8], "copper"),
-        box([5.5, 2, 3.5], [10.5, 4, 8.5], "brass"),
-        box([6.5, 1, 4.5], [9.5, 2, 7.5], "dark", "down north south east west"),
-        # Valve stem and handwheel.
-        box([7.25, 11, 9.25], [8.75, 13, 10.75], "copper"),
-        box([5, 13, 9], [11, 14, 11], "brass"),
-        box([7, 13, 7], [9, 14, 13], "brass"),
+    """A copper tap in Create's manner: a casing bracket, a square pipe, a brass collar and nozzle."""
+    side = ("tank", [4, 4, 12, 12])
+    return [
+        box([3, 3, 14], [13, 13, 16], "casing", north=("casing", FULL), south=("casing", FULL)),
+        box([6, 6, 9], [10, 10, 14], "tank", "east west up down",
+            east=side, west=side, up=side, down=side),
+        box([5, 5, 11], [11, 11, 12], "brass", "north south east west up down"),
+        box([5, 4, 3], [11, 10, 9], "tank", "north south east west up down",
+            north=side, south=side, east=side, west=side, up=("top", [5, 5, 11, 11])),
+        box([5.5, 2, 3.5], [10.5, 4, 8.5], "brass", "north south east west"),
+        box([6.5, 1, 4.5], [9.5, 2, 7.5], "casing", "north south east west down"),
+        box([7, 10, 5], [9, 12, 7], "brass", "north south east west"),
+        box([5, 12, 5], [11, 13, 7], "brass"),
     ]
-    return parts
 
 
 def dump(path, obj):
@@ -408,24 +265,31 @@ def dump(path, obj):
     path.write_text(json.dumps(obj, indent=2) + "\n", encoding="utf-8")
 
 
+def create(name):
+    return f"create:block/{name}"
+
+
 def write_models():
-    kettle = model("copper_plate", KETTLE_TEXTURES, kettle_elements())
-    dump(MODELS / "kettle.json", kettle)
+    dump(MODELS / "kettle.json", model(create("copper_casing"), {
+        "foot": create("andesite_casing"), "copper": create("copper_casing"), "tank": create("fluid_tank"),
+        "brass": create("brass_casing"), "inside": "brewery:block/kettle_inside",
+        "liquid": "brewery:block/kettle_inside",
+    }, kettle_elements()))
     dump(MODELS / "kettle_brewing.json", {
         "parent": "brewery:block/kettle",
         "textures": {"liquid": "brewery:block/kettle_boil"},
     })
-    dump(MODELS / "distillery.json", model("copper_plate", {
-        "belly": "copper_belly", "plate": "copper_plate", "trim": "copper_trim",
-        "brass": "brass_plate", "brass_trim": "brass_trim", "casing": "machine_casing",
-        "iron": "iron_hoop", "gauge": "gauge",
+    dump(MODELS / "distillery.json", model(create("fluid_tank"), {
+        "casing": create("andesite_casing"), "gearbox": create("gearbox"), "tank": create("fluid_tank"),
+        "brass": create("brass_casing"), "top": create("fluid_tank_top"), "copper": create("copper_casing"),
     }, distillery_elements()))
-    dump(MODELS / "barrel.json", model("barrel_staves", {
-        "wood": "barrel_staves", "hoop": "iron_hoop", "trim": "oak_trim",
-        "head": "barrel_end", "beam": "barrel_end", "brass": "brass_plate",
+    dump(MODELS / "barrel.json", model("brewery:block/barrel_staves", {
+        "staves": "brewery:block/barrel_staves", "head": create("andesite_casing"),
+        "hoop": create("andesite_block"), "brass": create("brass_block"),
     }, barrel_elements()))
-    dump(MODELS / "spout.json", model("brass_plate", {
-        "brass": "brass_plate", "copper": "copper_plate", "dark": "kettle_inside",
+    dump(MODELS / "spout.json", model(create("copper_casing"), {
+        "casing": create("copper_casing"), "tank": create("fluid_tank"), "top": create("fluid_tank_top"),
+        "brass": create("brass_block"),
     }, spout_elements()))
 
     dump(STATES / "kettle.json", {"variants": {
@@ -690,109 +554,12 @@ def write_ponder():
     })
 
 
-# ---- preview ------------------------------------------------------------------------
-
-def preview(path):
-    """A small z-buffered isometric renderer for reviewing the models outside the game."""
-    scale = 11
-    names = [("kettle", None), ("kettle", "kettle_boil"), ("distillery", None), ("barrel", None), ("spout", None)]
-    views = [(35, 30), (215, 30)]
-    tile = 320
-    sheet = Image.new("RGBA", (tile * len(names), tile * len(views)), rgb("#88a0b0"))
-    for vi, (yaw, pitch) in enumerate(views):
-        for ni, (name, liquid) in enumerate(names):
-            data = json.loads((MODELS / f"{name}.json").read_text(encoding="utf-8"))
-            sprites = {k: v.split("/")[-1] for k, v in data["textures"].items()}
-            if liquid:
-                sprites["liquid"] = liquid
-            render_model(sheet, ni * tile, vi * tile, tile, data["elements"], sprites, yaw, pitch, scale)
-    sheet.save(path)
-
-
-FACE_AXES = {
-    "north": (2, 0), "south": (2, 1), "west": (0, 0), "east": (0, 1), "down": (1, 0), "up": (1, 1),
-}
-LIGHT = {"north": 0.8, "south": 0.8, "west": 0.6, "east": 0.6, "up": 1.0, "down": 0.5}
-
-
-def default_uv(name, p):
-    x, y, z = p
-    return {
-        "north": (16 - x, 16 - y), "south": (x, 16 - y), "west": (z, 16 - y),
-        "east": (16 - z, 16 - y), "up": (x, z), "down": (x, 16 - z),
-    }[name]
-
-
-def render_model(sheet, ox, oy, tile, elements, sprites, yaw, pitch, scale):
-    cy, sy = math.cos(math.radians(yaw)), math.sin(math.radians(yaw))
-    cp, sp = math.cos(math.radians(pitch)), math.sin(math.radians(pitch))
-
-    def project(p):
-        x, y, z = p[0] - 8, p[1] - 8, p[2] - 8
-        rx, rz = x * cy - z * sy, x * sy + z * cy
-        ry, depth = y * cp - rz * sp, y * sp + rz * cp
-        return ox + tile / 2 + rx * scale, oy + tile / 2 - ry * scale, depth
-
-    zbuffer = {}
-    cache = {}
-    for el in elements:
-        lo, hi = el["from"], el["to"]
-        rot = el.get("rotation")
-        for name, spec in el["faces"].items():
-            axis, side = FACE_AXES[name]
-            fixed = (hi if side else lo)[axis]
-            others = [i for i in range(3) if i != axis]
-            sprite = sprites[spec["texture"][1:]]
-            if sprite not in cache:
-                cache[sprite] = Image.open(BLOCK / f"{sprite}.png").convert("RGBA")
-            img = cache[sprite]
-            steps_a = max(2, int((hi[others[0]] - lo[others[0]]) * 6))
-            steps_b = max(2, int((hi[others[1]] - lo[others[1]]) * 6))
-            for ia in range(steps_a + 1):
-                for ib in range(steps_b + 1):
-                    p = [0, 0, 0]
-                    p[axis] = fixed
-                    p[others[0]] = lo[others[0]] + (hi[others[0]] - lo[others[0]]) * ia / steps_a
-                    p[others[1]] = lo[others[1]] + (hi[others[1]] - lo[others[1]]) * ib / steps_b
-                    u, v = default_uv(name, p)
-                    color = img.getpixel((min(15, max(0, int(u))), min(15, max(0, int(v)))))
-                    world = rotate(p, rot)
-                    px, py, depth = project(world)
-                    shade = LIGHT[name]
-                    pixel = (int(px), int(py))
-                    for dx in (0, 1):
-                        for dy in (0, 1):
-                            key = (pixel[0] + dx, pixel[1] + dy)
-                            if key not in zbuffer or depth > zbuffer[key] + 1e-3:
-                                zbuffer[key] = depth
-                                if 0 <= key[0] < sheet.width and 0 <= key[1] < sheet.height:
-                                    sheet.putpixel(key, tuple(int(c * shade) for c in color[:3]) + (255,))
-
-
-def rotate(p, rot):
-    if not rot:
-        return p
-    origin = rot["origin"]
-    angle = math.radians(rot["angle"])
-    c, s = math.cos(angle), math.sin(angle)
-    x, y, z = p[0] - origin[0], p[1] - origin[1], p[2] - origin[2]
-    if rot["axis"] == "y":
-        x, z = x * c + z * s, -x * s + z * c
-    elif rot["axis"] == "z":
-        x, y = x * c - y * s, x * s + y * c
-    else:
-        y, z = y * c - z * s, y * s + z * c
-    return [x + origin[0], y + origin[1], z + origin[2]]
-
-
 def main():
     write_block_textures()
     write_item_textures()
     write_models()
     write_gui()
     write_ponder()
-    if len(sys.argv) > 1:
-        preview(sys.argv[1])
 
 
 if __name__ == "__main__":
