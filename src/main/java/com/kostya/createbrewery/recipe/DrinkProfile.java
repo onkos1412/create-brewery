@@ -1,6 +1,7 @@
 package com.kostya.createbrewery.recipe;
 
 import com.mojang.serialization.Codec;
+import com.mojang.serialization.DataResult;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 
 /**
@@ -15,13 +16,24 @@ import com.mojang.serialization.codecs.RecordCodecBuilder;
  * @param idealRpm         the speed that distills perfectly
  * @param agingDays        game days in the barrel
  * @param wood             the wood that ages it perfectly, such as {@code oak}
+ * @param color            the wort's colour as 0xRRGGBB, written {@code "#c98a1e"} in a recipe
  */
 public record DrinkProfile(String id, int alcohol, String distilled, int distilledAlcohol, String aged,
-                           int distillTicks, int idealRpm, int agingDays, String wood) {
+                           int distillTicks, int idealRpm, int agingDays, String wood, int color) {
+
+    private static final int BEER_COLOR = 0xC98A1E;
+
+    private static final Codec<Integer> COLOR_CODEC = Codec.STRING.comapFlatMap(text -> {
+        try {
+            return DataResult.success(Integer.parseUnsignedInt(text.replaceFirst("^#", ""), 16) & 0xFFFFFF);
+        } catch (NumberFormatException e) {
+            return DataResult.error(() -> "Not a colour: " + text);
+        }
+    }, color -> String.format("#%06x", color));
 
     /** Recipes without a {@code drink} block, and wort saved before they had one, are beer. */
     public static final DrinkProfile BEER =
-            new DrinkProfile("beer", 20, "whiskey", 40, "aged_whiskey", 200, 32, 3, "oak");
+            new DrinkProfile("beer", 20, "whiskey", 40, "aged_whiskey", 200, 32, 3, "oak", BEER_COLOR);
 
     public static final Codec<DrinkProfile> CODEC = RecordCodecBuilder.create(instance -> instance.group(
             Codec.STRING.fieldOf("id").forGetter(DrinkProfile::id),
@@ -33,7 +45,8 @@ public record DrinkProfile(String id, int alcohol, String distilled, int distill
             Codec.intRange(1, Integer.MAX_VALUE).optionalFieldOf("distillTicks", 200).forGetter(DrinkProfile::distillTicks),
             Codec.intRange(1, 256).optionalFieldOf("idealRpm", 32).forGetter(DrinkProfile::idealRpm),
             Codec.intRange(1, Integer.MAX_VALUE).optionalFieldOf("agingDays", 3).forGetter(DrinkProfile::agingDays),
-            Codec.STRING.optionalFieldOf("wood", "oak").forGetter(DrinkProfile::wood)
+            Codec.STRING.optionalFieldOf("wood", "oak").forGetter(DrinkProfile::wood),
+            COLOR_CODEC.optionalFieldOf("color", BEER_COLOR).forGetter(DrinkProfile::color)
     ).apply(instance, DrinkProfile::new));
 
     public boolean canDistill() {

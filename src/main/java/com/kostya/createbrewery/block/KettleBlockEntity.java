@@ -12,9 +12,14 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.Connection;
+import net.minecraft.network.protocol.Packet;
+import net.minecraft.network.protocol.game.ClientGamePacketListener;
+import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.RecipeHolder;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
@@ -40,6 +45,9 @@ public class KettleBlockEntity extends BlockEntity {
     public static final int TANK_CAPACITY = 4000;
     /** How much wort a finished brew yields. */
     public static final int WORT_PER_BREW = 1000;
+    private static final int WATER_COLOR = 0x3F76E4;
+    /** The bare inside of the kettle, once its liquid has been tinted down to it. */
+    public static final int EMPTY_COLOR = 0x2A1610;
 
     /** How much extra room is needed to start a brew with this recipe. */
     private static int brewRoom(KettleLogic.RecipeView recipe) {
@@ -105,6 +113,8 @@ public class KettleBlockEntity extends BlockEntity {
     private int wortAmount;
     private int wortStars = DrinkData.MAX_STARS;
     private String wortDrink = DrinkProfile.BEER.id();
+    /** The colour clients were last told about, so they are only told when it changes. */
+    private int sentLiquidColor = EMPTY_COLOR;
     private int brewProgressTicks;
     private int brewTimeTicks = 200;
     private int brewStars = DrinkData.MAX_STARS;
@@ -152,6 +162,38 @@ public class KettleBlockEntity extends BlockEntity {
     /** How long the current brew takes, for the GUI. */
     public int getBrewTimeTicks() {
         return brewTimeTicks;
+    }
+
+    /** The wort's colour, whether or not there is any wort. */
+    public int getWortColor() {
+        return level == null ? DrinkProfile.BEER.color() : BrewingRecipe.profileOf(level, wortDrink).color();
+    }
+
+    /** What the surface in the kettle looks like: wort over water, or the kettle's own bottom. */
+    public int getLiquidColor() {
+        if (wortAmount > 0) {
+            return getWortColor();
+        }
+        return waterAmount > 0 ? WATER_COLOR : EMPTY_COLOR;
+    }
+
+    @Override
+    public CompoundTag getUpdateTag(HolderLookup.Provider registries) {
+        return saveWithoutMetadata(registries);
+    }
+
+    @Override
+    public Packet<ClientGamePacketListener> getUpdatePacket() {
+        return ClientboundBlockEntityDataPacket.create(this);
+    }
+
+    /** A client just learned what is inside: the surface was baked with the old colour. */
+    @Override
+    public void onDataPacket(Connection connection, ClientboundBlockEntityDataPacket packet, HolderLookup.Provider registries) {
+        super.onDataPacket(connection, packet, registries);
+        if (level != null) {
+            level.sendBlockUpdated(worldPosition, getBlockState(), getBlockState(), Block.UPDATE_IMMEDIATE);
+        }
     }
 
     public int getHeatLevel() {
@@ -222,6 +264,12 @@ public class KettleBlockEntity extends BlockEntity {
     public void serverTick() {
         if (level == null || level.isClientSide()) {
             return;
+        }
+
+        int color = getLiquidColor();
+        if (color != sentLiquidColor) {
+            sentLiquidColor = color;
+            level.sendBlockUpdated(worldPosition, getBlockState(), getBlockState(), Block.UPDATE_CLIENTS);
         }
 
         heatLevel = readHeatLevel(level, worldPosition.below());

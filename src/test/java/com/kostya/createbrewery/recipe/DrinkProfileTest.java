@@ -58,6 +58,17 @@ class DrinkProfileTest {
     }
 
     @Test
+    void colorsReadFromRecipesAndDifferBetweenDrinks() throws Exception {
+        assertEquals(DrinkProfile.BEER.color(), read("beer").color());
+        var seen = new java.util.HashSet<Integer>();
+        for (String recipe : List.of("beer", "cider", "potato_mash", "cane_mash", "wine", "mead")) {
+            assertTrue(seen.add(read(recipe).color()), recipe + " shares a colour");
+        }
+        var bad = JsonParser.parseString("{\"id\": \"kvass\", \"alcohol\": 5, \"color\": \"red\"}");
+        assertTrue(DrinkProfile.CODEC.parse(JsonOps.INSTANCE, bad).isError());
+    }
+
+    @Test
     void omittedStagesMeanTheRoadEnds() {
         var json = JsonParser.parseString("{\"id\": \"kvass\", \"alcohol\": 5}");
         DrinkProfile kvass = DrinkProfile.CODEC.parse(JsonOps.INSTANCE, json).getOrThrow();

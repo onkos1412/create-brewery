@@ -62,7 +62,7 @@ public class KettleScreen extends AbstractContainerScreen<KettleMenu> {
         MachineWidgets.tank(graphics, leftPos + WATER_X, topPos + TANK_Y, TANK_HEIGHT,
                 menu.getWaterAmount(), KettleBlockEntity.TANK_CAPACITY, MachineWidgets.WATER_COLORS);
         MachineWidgets.tank(graphics, leftPos + WORT_X, topPos + TANK_Y, TANK_HEIGHT,
-                menu.getWortAmount(), KettleBlockEntity.TANK_CAPACITY, MachineWidgets.WORT_COLORS);
+                menu.getWortAmount(), KettleBlockEntity.TANK_CAPACITY, MachineWidgets.shades(menu.getWortColor()));
 
         String status = !heated ? "gui.brewery.kettle_status_no_heat"
                 : menu.getBrewProgress() > 0 ? "gui.brewery.kettle_status_brewing"

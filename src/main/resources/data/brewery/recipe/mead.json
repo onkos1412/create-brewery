@@ -24,6 +24,7 @@
     "distilledAlcohol": 20,
     "aged": "mead",
     "agingDays": 2,
-    "wood": "spruce"
+    "wood": "spruce",
+    "color": "#f0b52e"
   }
 }

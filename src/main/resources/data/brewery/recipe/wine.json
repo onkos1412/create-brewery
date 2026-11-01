@@ -24,6 +24,7 @@
     "distilledAlcohol": 25,
     "aged": "wine",
     "agingDays": 4,
-    "wood": "oak"
+    "wood": "oak",
+    "color": "#8e1f3a"
   }
 }

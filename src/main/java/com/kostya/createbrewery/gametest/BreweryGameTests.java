@@ -520,6 +520,27 @@ public class BreweryGameTests {
         helper.succeed();
     }
 
+    /** The surface shows what is inside: nothing, water, then the drink's own wort. */
+    @GameTest(template = "empty", timeoutTicks = 400)
+    public static void kettleLiquidTakesTheDrinksColor(GameTestHelper helper) {
+        helper.setBlock(KETTLE.below(), Blocks.CAMPFIRE);
+        helper.setBlock(KETTLE, ModBlocks.KETTLE.get());
+        KettleBlockEntity kettle = helper.getBlockEntity(KETTLE);
+        helper.assertTrue(kettle.getLiquidColor() == KettleBlockEntity.EMPTY_COLOR, "empty kettle colour");
+        fluids(helper, KETTLE).fill(new FluidStack(Fluids.WATER, 1000), IFluidHandler.FluidAction.EXECUTE);
+        int water = kettle.getLiquidColor();
+        helper.assertTrue(water != KettleBlockEntity.EMPTY_COLOR, "water shows no colour");
+        items(helper, KETTLE).insertItem(0, new ItemStack(Items.SWEET_BERRIES, 2), false);
+
+        helper.succeedWhen(() -> {
+            helper.assertTrue(kettle.getWortAmount() == 1000, "no wort yet");
+            helper.assertTrue(kettle.getLiquidColor() == 0x8E1F3A, "wine wort colour " + kettle.getLiquidColor());
+            // A client joining later must be told the drink as well as the amount.
+            var tag = kettle.getUpdateTag(helper.getLevel().registryAccess());
+            helper.assertTrue("young_wine".equals(tag.getString("WortDrink")), "update tag " + tag);
+        });
+    }
+
     /** Spec: contents survive a world restart. Each machine is saved and read back into a new block entity. */
     @GameTest(template = "empty", timeoutTicks = 100)
     public static void machineStateSurvivesSaving(GameTestHelper helper) {

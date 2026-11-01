@@ -68,10 +68,13 @@ def surface(frames, ramp, seed):
 
 def write_block_textures():
     save(solid("#2a1610"), BLOCK, "kettle_inside")
-    wort = surface(8, ["#6b3d10", "#8c5518", "#b07422", "#cf9334", "#efc56a"], 5)
-    save(wort, BLOCK, "kettle_boil")
-    (BLOCK / "kettle_boil.png.mcmeta").write_text(
-        json.dumps({"animation": {"frametime": 3, "interpolate": True}}, indent=2) + "\n", encoding="utf-8")
+    # Liquids are grey and take their colour from the drink: see ModClientSetup and ModFluids.
+    grey = ["#8c8c8c", "#a6a6a6", "#c0c0c0", "#d6d6d6", "#ffffff"]
+    animation = json.dumps({"animation": {"frametime": 3, "interpolate": True}}, indent=2) + "\n"
+    calm = ["#b4b4b4", "#c0c0c0", "#c8c8c8", "#d0d0d0", "#c8c8c8"]
+    for name, ramp, seed in (("kettle_boil", grey, 5), ("kettle_still", calm, 6), ("wort_still", calm, 7), ("wort_flow", grey, 8)):
+        save(surface(8, ramp, seed), BLOCK, name)
+        (BLOCK / f"{name}.png.mcmeta").write_text(animation, encoding="utf-8")
 
 
 def bottle(glass, liquid, label, shoulders):
@@ -160,7 +163,7 @@ def box(start, end, texture, faces="north south east west up down", **overrides)
     """
     built = {name: face(texture) for name in faces.split()}
     for name, value in overrides.items():
-        built[name] = face(*value) if isinstance(value, tuple) else face(value)
+        built[name] = value if isinstance(value, dict) else face(*value) if isinstance(value, tuple) else face(value)
     return {"from": start, "to": end, "faces": built}
 
 
@@ -196,7 +199,7 @@ def kettle_elements():
         box([2, 0, 2], [14, 2, 14], "foot"),
         box([0, 2, 0], [16, 3, 16], "copper", "north south east west down"),
         *walls(3, 13, "tank", "inside"),
-        box([2, 11, 2], [14, 11.5, 14], "liquid", "up"),
+        box([2, 11, 2], [14, 11.5, 14], "liquid", "", up={"texture": "#liquid", "tintindex": 0}),
         *rim(13, 16, "brass"),
     ]
 
@@ -301,7 +304,7 @@ def write_models():
     dump(MODELS / "kettle.json", model(create("copper_casing"), {
         "foot": create("andesite_casing"), "copper": create("copper_casing"), "tank": create("fluid_tank"),
         "brass": create("brass_block"), "inside": "brewery:block/kettle_inside",
-        "liquid": "brewery:block/kettle_inside",
+        "liquid": "brewery:block/kettle_still",
     }, kettle_elements()))
     dump(MODELS / "kettle_brewing.json", {
         "parent": "brewery:block/kettle",

@@ -27,6 +27,7 @@
     "distillTicks": 300,
     "idealRpm": 64,
     "agingDays": 2,
-    "wood": "birch"
+    "wood": "birch",
+    "color": "#d6c84e"
   }
 }

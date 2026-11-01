@@ -7,7 +7,7 @@
     "tank": "create:block/fluid_tank",
     "brass": "create:block/brass_block",
     "inside": "brewery:block/kettle_inside",
-    "liquid": "brewery:block/kettle_inside"
+    "liquid": "brewery:block/kettle_still"
   },
   "elements": [
     {
@@ -176,7 +176,8 @@
       ],
       "faces": {
         "up": {
-          "texture": "#liquid"
+          "texture": "#liquid",
+          "tintindex": 0
         }
       }
     },

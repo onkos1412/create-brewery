@@ -27,6 +27,7 @@
     "distillTicks": 240,
     "idealRpm": 48,
     "agingDays": 5,
-    "wood": "dark_oak"
+    "wood": "dark_oak",
+    "color": "#8f5a2a"
   }
 }

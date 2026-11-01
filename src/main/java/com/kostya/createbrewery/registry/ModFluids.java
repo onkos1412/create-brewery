@@ -1,7 +1,11 @@
 package com.kostya.createbrewery.registry;
 
 import com.kostya.createbrewery.CreateBrewery;
+import com.kostya.createbrewery.DrinkData;
+import com.kostya.createbrewery.recipe.BrewingRecipe;
+import com.kostya.createbrewery.recipe.DrinkProfile;
 import net.minecraft.client.Camera;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -26,6 +30,7 @@ import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.extensions.common.IClientFluidTypeExtensions;
 import net.neoforged.neoforge.client.extensions.common.RegisterClientExtensionsEvent;
+import net.neoforged.neoforge.fluids.FluidStack;
 import net.neoforged.neoforge.fluids.FluidType;
 import net.neoforged.neoforge.registries.DeferredHolder;
 import net.neoforged.neoforge.registries.DeferredRegister;
@@ -88,6 +93,23 @@ public final class ModFluids {
                 @Override
                 public ResourceLocation getFlowingTexture() {
                     return ResourceLocation.fromNamespaceAndPath(CreateBrewery.MOD_ID, "block/wort_flow");
+                }
+
+                /** Without a stack to go on, wort is its plain beer colour. */
+                @Override
+                public int getTintColor() {
+                    return 0xFF000000 | DrinkProfile.BEER.color();
+                }
+
+                /** Each wort carries its drink, and so its colour, through Create's pipes and tanks. */
+                @Override
+                public int getTintColor(FluidStack stack) {
+                    DrinkData data = stack.get(ModDataComponents.DRINK_DATA.get());
+                    ClientLevel level = Minecraft.getInstance().level;
+                    if (data == null || level == null) {
+                        return getTintColor();
+                    }
+                    return 0xFF000000 | BrewingRecipe.profileOf(level, data.stage()).color();
                 }
 
                 @Override

@@ -23,6 +23,7 @@
     "alcohol": 20,
     "distilled": "whiskey",
     "distilledAlcohol": 40,
-    "aged": "aged_whiskey"
+    "aged": "aged_whiskey",
+    "color": "#c98a1e"
   }
 }

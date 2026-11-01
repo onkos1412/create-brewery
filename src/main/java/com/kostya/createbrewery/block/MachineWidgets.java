@@ -16,9 +16,20 @@ final class MachineWidgets {
     static final int BUTTON_HEIGHT = 14;
 
     static final int[] WATER_COLORS = {0xFF2F6FD0, 0xFF4A8CE8, 0xFF8FC0F8};
-    static final int[] WORT_COLORS = {0xFFA8651A, 0xFFC97F24, 0xFFEFC56A};
 
     private MachineWidgets() {
+    }
+
+    /** A tank's edge, body and meniscus colours for a liquid's colour. */
+    static int[] shades(int rgb) {
+        return new int[] {scaled(rgb, 0.8f), 0xFF000000 | rgb, scaled(rgb, 1.3f)};
+    }
+
+    private static int scaled(int rgb, float factor) {
+        int r = Math.min(255, (int) (((rgb >> 16) & 0xFF) * factor));
+        int g = Math.min(255, (int) (((rgb >> 8) & 0xFF) * factor));
+        int b = Math.min(255, (int) ((rgb & 0xFF) * factor));
+        return 0xFF000000 | r << 16 | g << 8 | b;
     }
 
     static boolean inside(double mouseX, double mouseY, int x, int y, int width, int height) {

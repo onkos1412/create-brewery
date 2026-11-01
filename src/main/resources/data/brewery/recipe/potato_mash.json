@@ -24,6 +24,7 @@
     "distilled": "vodka",
     "distilledAlcohol": 40,
     "distillTicks": 400,
-    "idealRpm": 96
+    "idealRpm": 96,
+    "color": "#c9bd98"
   }
 }

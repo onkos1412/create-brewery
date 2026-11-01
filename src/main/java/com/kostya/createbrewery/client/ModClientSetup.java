@@ -4,6 +4,7 @@ import com.kostya.createbrewery.CreateBrewery;
 import com.kostya.createbrewery.DrinkData;
 import com.kostya.createbrewery.block.BarrelScreen;
 import com.kostya.createbrewery.block.DistilleryScreen;
+import com.kostya.createbrewery.block.KettleBlockEntity;
 import com.kostya.createbrewery.block.KettleScreen;
 import com.kostya.createbrewery.block.ModBlocks;
 import com.kostya.createbrewery.block.ModMenus;
@@ -18,6 +19,7 @@ import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.fml.event.lifecycle.FMLClientSetupEvent;
 import net.neoforged.neoforge.client.event.EntityRenderersEvent;
+import net.neoforged.neoforge.client.event.RegisterColorHandlersEvent;
 import net.neoforged.neoforge.client.event.RegisterMenuScreensEvent;
 import net.neoforged.neoforge.client.event.RegisterRecipeBookCategoriesEvent;
 
@@ -42,6 +44,20 @@ public final class ModClientSetup {
             Map.entry(DrinkData.SPOILED_STAGE, 9f));
 
     private ModClientSetup() {
+    }
+
+    /** The kettle's surface is drawn in grey and tinted with whatever is inside right now. */
+    @SubscribeEvent
+    public static void registerBlockColors(RegisterColorHandlersEvent.Block event) {
+        event.register((state, level, pos, tintIndex) -> level != null && pos != null
+                && level.getBlockEntity(pos) instanceof KettleBlockEntity kettle
+                ? kettle.getLiquidColor() : KettleBlockEntity.EMPTY_COLOR, ModBlocks.KETTLE.get());
+    }
+
+    /** The item has nothing inside, so its surface shows the kettle's bare bottom. */
+    @SubscribeEvent
+    public static void registerItemColors(RegisterColorHandlersEvent.Item event) {
+        event.register((stack, tintIndex) -> 0xFF000000 | KettleBlockEntity.EMPTY_COLOR, ModBlocks.KETTLE_ITEM.get());
     }
 
     @SubscribeEvent

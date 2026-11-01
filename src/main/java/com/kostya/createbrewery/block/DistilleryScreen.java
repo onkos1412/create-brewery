@@ -31,7 +31,7 @@ public class DistilleryScreen extends AbstractContainerScreen<DistilleryMenu> {
         graphics.blit(TEXTURE, leftPos, topPos, 0, 0, imageWidth, imageHeight);
         int progress = Mth.clamp(menu.getProgress(), 0, menu.getIdealTicks());
         MachineWidgets.tank(graphics, leftPos + TANK_X, topPos + TANK_Y, TANK_HEIGHT,
-                menu.getWort(), DistilleryLogic.WORT_REQUIRED, MachineWidgets.WORT_COLORS);
+                menu.getWort(), DistilleryLogic.WORT_REQUIRED, MachineWidgets.shades(menu.getWortColor()));
         MachineWidgets.arrow(graphics, leftPos + 50, topPos + 36, progress, menu.getIdealTicks());
         MachineWidgets.flame(graphics, leftPos + 36, topPos + 37, menu.getHeat() >= DistillingRules.MIN_HEAT);
         MachineWidgets.button(graphics, font, leftPos + BUTTON_X, topPos + BUTTON_Y,
