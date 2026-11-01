@@ -3,6 +3,7 @@ package com.kostya.createbrewery.item;
 import com.kostya.createbrewery.DrinkData;
 import com.kostya.createbrewery.drunk.DrunkManager;
 import com.kostya.createbrewery.quality.QualityRules;
+import com.kostya.createbrewery.quality.StarLine;
 import com.kostya.createbrewery.recipe.BrewingRecipe;
 import com.kostya.createbrewery.recipe.DrinkProfile;
 import com.kostya.createbrewery.registry.ModDataComponents;
@@ -103,8 +104,8 @@ public class DrinkItem extends Item {
         DrinkData data = stack.get(ModDataComponents.DRINK_DATA.get());
         if (data != null) {
             tooltip.add(Component.translatable("drink.brewery." + data.stage()).withStyle(ChatFormatting.GRAY));
-            tooltip.add(Component.translatable("tooltip.brewery.drink_data", data.stars())
-                    .withStyle(ChatFormatting.GOLD));
+            tooltip.add(Component.translatable("tooltip.brewery.drink_data", StarLine.of(data.stars()))
+                    .withStyle(ChatFormatting.GRAY));
             if (context.level() != null) {
                 DrinkProfile drink = BrewingRecipe.profileOf(context.level(), data.stage());
                 if (drink.id().equals(data.stage()) && drink.agesInTheBottle()) {

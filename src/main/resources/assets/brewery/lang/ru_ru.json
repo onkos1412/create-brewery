@@ -2,7 +2,7 @@
   "itemGroup.brewery": "Create Brewery",
   "item.brewery.drink_bottle": "Бутылка напитка",
   "item.brewery.distillate": "Дистиллят",
-  "tooltip.brewery.distillate_data": "Качество дистиллята: %s/5",
+  "tooltip.brewery.distillate_data": "Качество: %s",
   "block.brewery.kettle": "Пивоваренный котёл",
   "block.brewery.spout": "Носик для розлива",
   "block.brewery.distillery": "Перегонный куб",
@@ -22,7 +22,7 @@
   "gui.brewery.distillery_load": "Загрузить",
   "container.brewery.kettle": "Пивоваренный котёл",
   "fluid_type.brewery.wort": "Сусло",
-  "tooltip.brewery.drink_data": "Качество: %s/5",
+  "tooltip.brewery.drink_data": "Качество: %s",
   "tooltip.brewery.kettle_progress": "Варка: %s%%",
   "tooltip.brewery.kettle_water": "Вода: %s мВ",
   "tooltip.brewery.kettle_wort": "Сусло: %s мВ",
@@ -73,5 +73,6 @@
   "brewery.ponder.barrel.text_4": "Нажмите «Начать» и ждите нужные дни. Сон засчитывается, так что кровать ускоряет выдержку",
   "brewery.ponder.barrel.text_5": "С подачей через воронку бочка запускается сама и продолжает работать",
   "brewery.ponder.barrel.text_6": "Носик разливает напиток: бутылка из руки или пустые бутылки через воронку",
-  "brewery.ponder.barrel.text_7": "Забирайте вовремя: готовый напиток, оставленный в бочке, постепенно теряет звёзды"
+  "brewery.ponder.barrel.text_7": "Забирайте вовремя: готовый напиток, оставленный в бочке, постепенно теряет звёзды",
+  "fluid_type.brewery.wort_of": "Сусло (%s) %s"
 }

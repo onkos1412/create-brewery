@@ -2,6 +2,7 @@ package com.kostya.createbrewery.block;
 
 import com.kostya.createbrewery.distillery.DistilleryLogic;
 import com.kostya.createbrewery.distillery.DistillingRules;
+import com.kostya.createbrewery.quality.StarLine;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.network.chat.Component;
@@ -79,8 +80,11 @@ public class DistilleryScreen extends AbstractContainerScreen<DistilleryMenu> {
         super.render(graphics, mouseX, mouseY, partialTick);
         if (MachineWidgets.inside(mouseX, mouseY, leftPos + TANK_X, topPos + TANK_Y,
                 MachineWidgets.TANK_WIDTH, TANK_HEIGHT)) {
-            graphics.renderTooltip(font, Component.translatable("tooltip.brewery.kettle_wort", menu.getWort()),
-                    mouseX, mouseY);
+            Component line = Component.translatable("tooltip.brewery.kettle_wort", menu.getWort());
+            if (menu.getWort() > 0) {
+                line = line.copy().append(" ").append(StarLine.of(menu.getWortStars()));
+            }
+            graphics.renderTooltip(font, line, mouseX, mouseY);
         }
         renderTooltip(graphics, mouseX, mouseY);
     }

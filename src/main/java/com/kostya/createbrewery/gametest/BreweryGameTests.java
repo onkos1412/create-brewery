@@ -11,6 +11,7 @@ import com.kostya.createbrewery.block.KettleBlockEntity;
 import com.kostya.createbrewery.block.ModBlocks;
 import com.kostya.createbrewery.drunk.DrunkLevel;
 import com.kostya.createbrewery.drunk.DrunkManager;
+import com.kostya.createbrewery.recipe.BrewingRecipe;
 import com.kostya.createbrewery.registry.ModDataComponents;
 import com.kostya.createbrewery.registry.ModFluids;
 import com.kostya.createbrewery.registry.ModItems;
@@ -538,6 +539,35 @@ public class BreweryGameTests {
             // A client joining later must be told the drink as well as the amount.
             var tag = kettle.getUpdateTag(helper.getLevel().registryAccess());
             helper.assertTrue("young_wine".equals(tag.getString("WortDrink")), "update tag " + tag);
+        });
+    }
+
+    /** Create's own spout bottles wort off a depot: it waits for a full bottle's worth, and quality survives. */
+    @GameTest(template = "empty", timeoutTicks = 400)
+    public static void createSpoutBottlesWort(GameTestHelper helper) {
+        BlockPos depot = new BlockPos(2, 1, 2);
+        BlockPos spout = depot.above(2);
+        helper.setBlock(depot, AllBlocks.DEPOT.get());
+        helper.setBlock(spout, AllBlocks.SPOUT.get());
+        IFluidHandler tank = fluids(helper, spout);
+        tank.fill(KettleBlockEntity.wortStack(500, 3, "young_wine"), IFluidHandler.FluidAction.EXECUTE);
+        items(helper, depot).insertItem(0, new ItemStack(Items.GLASS_BOTTLE), false);
+        ItemStack loose = new ItemStack(Items.GLASS_BOTTLE);
+        var bottle = loose.getCapability(Capabilities.FluidHandler.ITEM);
+        helper.assertTrue(bottle.fill(new FluidStack(Fluids.WATER, 1000), IFluidHandler.FluidAction.SIMULATE) == 0,
+                "bottle handler took water");
+
+        helper.runAfterDelay(60, () -> {
+            helper.assertTrue(items(helper, depot).getStackInSlot(0).is(Items.GLASS_BOTTLE), "filled from half a bottle's wort");
+            tank.fill(KettleBlockEntity.wortStack(500, 3, "young_wine"), IFluidHandler.FluidAction.EXECUTE);
+            helper.succeedWhen(() -> {
+                ItemStack result = items(helper, depot).getStackInSlot(0);
+                helper.assertTrue(result.is(ModItems.DRINK_BOTTLE.get()), "not bottled: " + result);
+                DrinkData data = data(result);
+                helper.assertTrue(data.stars() == 3 && "young_wine".equals(data.stage()), "wrong drink " + data);
+                helper.assertTrue(data.alcohol() == BrewingRecipe.profileOf(helper.getLevel(), "young_wine").alcohol(), "alcohol " + data);
+                helper.assertTrue(tank.getFluidInTank(0).isEmpty(), "wort left in the spout");
+            });
         });
     }
 

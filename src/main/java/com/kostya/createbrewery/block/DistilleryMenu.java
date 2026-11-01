@@ -71,6 +71,12 @@ public class DistilleryMenu extends AbstractContainerMenu {
         return (data.get(6) & 0xFF) << 16 | data.get(7) & 0xFFFF;
     }
 
+    /** The quality of the wort inside. */
+    public int getWortStars() {
+        return net.minecraft.util.Mth.clamp(data.get(8), com.kostya.createbrewery.DrinkData.MIN_STARS,
+                com.kostya.createbrewery.DrinkData.MAX_STARS);
+    }
+
     public int getIdealRpm() {
         return data.get(5);
     }
@@ -112,7 +118,7 @@ public class DistilleryMenu extends AbstractContainerMenu {
     }
 
     private final class Data implements ContainerData {
-        private final int[] synced = new int[8];
+        private final int[] synced = new int[9];
 
         @Override
         public int get(int index) {
@@ -129,6 +135,7 @@ public class DistilleryMenu extends AbstractContainerMenu {
                 case 5 -> distillery.getProfile().idealRpm();
                 case 6 -> distillery.getProfile().color() >>> 16;
                 case 7 -> distillery.getProfile().color() & 0xFFFF;
+                case 8 -> distillery.getInputStars();
                 default -> 0;
             };
         }

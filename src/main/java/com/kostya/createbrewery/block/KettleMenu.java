@@ -1,5 +1,7 @@
 package com.kostya.createbrewery.block;
 
+import com.kostya.createbrewery.DrinkData;
+import net.minecraft.util.Mth;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.world.Container;
 import net.minecraft.world.SimpleContainer;
@@ -32,7 +34,8 @@ public class KettleMenu extends AbstractContainerMenu {
     /** A colour does not fit one data slot, which travels as a short. */
     public static final int DATA_COLOR_HIGH = 5;
     public static final int DATA_COLOR_LOW = 6;
-    public static final int DATA_COUNT = 7;
+    public static final int DATA_STARS = 7;
+    public static final int DATA_COUNT = 8;
 
     private static final int SLOT_SIZE = 18;
 
@@ -78,6 +81,7 @@ public class KettleMenu extends AbstractContainerMenu {
         bound.brewTime = kettle::getBrewTimeTicks;
         bound.colorHigh = () -> kettle.getWortColor() >>> 16;
         bound.colorLow = () -> kettle.getWortColor() & 0xFFFF;
+        bound.stars = kettle::getWortStars;
     }
 
     private static KettleBlockEntity findKettle(Inventory inventory, net.minecraft.core.BlockPos pos) {
@@ -124,6 +128,11 @@ public class KettleMenu extends AbstractContainerMenu {
     /** The colour of the wort inside. */
     public int getWortColor() {
         return (data.get(DATA_COLOR_HIGH) & 0xFF) << 16 | data.get(DATA_COLOR_LOW) & 0xFFFF;
+    }
+
+    /** The quality of the wort inside. */
+    public int getWortStars() {
+        return Mth.clamp(data.get(DATA_STARS), DrinkData.MIN_STARS, DrinkData.MAX_STARS);
     }
 
     /** Whether the kettle holds enough wort for one bottle. */
@@ -190,6 +199,7 @@ public class KettleMenu extends AbstractContainerMenu {
         private IntSupplier brewTime = () -> 0;
         private IntSupplier colorHigh = () -> 0;
         private IntSupplier colorLow = () -> 0;
+        private IntSupplier stars = () -> 0;
         private final int[] synced = new int[DATA_COUNT];
 
         @Override
@@ -202,6 +212,7 @@ public class KettleMenu extends AbstractContainerMenu {
                 case DATA_BREW_TIME -> brewTime.getAsInt();
                 case DATA_COLOR_HIGH -> colorHigh.getAsInt();
                 case DATA_COLOR_LOW -> colorLow.getAsInt();
+                case DATA_STARS -> stars.getAsInt();
                 default -> 0;
             };
         }
@@ -219,6 +230,7 @@ public class KettleMenu extends AbstractContainerMenu {
                 case DATA_BREW_TIME -> brewTime = () -> synced[DATA_BREW_TIME];
                 case DATA_COLOR_HIGH -> colorHigh = () -> synced[DATA_COLOR_HIGH];
                 case DATA_COLOR_LOW -> colorLow = () -> synced[DATA_COLOR_LOW];
+                case DATA_STARS -> stars = () -> synced[DATA_STARS];
                 default -> {
                 }
             }

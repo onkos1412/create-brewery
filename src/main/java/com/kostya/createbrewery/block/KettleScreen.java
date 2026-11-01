@@ -1,5 +1,6 @@
 package com.kostya.createbrewery.block;
 
+import com.kostya.createbrewery.quality.StarLine;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.network.chat.Component;
@@ -81,7 +82,10 @@ public class KettleScreen extends AbstractContainerScreen<KettleMenu> {
             line = Component.translatable("tooltip.brewery.kettle_water", menu.getWaterAmount());
         } else if (MachineWidgets.inside(mouseX, mouseY, leftPos + WORT_X, topPos + TANK_Y,
                 MachineWidgets.TANK_WIDTH, TANK_HEIGHT)) {
-            line = Component.translatable("tooltip.brewery.kettle_wort", menu.getWortAmount());
+            line = menu.getWortAmount() > 0
+                    ? Component.translatable("tooltip.brewery.kettle_wort", menu.getWortAmount())
+                            .append(" ").append(StarLine.of(menu.getWortStars()))
+                    : Component.translatable("tooltip.brewery.kettle_wort", 0);
         }
         if (line != null) {
             graphics.renderTooltip(font, line, mouseX, mouseY);

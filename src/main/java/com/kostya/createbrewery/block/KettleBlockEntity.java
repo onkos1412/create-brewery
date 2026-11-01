@@ -6,7 +6,6 @@ import com.kostya.createbrewery.recipe.DrinkProfile;
 import com.kostya.createbrewery.recipe.ModRecipeTypes;
 import com.kostya.createbrewery.registry.ModDataComponents;
 import com.kostya.createbrewery.registry.ModFluids;
-import com.kostya.createbrewery.registry.ModItems;
 import com.simibubi.create.content.processing.burner.BlazeBurnerBlock;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
@@ -141,7 +140,7 @@ public class KettleBlockEntity extends BlockEntity {
     }
 
     /** Wort carries its quality and drink on the stack, so both survive Create's pipes. */
-    static FluidStack wortStack(int amount, int stars, String drink) {
+    public static FluidStack wortStack(int amount, int stars, String drink) {
         FluidStack stack = new FluidStack(ModFluids.WORT.get(), amount);
         stack.set(ModDataComponents.DRINK_DATA.get(), new DrinkData(stars, 0, drink));
         return stack;
@@ -233,10 +232,7 @@ public class KettleBlockEntity extends BlockEntity {
         }
         wortAmount -= WORT_PER_BREW;
         setChanged();
-        ItemStack bottle = new ItemStack(ModItems.DRINK_BOTTLE.get());
-        DrinkProfile drink = BrewingRecipe.profileOf(level, wortDrink);
-        bottle.set(ModDataComponents.DRINK_DATA.get(), new DrinkData(wortStars, drink.alcohol(), wortDrink));
-        return bottle;
+        return WortBottling.bottle(level, wortStars, wortDrink);
     }
 
     /** Reads the heat level of the block directly beneath the kettle. */

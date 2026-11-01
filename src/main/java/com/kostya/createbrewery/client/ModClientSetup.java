@@ -19,7 +19,9 @@ import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.fml.event.lifecycle.FMLClientSetupEvent;
 import net.neoforged.neoforge.client.event.EntityRenderersEvent;
+import net.neoforged.neoforge.client.IItemDecorator;
 import net.neoforged.neoforge.client.event.RegisterColorHandlersEvent;
+import net.neoforged.neoforge.client.event.RegisterItemDecorationsEvent;
 import net.neoforged.neoforge.client.event.RegisterMenuScreensEvent;
 import net.neoforged.neoforge.client.event.RegisterRecipeBookCategoriesEvent;
 
@@ -30,6 +32,8 @@ import java.util.Map;
  */
 @EventBusSubscriber(modid = CreateBrewery.MOD_ID, value = Dist.CLIENT)
 public final class ModClientSetup {
+    private static final int STAR_EARNED = 0xFFFFC83D;
+    private static final int STAR_MISSED = 0xFF3A3226;
 
     /** Values of the {@code brewery:drink} property, matching the overrides in drink_bottle.json. */
     private static final Map<String, Float> BOTTLE_ART = Map.ofEntries(
@@ -58,6 +62,27 @@ public final class ModClientSetup {
     @SubscribeEvent
     public static void registerItemColors(RegisterColorHandlersEvent.Item event) {
         event.register((stack, tintIndex) -> 0xFF000000 | KettleBlockEntity.EMPTY_COLOR, ModBlocks.KETTLE_ITEM.get());
+    }
+
+    /** A row of pips across the top of a bottle's icon, so quality reads without hovering. */
+    @SubscribeEvent
+    public static void registerItemDecorators(RegisterItemDecorationsEvent event) {
+        IItemDecorator pips = (graphics, font, stack, x, y) -> {
+            DrinkData data = stack.get(ModDataComponents.DRINK_DATA.get());
+            if (data == null || data.isSpoiled()) {
+                return false;
+            }
+            graphics.pose().pushPose();
+            graphics.pose().translate(0, 0, 200);
+            for (int star = 0; star < DrinkData.MAX_STARS; star++) {
+                int left = x + 1 + star * 3;
+                graphics.fill(left, y, left + 2, y + 2, star < data.stars() ? STAR_EARNED : STAR_MISSED);
+            }
+            graphics.pose().popPose();
+            return false;
+        };
+        event.register(ModItems.DRINK_BOTTLE.get(), pips);
+        event.register(ModItems.DISTILLATE.get(), pips);
     }
 
     @SubscribeEvent

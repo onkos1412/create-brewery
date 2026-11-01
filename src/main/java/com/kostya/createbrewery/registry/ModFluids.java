@@ -2,6 +2,7 @@ package com.kostya.createbrewery.registry;
 
 import com.kostya.createbrewery.CreateBrewery;
 import com.kostya.createbrewery.DrinkData;
+import com.kostya.createbrewery.quality.StarLine;
 import com.kostya.createbrewery.recipe.BrewingRecipe;
 import com.kostya.createbrewery.recipe.DrinkProfile;
 import net.minecraft.client.Camera;
@@ -10,6 +11,7 @@ import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.registries.Registries;
+import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.Items;
@@ -61,7 +63,18 @@ public final class ModFluids {
                     .descriptionId("fluid_type.brewery.wort")
                     .density(1100)
                     .viscosity(1400)
-                    .rarity(Rarity.COMMON)));
+                    .rarity(Rarity.COMMON)) {
+                /** Tanks and goggles name a wort by its drink and quality, which keep it apart from other wort. */
+                @Override
+                public Component getDescription(FluidStack stack) {
+                    DrinkData data = stack.get(ModDataComponents.DRINK_DATA.get());
+                    if (data == null) {
+                        return super.getDescription(stack);
+                    }
+                    return Component.translatable("fluid_type.brewery.wort_of",
+                            Component.translatable("drink.brewery." + data.stage()), StarLine.of(data.stars()));
+                }
+            });
 
     public static final DeferredHolder<Fluid, FlowingFluid> WORT =
             FLUIDS.register("wort", WortFluid.Source::new);

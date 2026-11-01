@@ -2,7 +2,7 @@
   "itemGroup.brewery": "Create Brewery",
   "item.brewery.drink_bottle": "Drink Bottle",
   "item.brewery.distillate": "Distillate",
-  "tooltip.brewery.distillate_data": "Distillate quality: %s/5",
+  "tooltip.brewery.distillate_data": "Quality: %s",
   "block.brewery.kettle": "Brewing Kettle",
   "block.brewery.spout": "Bottling Spout",
   "block.brewery.distillery": "Distillery",
@@ -22,7 +22,7 @@
   "gui.brewery.distillery_load": "Load",
   "container.brewery.kettle": "Brewing Kettle",
   "fluid_type.brewery.wort": "Wort",
-  "tooltip.brewery.drink_data": "Quality: %s/5",
+  "tooltip.brewery.drink_data": "Quality: %s",
   "tooltip.brewery.kettle_progress": "Brewing: %s%%",
   "tooltip.brewery.kettle_water": "Water: %s mB",
   "tooltip.brewery.kettle_wort": "Wort: %s mB",
@@ -73,5 +73,6 @@
   "brewery.ponder.barrel.text_4": "Press Start and wait the drink's days. Sleeping counts, so a bed speeds it up",
   "brewery.ponder.barrel.text_5": "Fed by a funnel, it starts on its own and keeps going",
   "brewery.ponder.barrel.text_6": "A spout bottles the drink, from your hand or from empty bottles fed in by funnel",
-  "brewery.ponder.barrel.text_7": "Collect it on time: a finished drink left in the barrel slowly loses its stars"
+  "brewery.ponder.barrel.text_7": "Collect it on time: a finished drink left in the barrel slowly loses its stars",
+  "fluid_type.brewery.wort_of": "Wort (%s) %s"
 }

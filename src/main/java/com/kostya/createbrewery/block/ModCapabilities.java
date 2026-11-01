@@ -4,6 +4,7 @@ import com.kostya.createbrewery.CreateBrewery;
 import com.simibubi.create.api.stress.BlockStressValues;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.Containers;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.level.Level;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
@@ -41,6 +42,8 @@ public final class ModCapabilities {
                 (barrel, side) -> barrel.getAutomationItems());
         event.registerBlockEntity(Capabilities.ItemHandler.BLOCK, ModBlocks.SPOUT_BLOCK_ENTITY.get(),
                 (spout, side) -> spout.getItems());
+        event.registerItem(Capabilities.FluidHandler.ITEM, (stack, context) -> new WortBottling.BottleHandler(stack),
+                Items.GLASS_BOTTLE);
     }
 
     /** The distillery loads a network as much as a millstone does. */
