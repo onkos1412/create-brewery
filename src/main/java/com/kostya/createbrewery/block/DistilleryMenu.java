@@ -88,13 +88,20 @@ public class DistilleryMenu extends AbstractContainerMenu {
         if (!slot.hasItem()) {
             return ItemStack.EMPTY;
         }
-        ItemStack original = slot.getItem().copy();
+        ItemStack stack = slot.getItem();
+        ItemStack original = stack.copy();
         if (index == 0) {
-            if (!moveItemStackTo(slot.getItem(), 1, slots.size(), true)) {
+            if (!moveItemStackTo(stack, 1, slots.size(), true)) {
                 return ItemStack.EMPTY;
             }
-        } else if (!moveItemStackTo(slot.getItem(), 0, 1, false)) {
+        } else if (!moveItemStackTo(stack, 0, 1, false)) {
             return ItemStack.EMPTY;
+        }
+        // Go through the slot: the move edited the live stack, and the block entity must learn of it to save.
+        if (stack.isEmpty()) {
+            slot.setByPlayer(ItemStack.EMPTY);
+        } else {
+            slot.setChanged();
         }
         return original;
     }

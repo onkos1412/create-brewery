@@ -101,17 +101,24 @@ public class BarrelMenu extends AbstractContainerMenu {
         if (!slot.hasItem()) {
             return ItemStack.EMPTY;
         }
-        ItemStack original = slot.getItem().copy();
+        ItemStack stack = slot.getItem();
+        ItemStack original = stack.copy();
         if (index < MACHINE_SLOTS) {
-            if (!moveItemStackTo(slot.getItem(), MACHINE_SLOTS, slots.size(), true)) {
+            if (!moveItemStackTo(stack, MACHINE_SLOTS, slots.size(), true)) {
                 return ItemStack.EMPTY;
             }
             if (index == OUTPUT_SLOT && barrel != null) {
                 barrel.spendBottle();
             }
-        } else if (!moveItemStackTo(slot.getItem(), 0, OUTPUT_SLOT, false)
-                && !moveItemStackTo(slot.getItem(), BOTTLE_SLOT, MACHINE_SLOTS, false)) {
+        } else if (!moveItemStackTo(stack, 0, OUTPUT_SLOT, false)
+                && !moveItemStackTo(stack, BOTTLE_SLOT, MACHINE_SLOTS, false)) {
             return ItemStack.EMPTY;
+        }
+        // Go through the slot: the move edited the live stack, and the block entity must learn of it to save.
+        if (stack.isEmpty()) {
+            slot.setByPlayer(ItemStack.EMPTY);
+        } else {
+            slot.setChanged();
         }
         return original;
     }

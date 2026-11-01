@@ -25,13 +25,14 @@ public record DrinkProfile(String id, int alcohol, String distilled, int distill
 
     public static final Codec<DrinkProfile> CODEC = RecordCodecBuilder.create(instance -> instance.group(
             Codec.STRING.fieldOf("id").forGetter(DrinkProfile::id),
-            Codec.INT.fieldOf("alcohol").forGetter(DrinkProfile::alcohol),
+            Codec.intRange(0, 100).fieldOf("alcohol").forGetter(DrinkProfile::alcohol),
             Codec.STRING.optionalFieldOf("distilled", "").forGetter(DrinkProfile::distilled),
-            Codec.INT.optionalFieldOf("distilledAlcohol", 40).forGetter(DrinkProfile::distilledAlcohol),
+            Codec.intRange(0, 100).optionalFieldOf("distilledAlcohol", 40).forGetter(DrinkProfile::distilledAlcohol),
             Codec.STRING.optionalFieldOf("aged", "").forGetter(DrinkProfile::aged),
-            Codec.INT.optionalFieldOf("distillTicks", 200).forGetter(DrinkProfile::distillTicks),
-            Codec.INT.optionalFieldOf("idealRpm", 32).forGetter(DrinkProfile::idealRpm),
-            Codec.INT.optionalFieldOf("agingDays", 3).forGetter(DrinkProfile::agingDays),
+            // The machines divide by these, so a bad datapack must fail on load rather than crash a tick.
+            Codec.intRange(1, Integer.MAX_VALUE).optionalFieldOf("distillTicks", 200).forGetter(DrinkProfile::distillTicks),
+            Codec.intRange(1, 256).optionalFieldOf("idealRpm", 32).forGetter(DrinkProfile::idealRpm),
+            Codec.intRange(1, Integer.MAX_VALUE).optionalFieldOf("agingDays", 3).forGetter(DrinkProfile::agingDays),
             Codec.STRING.optionalFieldOf("wood", "oak").forGetter(DrinkProfile::wood)
     ).apply(instance, DrinkProfile::new));
 

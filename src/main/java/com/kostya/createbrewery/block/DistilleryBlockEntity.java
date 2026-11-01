@@ -46,7 +46,7 @@ public class DistilleryBlockEntity extends BlockEntity {
         }
     };
 
-    /** Pipes can only fill the wort tank; the batch leaves as a distillate item. */
+    /** Pipes fill the wort tank; a finished batch leaves as a distillate item. */
     private final IFluidHandler fluidHandler = new IFluidHandler() {
         @Override
         public int getTanks() {
@@ -91,12 +91,23 @@ public class DistilleryBlockEntity extends BlockEntity {
 
         @Override
         public FluidStack drain(FluidStack resource, FluidAction action) {
-            return FluidStack.EMPTY;
+            return isFluidValid(0, resource) ? drain(resource.getAmount(), action) : FluidStack.EMPTY;
         }
 
+        /** A pump can pull wort back out, so a part batch or an unwanted drink never jams the cube. */
         @Override
         public FluidStack drain(int maxDrain, FluidAction action) {
-            return FluidStack.EMPTY;
+            int drained = Math.min(maxDrain, wortAmount);
+            if (drained <= 0) {
+                return FluidStack.EMPTY;
+            }
+            FluidStack stack = KettleBlockEntity.wortStack(drained, inputStars, wortDrink);
+            if (action.execute()) {
+                wortAmount -= drained;
+                progressTicks = 0;
+                setChanged();
+            }
+            return stack;
         }
     };
 

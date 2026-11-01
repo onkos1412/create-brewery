@@ -26,9 +26,6 @@ public class KettleScreen extends AbstractContainerScreen<KettleMenu> {
     private static final int WATER_X = 130;
     private static final int WORT_X = 150;
 
-    /** Brew time of the reference recipe; the bar fills against this. */
-    private static final int FULL_BREW_TICKS = 200;
-
     private static final int TRACK_COLOR = 0xFF302C26;
     private static final int FILL_COLOR = 0xFFC97A1E;
     private static final int FILL_HIGHLIGHT = 0xFFF0B04A;
@@ -54,7 +51,7 @@ public class KettleScreen extends AbstractContainerScreen<KettleMenu> {
         int barX = leftPos + BAR_X;
         int barY = topPos + BAR_Y;
         graphics.fill(barX, barY, barX + BAR_WIDTH, barY + BAR_HEIGHT, TRACK_COLOR);
-        int fill = Mth.clamp(menu.getBrewProgress(), 0, FULL_BREW_TICKS) * (BAR_WIDTH - 2) / FULL_BREW_TICKS;
+        int fill = Mth.clamp(menu.getBrewProgress(), 0, menu.getBrewTime()) * (BAR_WIDTH - 2) / menu.getBrewTime();
         if (fill > 0) {
             graphics.fill(barX + 1, barY + 1, barX + 1 + fill, barY + BAR_HEIGHT - 1, FILL_COLOR);
             graphics.fill(barX + 1, barY + 1, barX + 1 + fill, barY + 2, FILL_HIGHLIGHT);
@@ -77,7 +74,7 @@ public class KettleScreen extends AbstractContainerScreen<KettleMenu> {
     private void renderGaugeTooltip(GuiGraphics graphics, int mouseX, int mouseY) {
         Component line = null;
         if (MachineWidgets.inside(mouseX, mouseY, leftPos + BAR_X, topPos + BAR_Y, BAR_WIDTH, BAR_HEIGHT)) {
-            int percent = Mth.clamp(menu.getBrewProgress(), 0, FULL_BREW_TICKS) * 100 / FULL_BREW_TICKS;
+            int percent = Mth.clamp(menu.getBrewProgress(), 0, menu.getBrewTime()) * 100 / menu.getBrewTime();
             line = Component.translatable("tooltip.brewery.kettle_progress", percent);
         } else if (MachineWidgets.inside(mouseX, mouseY, leftPos + WATER_X, topPos + TANK_Y,
                 MachineWidgets.TANK_WIDTH, TANK_HEIGHT)) {

@@ -35,11 +35,6 @@ import java.util.List;
 public class DrinkItem extends Item {
     /** How many ticks the drinking animation takes. */
     public static final int DRINK_DURATION_TICKS = 32;
-    /**
-     * Drunk level added per quality star. Sobering removes one level per second, so a
-     * five-star bottle keeps the player swaying for forty seconds.
-     */
-    public static final int DRUNK_PER_STAR = 8;
 
     public DrinkItem(Properties properties) {
         super(properties);

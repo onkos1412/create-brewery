@@ -28,6 +28,10 @@ public class BarrelBlockEntity extends BlockEntity {
 
     private long startedAt = -1L;
     private long finishedAt = -1L;
+    /** Day time last seen. Clocks only ever add forward steps, so `/time set` backward cannot stall them. */
+    private long lastDayTime = -1L;
+    private long agedTicks;
+    private long overAgedTicks;
     private int finishedStars = DrinkData.MAX_STARS;
     private int finishedDays = 1;
     private String woodId = "";
@@ -220,11 +224,23 @@ public class BarrelBlockEntity extends BlockEntity {
     }
 
     public long getElapsedTicks() {
-        if (startedAt < 0 || level == null) {
-            return 0;
+        return startedAt < 0 ? 0 : agedTicks;
+    }
+
+    /** Day time, not game time: sleeping skips it forward, and so ages the barrel. */
+    private void advanceClocks() {
+        long now = level.getDayTime();
+        long step = lastDayTime < 0 ? 0L : Math.max(0L, now - lastDayTime);
+        lastDayTime = now;
+        if (startedAt >= 0) {
+            agedTicks += step;
         }
-        // Day time, not game time: sleeping skips it forward, and so ages the barrel.
-        return Math.max(0L, level.getDayTime() - startedAt);
+        if (finishedAt >= 0) {
+            overAgedTicks += step;
+        }
+        if (step > 0) {
+            setChanged();
+        }
     }
 
     public String getWoodId() {
@@ -244,6 +260,8 @@ public class BarrelBlockEntity extends BlockEntity {
         }
         woodId = id;
         startedAt = level == null ? 0L : level.getDayTime();
+        agedTicks = 0L;
+        lastDayTime = startedAt;
         setChanged();
         return true;
     }
@@ -255,7 +273,7 @@ public class BarrelBlockEntity extends BlockEntity {
         if (finishedAt < 0 || data == null) {
             return;
         }
-        int stars = AgingRules.overAgedStars(finishedStars, Math.max(0L, level.getDayTime() - finishedAt), finishedDays);
+        int stars = AgingRules.overAgedStars(finishedStars, overAgedTicks, finishedDays);
         if (stars != data.stars()) {
             ItemStack worse = drink.copy();
             worse.set(ModDataComponents.DRINK_DATA.get(), new DrinkData(stars, data.alcohol(), data.stage()));
@@ -267,6 +285,7 @@ public class BarrelBlockEntity extends BlockEntity {
         if (level == null || level.isClientSide()) {
             return;
         }
+        advanceClocks();
         if (!output.getStackInSlot(0).isEmpty()) {
             overAge();
             return;
@@ -295,6 +314,7 @@ public class BarrelBlockEntity extends BlockEntity {
                 stage == null ? DrinkProfile.BEER.aged() : stage));
         output.setStackInSlot(0, aged);
         finishedAt = level.getDayTime();
+        overAgedTicks = 0L;
         finishedStars = result.stars();
         finishedDays = profile.agingDays();
         if (young) {
@@ -313,6 +333,9 @@ public class BarrelBlockEntity extends BlockEntity {
         super.saveAdditional(tag, registries);
         tag.putLong("StartedAt", startedAt);
         tag.putLong("FinishedAt", finishedAt);
+        tag.putLong("LastDayTime", lastDayTime);
+        tag.putLong("AgedTicks", agedTicks);
+        tag.putLong("OverAgedTicks", overAgedTicks);
         tag.putInt("FinishedStars", finishedStars);
         tag.putInt("FinishedDays", finishedDays);
         tag.putString("Wood", woodId);
@@ -327,6 +350,10 @@ public class BarrelBlockEntity extends BlockEntity {
         super.loadAdditional(tag, registries);
         startedAt = tag.contains("StartedAt") ? tag.getLong("StartedAt") : -1L;
         finishedAt = tag.contains("FinishedAt") ? tag.getLong("FinishedAt") : -1L;
+        // Barrels saved before the clocks existed catch up from when their batch started.
+        lastDayTime = tag.contains("LastDayTime") ? tag.getLong("LastDayTime") : startedAt;
+        agedTicks = tag.getLong("AgedTicks");
+        overAgedTicks = tag.getLong("OverAgedTicks");
         finishedStars = tag.contains("FinishedStars") ? tag.getInt("FinishedStars") : DrinkData.MAX_STARS;
         finishedDays = tag.contains("FinishedDays") ? tag.getInt("FinishedDays") : 1;
         woodId = tag.getString("Wood");

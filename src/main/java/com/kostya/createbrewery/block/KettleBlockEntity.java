@@ -106,6 +106,8 @@ public class KettleBlockEntity extends BlockEntity {
     private int wortStars = DrinkData.MAX_STARS;
     private String wortDrink = DrinkProfile.BEER.id();
     private int brewProgressTicks;
+    private int brewTimeTicks = 200;
+    private int brewStars = DrinkData.MAX_STARS;
     private int heatLevel;
 
     public KettleBlockEntity(BlockPos pos, BlockState state) {
@@ -145,6 +147,11 @@ public class KettleBlockEntity extends BlockEntity {
 
     public int getBrewProgressTicks() {
         return brewProgressTicks;
+    }
+
+    /** How long the current brew takes, for the GUI. */
+    public int getBrewTimeTicks() {
+        return brewTimeTicks;
     }
 
     public int getHeatLevel() {
@@ -238,6 +245,10 @@ public class KettleBlockEntity extends BlockEntity {
 
         if (roomForMore && nextProgress > brewProgressTicks) {
             brewProgressTicks = nextProgress;
+            brewTimeTicks = recipe.value().brewTimeTicks();
+            // The worst heat of the whole brew counts, not just the heat on its last tick.
+            int heatStars = KettleLogic.brewStars(heatLevel, view.idealHeatLevel());
+            brewStars = brewProgressTicks == 1 ? heatStars : Math.min(brewStars, heatStars);
             setBrewingState(true);
             setChanged();
         } else {
@@ -254,9 +265,8 @@ public class KettleBlockEntity extends BlockEntity {
             return;
         }
 
-        int stars = KettleLogic.brewStars(heatLevel, view.idealHeatLevel());
         // Batches share one tank, so the weakest one decides the quality of the lot.
-        wortStars = wortAmount > 0 ? Math.min(wortStars, stars) : stars;
+        wortStars = wortAmount > 0 ? Math.min(wortStars, brewStars) : brewStars;
         wortDrink = recipe.value().drink().id();
         waterAmount -= view.wortAmount();
         wortAmount += result.wortAmount();
@@ -334,6 +344,7 @@ public class KettleBlockEntity extends BlockEntity {
         tag.putInt("WortStars", wortStars);
         tag.putString("WortDrink", wortDrink);
         tag.putInt("BrewProgress", brewProgressTicks);
+        tag.putInt("BrewStars", brewStars);
     }
 
     @Override
@@ -347,5 +358,6 @@ public class KettleBlockEntity extends BlockEntity {
         wortStars = tag.contains("WortStars") ? tag.getInt("WortStars") : DrinkData.MAX_STARS;
         wortDrink = tag.contains("WortDrink") ? tag.getString("WortDrink") : DrinkProfile.BEER.id();
         brewProgressTicks = tag.getInt("BrewProgress");
+        brewStars = tag.contains("BrewStars") ? tag.getInt("BrewStars") : DrinkData.MAX_STARS;
     }
 }

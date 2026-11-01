@@ -61,12 +61,13 @@ final class BrewingCategory implements IRecipeCategory<BrewingRecipe> {
 
     @Override
     public void setRecipe(IRecipeLayoutBuilder builder, BrewingRecipe recipe, IFocusGroup focuses) {
-        builder.addSlot(RecipeIngredientRole.INPUT, 1, 1)
-                .addIngredients(recipe.getIngredients().getFirst())
-                .setStandardSlotBackground();
-        builder.addSlot(RecipeIngredientRole.INPUT, 19, 1)
-                .addIngredients(recipe.getIngredients().getLast())
-                .setStandardSlotBackground();
+        int x = 1;
+        for (var ingredient : recipe.getIngredients()) {
+            builder.addSlot(RecipeIngredientRole.INPUT, x, 1)
+                    .addIngredients(ingredient)
+                    .setStandardSlotBackground();
+            x += 18;
+        }
 
         DrinkProfile drink = recipe.drink();
         builder.addSlot(RecipeIngredientRole.OUTPUT, WIDTH - 37, 1)

@@ -293,6 +293,65 @@ public class BreweryGameTests {
                 .thenSucceed();
     }
 
+    /** `/time set` backward must not stall a batch: the time already aged still counts. */
+    @GameTest(template = "empty", timeoutTicks = 200, batch = "aging_time_set")
+    public static void settingTheClockBackDoesNotFreezeAging(GameTestHelper helper) {
+        helper.setBlock(BARREL, ModBlocks.BARREL.get());
+        BarrelBlockEntity barrel = helper.getBlockEntity(BARREL);
+        ItemStack whiskey = new ItemStack(ModItems.DISTILLATE.get());
+        whiskey.set(ModDataComponents.DRINK_DATA.get(), new DrinkData(5, 40, "whiskey"));
+        barrel.getInput().setStackInSlot(0, whiskey);
+        barrel.getInput().setStackInSlot(1, new ItemStack(Items.OAK_LOG));
+        barrel.startAging();
+        long period = barrel.getRequiredTicks();
+
+        helper.startSequence()
+                .thenExecute(() -> helper.getLevel().setDayTime(helper.getLevel().getDayTime() + period - 100))
+                .thenExecuteAfter(2, () -> helper.getLevel().setDayTime(1000))
+                .thenExecuteAfter(2, () -> {
+                    helper.assertTrue(barrel.getElapsedTicks() >= period - 100, "lost " + barrel.getElapsedTicks());
+                    helper.getLevel().setDayTime(helper.getLevel().getDayTime() + 200);
+                })
+                .thenWaitUntil(() -> helper.assertFalse(barrel.getOutput().getStackInSlot(0).isEmpty(),
+                        "batch frozen at " + barrel.getElapsedTicks()))
+                .thenSucceed();
+    }
+
+    /** A part batch left in the still can be pumped back out, making room for another drink. */
+    @GameTest(template = "empty")
+    public static void partBatchDrainsFromTheStill(GameTestHelper helper) {
+        helper.setBlock(DISTILLERY, ModBlocks.DISTILLERY.get());
+        DistilleryBlockEntity still = helper.getBlockEntity(DISTILLERY);
+        FluidStack cider = new FluidStack(ModFluids.WORT.get(), 600);
+        cider.set(ModDataComponents.DRINK_DATA.get(), new DrinkData(4, 0, "cider"));
+        IFluidHandler tank = fluids(helper, DISTILLERY);
+        tank.fill(cider, IFluidHandler.FluidAction.EXECUTE);
+
+        FluidStack beer = new FluidStack(ModFluids.WORT.get(), 1000);
+        beer.set(ModDataComponents.DRINK_DATA.get(), new DrinkData(5, 0, "beer"));
+        helper.assertTrue(tank.fill(beer, IFluidHandler.FluidAction.SIMULATE) == 0, "worts mixed");
+
+        FluidStack drained = tank.drain(1000, IFluidHandler.FluidAction.EXECUTE);
+        helper.assertTrue(drained.getAmount() == 600, "drained " + drained.getAmount());
+        helper.assertTrue("cider".equals(drained.get(ModDataComponents.DRINK_DATA.get()).stage()), "lost its drink");
+        helper.assertTrue(tank.fill(beer, IFluidHandler.FluidAction.EXECUTE) == 1000, "still stayed jammed");
+        helper.assertTrue(still.getWortAmount() == 1000, "wort " + still.getWortAmount());
+        helper.succeed();
+    }
+
+    /** Overheating part of a brew counts even when the fire is right by the end. */
+    @GameTest(template = "empty", timeoutTicks = 400)
+    public static void overheatingMidBrewStillCostsStars(GameTestHelper helper) {
+        KettleBlockEntity kettle = placeHeatedKettle(helper);
+        helper.setBlock(KETTLE.below(), Blocks.SOUL_CAMPFIRE);
+        helper.runAfterDelay(100, () -> helper.setBlock(KETTLE.below(), Blocks.CAMPFIRE));
+
+        helper.succeedWhen(() -> {
+            helper.assertTrue(kettle.getWortAmount() == 1000, "no wort yet");
+            helper.assertTrue(kettle.getWortStars() == 3, "wort stars " + kettle.getWortStars());
+        });
+    }
+
     /** Spec: contents survive a world restart. Each machine is saved and read back into a new block entity. */
     @GameTest(template = "empty", timeoutTicks = 100)
     public static void machineStateSurvivesSaving(GameTestHelper helper) {

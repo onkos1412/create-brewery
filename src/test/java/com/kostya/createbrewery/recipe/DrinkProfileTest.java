@@ -50,6 +50,14 @@ class DrinkProfileTest {
     }
 
     @Test
+    void settingsTheMachinesDivideByMustBePositive() {
+        for (String field : List.of("agingDays", "distillTicks", "idealRpm")) {
+            var json = JsonParser.parseString("{\"id\": \"kvass\", \"alcohol\": 5, \"" + field + "\": 0}");
+            assertTrue(DrinkProfile.CODEC.parse(JsonOps.INSTANCE, json).isError(), field + " 0 was accepted");
+        }
+    }
+
+    @Test
     void omittedStagesMeanTheRoadEnds() {
         var json = JsonParser.parseString("{\"id\": \"kvass\", \"alcohol\": 5}");
         DrinkProfile kvass = DrinkProfile.CODEC.parse(JsonOps.INSTANCE, json).getOrThrow();
