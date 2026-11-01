@@ -92,7 +92,7 @@ public class SpoutBlock extends Block implements EntityBlock {
             if (!SpoutLogic.fillBottle(hasWort, true)) {
                 return ItemInteractionResult.FAIL;
             }
-            bottle = kettle.bottleWort(KettleMenu.SKELETON_STARS);
+            bottle = kettle.bottleWort();
         }
         if (bottle.isEmpty()) {
             return ItemInteractionResult.FAIL;

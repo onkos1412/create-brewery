@@ -49,7 +49,7 @@ public class DistilleryBlockEntity extends BlockEntity {
 
         @Override
         public FluidStack getFluidInTank(int tank) {
-            return wortAmount > 0 ? new FluidStack(ModFluids.WORT.get(), wortAmount) : FluidStack.EMPTY;
+            return wortAmount > 0 ? KettleBlockEntity.wortStack(wortAmount, inputStars) : FluidStack.EMPTY;
         }
 
         @Override
@@ -69,6 +69,9 @@ public class DistilleryBlockEntity extends BlockEntity {
             }
             int accepted = Math.min(resource.getAmount(), INPUT_WORT - wortAmount);
             if (accepted > 0 && action.execute()) {
+                DrinkData data = resource.get(ModDataComponents.DRINK_DATA.get());
+                int stars = data == null ? DrinkData.MAX_STARS : data.stars();
+                inputStars = wortAmount > 0 ? Math.min(inputStars, stars) : stars;
                 wortAmount += accepted;
                 setChanged();
             }
@@ -98,6 +101,10 @@ public class DistilleryBlockEntity extends BlockEntity {
         return output;
     }
 
+    public int getInputStars() {
+        return inputStars;
+    }
+
     public int getWortAmount() {
         return wortAmount;
     }
@@ -125,7 +132,7 @@ public class DistilleryBlockEntity extends BlockEntity {
                     && kettle.getWortAmount() >= INPUT_WORT
                     && kettle.drainWort(INPUT_WORT) == INPUT_WORT) {
                 wortAmount = INPUT_WORT;
-                inputStars = DrinkData.MAX_STARS;
+                inputStars = kettle.getWortStars();
                 progressTicks = 0;
                 setChanged();
                 return true;

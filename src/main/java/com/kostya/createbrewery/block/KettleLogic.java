@@ -1,5 +1,6 @@
 package com.kostya.createbrewery.block;
 
+import com.kostya.createbrewery.quality.QualityRules;
 import com.kostya.createbrewery.recipe.BrewingRules;
 
 import java.util.ArrayList;
@@ -18,6 +19,7 @@ public final class KettleLogic {
     public static final int HEAT_NONE = BrewingRules.HEAT_NONE;
     public static final int HEAT_HEATED = BrewingRules.HEAT_HEATED;
     public static final int HEAT_SUPERHEATED = BrewingRules.HEAT_SUPERHEATED;
+    private static final int OVERHEATED_SCORE = 70;
 
     private KettleLogic() {
     }
@@ -47,6 +49,11 @@ public final class KettleLogic {
         static Result nothing() {
             return new Result(false, null, 0, List.of());
         }
+    }
+
+    /** Quality of a brew: the recipe's exact heat is perfect, overheating costs stars but never spoils it. */
+    public static int brewStars(int heatLevel, int idealHeatLevel) {
+        return QualityRules.starsFromScore(heatLevel == idealHeatLevel ? 100 : OVERHEATED_SCORE);
     }
 
     /** Whether this recipe can run at all with the given heat and water (ignoring progress). */

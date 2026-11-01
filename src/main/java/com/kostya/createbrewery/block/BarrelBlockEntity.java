@@ -127,7 +127,8 @@ public class BarrelBlockEntity extends BlockEntity {
         if (startedAt < 0 || level == null) {
             return 0;
         }
-        return Math.max(0L, level.getGameTime() - startedAt);
+        // Day time, not game time: sleeping skips it forward, and so ages the barrel.
+        return Math.max(0L, level.getDayTime() - startedAt);
     }
 
     public String getWoodId() {
@@ -146,7 +147,7 @@ public class BarrelBlockEntity extends BlockEntity {
             return false;
         }
         woodId = id;
-        startedAt = level == null ? 0L : level.getGameTime();
+        startedAt = level == null ? 0L : level.getDayTime();
         setChanged();
         return true;
     }

@@ -91,6 +91,13 @@ class KettleLogicTest {
     }
 
     @Test
+    void onlyTheExactHeatIsPerfect() {
+        assertEquals(5, KettleLogic.brewStars(KettleLogic.HEAT_HEATED, KettleLogic.HEAT_HEATED));
+        assertEquals(3, KettleLogic.brewStars(KettleLogic.HEAT_SUPERHEATED, KettleLogic.HEAT_HEATED));
+        assertEquals(5, KettleLogic.brewStars(KettleLogic.HEAT_SUPERHEATED, KettleLogic.HEAT_SUPERHEATED));
+    }
+
+    @Test
     void superheatedStillBrews() {
         // Overheating does not spoil the brew in the skeleton; spoiling comes later.
         assertTrue(KettleLogic.tryBrew(BEER, KettleLogic.HEAT_SUPERHEATED,

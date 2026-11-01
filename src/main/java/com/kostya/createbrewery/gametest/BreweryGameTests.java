@@ -19,11 +19,8 @@ import com.simibubi.create.foundation.blockEntity.behaviour.BlockEntityBehaviour
 import com.simibubi.create.foundation.blockEntity.behaviour.scrollValue.ScrollValueBehaviour;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.gametest.framework.BeforeBatch;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.EntityType;
@@ -35,7 +32,6 @@ import net.minecraft.world.item.Items;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.material.Fluids;
-import net.minecraft.world.level.storage.ServerLevelData;
 import net.neoforged.neoforge.capabilities.Capabilities;
 import net.neoforged.neoforge.fluids.FluidStack;
 import net.neoforged.neoforge.fluids.capability.IFluidHandler;
@@ -52,20 +48,12 @@ import java.util.List;
 @GameTestHolder(CreateBrewery.MOD_ID)
 @PrefixGameTestTemplate(false)
 public class BreweryGameTests {
-    private static final String AGED_BATCH = "aged_world";
     private static final BlockPos KETTLE = new BlockPos(1, 2, 1);
     private static final BlockPos DISTILLERY = new BlockPos(3, 2, 1);
     private static final BlockPos BARREL = new BlockPos(5, 2, 1);
 
-    /** A fresh world's clock is too young to back-date a three-day batch: the start would go negative. */
-    @BeforeBatch(batch = AGED_BATCH)
-    public static void ageWorld(ServerLevel level) {
-        ServerLevelData time = (ServerLevelData) level.getLevelData();
-        time.setGameTime(time.getGameTime() + AgingRules.REQUIRED_TICKS * 2);
-    }
-
     /** Kettle → distillery → barrel → spout through capabilities, as pipes and funnels would. */
-    @GameTest(template = "empty", timeoutTicks = 1200, batch = AGED_BATCH)
+    @GameTest(template = "empty", timeoutTicks = 1200)
     public static void perfectWhiskeyPathGivesFiveStars(GameTestHelper helper) {
         KettleBlockEntity kettle = placeHeatedKettle(helper);
 
@@ -107,12 +95,8 @@ public class BreweryGameTests {
                     helper.assertTrue(barrel.getInput().getStackInSlot(1).getCount() == 4, "spare wood was lost");
                     helper.assertTrue(barrel.getInput().extractItem(0, 1, false).isEmpty(),
                             "distillate was removable while aging");
-                    // Back-date the batch through its save data: test timeouts run on game time,
-                    // so jumping the clock forward here would fail the test itself.
-                    var registries = helper.getLevel().registryAccess();
-                    CompoundTag saved = barrel.saveWithoutMetadata(registries);
-                    saved.putLong("StartedAt", barrel.getStartedAt() - AgingRules.REQUIRED_TICKS);
-                    barrel.loadWithComponents(saved, registries);
+                    // What sleeping does: day time jumps ahead while game time carries on.
+                    helper.getLevel().setDayTime(helper.getLevel().getDayTime() + AgingRules.REQUIRED_TICKS);
                 })
                 .thenWaitUntil(() -> helper.assertFalse(barrel.getOutput().getStackInSlot(0).isEmpty(),
                         "barrel did not finish aging"))
@@ -199,10 +183,11 @@ public class BreweryGameTests {
         helper.succeed();
     }
 
-    /** A real Create pump moves wort from the kettle into the still, and leaves the water behind. */
+    /** A real Create pump moves overheated wort into the still, and its low rating goes with it. */
     @GameTest(template = "empty", timeoutTicks = 600)
-    public static void createPumpMovesWort(GameTestHelper helper) {
+    public static void createPumpCarriesWortAndItsQuality(GameTestHelper helper) {
         KettleBlockEntity kettle = placeHeatedKettle(helper);
+        helper.setBlock(KETTLE.below(), Blocks.SOUL_CAMPFIRE);
         helper.setBlock(KETTLE.east(), AllBlocks.MECHANICAL_PUMP.get().defaultBlockState()
                 .setValue(DirectionalKineticBlock.FACING, Direction.EAST));
         helper.setBlock(KETTLE.east().above(), AllBlocks.COGWHEEL.get().defaultBlockState()
@@ -216,6 +201,19 @@ public class BreweryGameTests {
             helper.assertTrue(distillery.getWortAmount() == 1000, "wort in still: " + distillery.getWortAmount()
                     + ", in kettle: " + kettle.getWortAmount());
             helper.assertTrue(kettle.getWaterAmount() == 0 && kettle.getWortAmount() == 0, "kettle not drained");
+            helper.assertTrue(distillery.getInputStars() == 3, "stars in still: " + distillery.getInputStars());
+        });
+    }
+
+    @GameTest(template = "empty", timeoutTicks = 400)
+    public static void overheatedBeerLosesStars(GameTestHelper helper) {
+        KettleBlockEntity kettle = placeHeatedKettle(helper);
+        helper.setBlock(KETTLE.below(), Blocks.SOUL_CAMPFIRE);
+
+        helper.succeedWhen(() -> {
+            helper.assertTrue(kettle.getWortAmount() == 1000, "no wort yet");
+            DrinkData beer = data(kettle.bottleWort());
+            helper.assertTrue(beer.stars() == 3, "overheated beer stars: " + beer.stars());
         });
     }
 

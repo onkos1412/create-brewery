@@ -23,9 +23,6 @@ public class KettleMenu extends AbstractContainerMenu {
 
     public static final int INPUT_SLOTS = 4;
 
-    /** Star rating used by the skeleton; the real quality scale arrives with aging. */
-    public static final int SKELETON_STARS = 5;
-
     /** Data-slot ids. */
     public static final int DATA_WATER = 0;
     public static final int DATA_WORT = 1;
