@@ -213,6 +213,11 @@ def write_item_textures():
     amber = ["#d98f20", "#b86f14", "#8c4f0c"]
     save(bottle("#8c6a3c", ["#a56f24", "#7d4f18", "#5c3810"], ("#e8dcc0", "#b02a20"), False), ITEM, "beer_bottle")
     save(bottle("#c9b48c", amber, ("#1d2a3a", "#efcf6a"), True), ITEM, "whiskey_bottle")
+    save(bottle("#a9b878", ["#d8d066", "#b8ae48", "#8f8834"], ("#e8dcc0", "#3f7a30"), False), ITEM, "cider_bottle")
+    save(bottle("#b5a98c", ["#cdbb8a", "#a8966a", "#857550"], None, False), ITEM, "mash_bottle")
+    save(bottle("#c9a070", ["#c9702a", "#a4551c", "#7c3e12"], ("#2a4a26", "#efcf6a"), True), ITEM, "calvados_bottle")
+    save(bottle("#dfe9ee", ["#f4f9fb", "#e2eef3", "#c4d6de"], ("#b02a20", "#f4f0e4"), True), ITEM, "vodka_bottle")
+    save(bottle("#8c5a3c", ["#7a3a18", "#5c2a10", "#3f1c0a"], ("#e8dcc0", "#1d1a18"), True), ITEM, "rum_bottle")
     save(bottle("#dfe9e6", ["#f3e7c0", "#e6d49a", "#cbb676"], None, True), ITEM, "distillate")
 
 
@@ -433,13 +438,16 @@ def write_models():
     items = ROOT / "models/item"
     dump(items / "distillate.json", {"parent": "minecraft:item/generated",
                                      "textures": {"layer0": "brewery:item/distillate"}})
-    dump(items / "whiskey_bottle.json", {"parent": "minecraft:item/generated",
-                                         "textures": {"layer0": "brewery:item/whiskey_bottle"}})
-    # The base model is beer; the `brewery:whiskey` property switches to the whiskey bottle.
+    # The base model is beer; the `brewery:drink` property picks the others (see ModClientSetup).
+    art = ["whiskey", "cider", "mash", "calvados", "vodka", "rum"]
+    for name in art:
+        dump(items / f"{name}_bottle.json", {"parent": "minecraft:item/generated",
+                                             "textures": {"layer0": f"brewery:item/{name}_bottle"}})
     dump(items / "drink_bottle.json", {
         "parent": "minecraft:item/generated",
         "textures": {"layer0": "brewery:item/beer_bottle"},
-        "overrides": [{"predicate": {"brewery:whiskey": 1}, "model": "brewery:item/whiskey_bottle"}],
+        "overrides": [{"predicate": {"brewery:drink": index + 1}, "model": f"brewery:item/{name}_bottle"}
+                      for index, name in enumerate(art)],
     })
 
 

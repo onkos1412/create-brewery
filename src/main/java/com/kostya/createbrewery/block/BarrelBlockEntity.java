@@ -3,6 +3,8 @@ package com.kostya.createbrewery.block;
 import com.kostya.createbrewery.DrinkData;
 import com.kostya.createbrewery.barrel.AgingRules;
 import com.kostya.createbrewery.barrel.BarrelLogic;
+import com.kostya.createbrewery.recipe.BrewingRecipe;
+import com.kostya.createbrewery.recipe.DrinkProfile;
 import com.kostya.createbrewery.registry.ModDataComponents;
 import com.kostya.createbrewery.registry.ModItems;
 import net.minecraft.core.BlockPos;
@@ -14,6 +16,7 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.neoforged.neoforge.items.IItemHandler;
 import net.neoforged.neoforge.items.ItemStackHandler;
+import org.jetbrains.annotations.Nullable;
 
 /** Server state for a single manually loaded whiskey barrel. */
 public class BarrelBlockEntity extends BlockEntity {
@@ -37,7 +40,7 @@ public class BarrelBlockEntity extends BlockEntity {
             }
             return slot == WOOD_SLOT
                     ? AgingRules.isAcceptedWood(BuiltInRegistries.ITEM.getKey(stack.getItem()).toString())
-                    : stack.is(ModItems.DISTILLATE.get());
+                    : stack.is(ModItems.DISTILLATE.get()) && agedStage(stack) != null;
         }
 
         /** A running batch stays sealed, or its contents could be swapped out before it finishes. */
@@ -101,6 +104,17 @@ public class BarrelBlockEntity extends BlockEntity {
 
     public BarrelBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlocks.BARREL_BLOCK_ENTITY.get(), pos, state);
+    }
+
+    /** What this distillate ages into, or {@code null} when it does not belong in a barrel. */
+    @Nullable
+    private String agedStage(ItemStack distillate) {
+        DrinkData data = distillate.get(ModDataComponents.DRINK_DATA.get());
+        if (data == null || level == null) {
+            return DrinkProfile.BEER.aged();
+        }
+        DrinkProfile drink = BrewingRecipe.profileDistilledTo(level, data.stage());
+        return drink.canAge() ? drink.aged() : null;
     }
 
     public IItemHandler getAutomationItems() {
@@ -170,9 +184,10 @@ public class BarrelBlockEntity extends BlockEntity {
         if (!result.ready()) {
             return;
         }
+        String stage = agedStage(distillate);
         ItemStack aged = new ItemStack(ModItems.DRINK_BOTTLE.get());
-        aged.set(ModDataComponents.DRINK_DATA.get(),
-                new DrinkData(result.stars(), result.alcohol(), "aged_whiskey"));
+        aged.set(ModDataComponents.DRINK_DATA.get(), new DrinkData(result.stars(), result.alcohol(),
+                stage == null ? DrinkProfile.BEER.aged() : stage));
         output.setStackInSlot(0, aged);
         distillate.shrink(1);
         input.setStackInSlot(0, distillate);

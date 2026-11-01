@@ -13,6 +13,7 @@ import net.minecraft.world.level.Level;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Predicate;
 
 /**
  * A brewing recipe: the ingredients and heat that turn water into wort.
@@ -26,13 +27,33 @@ import java.util.List;
  * @param wortOutput    the fluid produced when the brew finishes
  * @param brewTimeTicks ideal brewing duration in ticks
  * @param idealHeatLevel required heat: 0 = none, 1 = heated, 2 = superheated
+ * @param drink         what the wort becomes on its way through the machines
  */
 public record BrewingRecipe(
         List<String> inputs,
         FluidKey waterInput,
         FluidKey wortOutput,
         int brewTimeTicks,
-        int idealHeatLevel) implements Recipe<BrewingRecipeInput> {
+        int idealHeatLevel,
+        DrinkProfile drink) implements Recipe<BrewingRecipeInput> {
+
+    /** The profile of the wort called {@code id}. */
+    public static DrinkProfile profileOf(Level level, String id) {
+        return findProfile(level, drink -> drink.id().equals(id));
+    }
+
+    /** The profile that distills into {@code stage}; distillate saved before profiles existed is whiskey. */
+    public static DrinkProfile profileDistilledTo(Level level, String stage) {
+        return findProfile(level, drink -> drink.distilled().equals(stage));
+    }
+
+    private static DrinkProfile findProfile(Level level, Predicate<DrinkProfile> test) {
+        return level.getRecipeManager().getAllRecipesFor(ModRecipeTypes.BREWING.get()).stream()
+                .map(holder -> holder.value().drink())
+                .filter(test)
+                .findFirst()
+                .orElse(DrinkProfile.BEER);
+    }
 
     public static final int HEAT_NONE = BrewingRules.HEAT_NONE;
     public static final int HEAT_HEATED = BrewingRules.HEAT_HEATED;

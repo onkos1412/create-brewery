@@ -25,7 +25,8 @@ import java.util.List;
  *   "water":  {"fluid": "minecraft:water", "amount": 1000},
  *   "result": {"fluid": "brewery:wort",   "amount": 1000},
  *   "brewTimeTicks": 200,
- *   "heatLevel": "heated"
+ *   "heatLevel": "heated",
+ *   "drink": {"id": "beer", "alcohol": 20, "distilled": "whiskey", "distilledAlcohol": 40, "aged": "aged_whiskey"}
  * }
  * }</pre>
  */
@@ -63,13 +64,15 @@ public final class BrewingRecipeSerializer implements RecipeSerializer<BrewingRe
                     .forGetter(recipe -> FluidKeyCodec.fromKey(recipe.wortOutput())),
             Codec.INT.fieldOf("brewTimeTicks").forGetter(BrewingRecipe::brewTimeTicks),
             Codec.STRING.xmap(BrewingRecipe::heatLevelFromName, BrewingRecipeSerializer::heatLevelToName)
-                    .fieldOf("heatLevel").forGetter(BrewingRecipe::idealHeatLevel)
-    ).apply(instance, (inputs, water, result, ticks, heat) -> new BrewingRecipe(
+                    .fieldOf("heatLevel").forGetter(BrewingRecipe::idealHeatLevel),
+            DrinkProfile.CODEC.optionalFieldOf("drink", DrinkProfile.BEER).forGetter(BrewingRecipe::drink)
+    ).apply(instance, (inputs, water, result, ticks, heat, drink) -> new BrewingRecipe(
             inputs.stream().map(IngredientCodec::item).toList(),
             FluidKeyCodec.toKey(water),
             FluidKeyCodec.toKey(result),
             ticks,
-            heat)));
+            heat,
+            drink)));
 
     private static String heatLevelToName(int level) {
         return switch (level) {
@@ -99,6 +102,7 @@ public final class BrewingRecipeSerializer implements RecipeSerializer<BrewingRe
                 fluidKey, BrewingRecipe::wortOutput,
                 ByteBufCodecs.VAR_INT, BrewingRecipe::brewTimeTicks,
                 ByteBufCodecs.VAR_INT, BrewingRecipe::idealHeatLevel,
+                ByteBufCodecs.fromCodecWithRegistries(DrinkProfile.CODEC), BrewingRecipe::drink,
                 BrewingRecipe::new);
     }
 

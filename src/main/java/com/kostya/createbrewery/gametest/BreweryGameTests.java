@@ -148,6 +148,80 @@ public class BreweryGameTests {
                 .thenSucceed();
     }
 
+    @GameTest(template = "empty", timeoutTicks = 400)
+    public static void applesBrewCider(GameTestHelper helper) {
+        KettleBlockEntity kettle = placeKettle(helper, Items.APPLE);
+        helper.setBlock(KETTLE.east(), ModBlocks.SPOUT.get());
+
+        helper.startSequence()
+                .thenWaitUntil(() -> helper.assertTrue(kettle.getWortAmount() >= 1000, "kettle brewed no wort"))
+                .thenExecute(() -> {
+                    Player player = helper.makeMockPlayer(GameType.SURVIVAL);
+                    player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(Items.GLASS_BOTTLE));
+                    helper.useBlock(KETTLE.east(), player);
+                    DrinkData drink = data(findBottle(helper, player));
+                    helper.assertTrue("cider".equals(drink.stage()), "apple bottle: " + drink.stage());
+                    helper.assertTrue(drink.alcohol() == 15, "cider strength " + drink.alcohol());
+                })
+                .thenSucceed();
+    }
+
+    /** Vodka skips the barrel: it refuses the distillate, and a spout on the still pours it. */
+    @GameTest(template = "empty", timeoutTicks = 800)
+    public static void potatoesDistillToVodkaWithoutABarrel(GameTestHelper helper) {
+        KettleBlockEntity kettle = placeKettle(helper, Items.POTATO);
+        helper.setBlock(DISTILLERY.below(), Blocks.CAMPFIRE);
+        helper.setBlock(DISTILLERY, ModBlocks.DISTILLERY.get());
+        helper.setBlock(DISTILLERY.above(), AllBlocks.CREATIVE_MOTOR.get());
+        BlockEntityBehaviour.get(helper.getBlockEntity(DISTILLERY.above()), ScrollValueBehaviour.TYPE)
+                .setValue(32);
+        DistilleryBlockEntity distillery = helper.getBlockEntity(DISTILLERY);
+        helper.setBlock(DISTILLERY.east(), ModBlocks.SPOUT.get());
+        helper.setBlock(BARREL, ModBlocks.BARREL.get());
+
+        helper.startSequence()
+                .thenWaitUntil(() -> helper.assertTrue(kettle.getWortAmount() >= 1000, "kettle brewed no wort"))
+                .thenExecute(() -> {
+                    FluidStack wort = fluids(helper, KETTLE).drain(1000, IFluidHandler.FluidAction.EXECUTE);
+                    fluids(helper, DISTILLERY).fill(wort, IFluidHandler.FluidAction.EXECUTE);
+                })
+                .thenWaitUntil(() -> helper.assertFalse(distillery.getOutput().getStackInSlot(0).isEmpty(),
+                        "no distillate"))
+                .thenExecute(() -> {
+                    ItemStack distillate = distillery.getOutput().getStackInSlot(0);
+                    helper.assertTrue(items(helper, BARREL).insertItem(0, distillate.copy(), true).getCount() == 1,
+                            "barrel accepted vodka");
+
+                    Player player = helper.makeMockPlayer(GameType.SURVIVAL);
+                    player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(Items.GLASS_BOTTLE));
+                    helper.useBlock(DISTILLERY.east(), player);
+                    DrinkData drink = data(findBottle(helper, player));
+                    helper.assertTrue("vodka".equals(drink.stage()), "still bottle: " + drink.stage());
+                    helper.assertTrue(distillery.getOutput().getStackInSlot(0).isEmpty(), "vodka was not poured");
+                })
+                .thenSucceed();
+    }
+
+    /** A second drink waits while the tank still holds the first, so worts never mix. */
+    @GameTest(template = "empty", timeoutTicks = 900)
+    public static void differentWortWaitsForAnEmptyTank(GameTestHelper helper) {
+        KettleBlockEntity kettle = placeKettle(helper, Items.WHEAT);
+        fluids(helper, KETTLE).fill(new FluidStack(Fluids.WATER, 1000), IFluidHandler.FluidAction.EXECUTE);
+
+        helper.startSequence()
+                .thenWaitUntil(() -> helper.assertTrue(kettle.getWortAmount() == 1000, "kettle brewed no wort"))
+                .thenExecute(() -> items(helper, KETTLE).insertItem(0, new ItemStack(Items.APPLE, 2), false))
+                .thenExecuteAfter(250, () -> {
+                    helper.assertTrue(kettle.getWortAmount() == 1000, "worts mixed: " + kettle.getWortAmount());
+                    helper.assertTrue("beer".equals(kettle.getWortDrink()), "tank turned " + kettle.getWortDrink());
+                })
+                .thenExecute(() -> kettle.drainWort(1000))
+                .thenWaitUntil(() -> helper.assertTrue(kettle.getWortAmount() == 1000, "apples never brewed"))
+                .thenExecute(() -> helper.assertTrue("cider".equals(kettle.getWortDrink()),
+                        "tank holds " + kettle.getWortDrink()))
+                .thenSucceed();
+    }
+
     /** A funnel fills the slot well past one batch; only water should limit the brewing. */
     @GameTest(template = "empty", timeoutTicks = 400)
     public static void surplusWheatBrewsOneBatchAtATime(GameTestHelper helper) {
@@ -242,9 +316,13 @@ public class BreweryGameTests {
     }
 
     private static KettleBlockEntity placeHeatedKettle(GameTestHelper helper) {
+        return placeKettle(helper, Items.WHEAT);
+    }
+
+    private static KettleBlockEntity placeKettle(GameTestHelper helper, Item ingredient) {
         helper.setBlock(KETTLE.below(), Blocks.CAMPFIRE);
         helper.setBlock(KETTLE, ModBlocks.KETTLE.get());
-        items(helper, KETTLE).insertItem(0, new ItemStack(Items.WHEAT, 2), false);
+        items(helper, KETTLE).insertItem(0, new ItemStack(ingredient, 2), false);
         fluids(helper, KETTLE).fill(new FluidStack(Fluids.WATER, 1000), IFluidHandler.FluidAction.EXECUTE);
         return helper.getBlockEntity(KETTLE);
     }

@@ -1,0 +1,56 @@
+package com.kostya.createbrewery.recipe;
+
+import com.google.gson.JsonParser;
+import com.mojang.serialization.JsonOps;
+import org.junit.jupiter.api.Test;
+
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.List;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+class DrinkProfileTest {
+    private static final Path RECIPES = Path.of("src/main/resources/data/brewery/recipe");
+
+    private static DrinkProfile read(String recipe) throws Exception {
+        var json = JsonParser.parseString(Files.readString(RECIPES.resolve(recipe + ".json"))).getAsJsonObject();
+        return DrinkProfile.CODEC.parse(JsonOps.INSTANCE, json.get("drink")).getOrThrow();
+    }
+
+    @Test
+    void shippedRecipesDescribeTheirRoads() throws Exception {
+        assertEquals(DrinkProfile.BEER, read("beer"));
+        assertTrue(read("cider").canAge());
+        assertTrue(read("cane_mash").canAge());
+
+        DrinkProfile mash = read("potato_mash");
+        assertEquals("vodka", mash.distilled());
+        assertFalse(mash.canAge(), "vodka is bottled straight from the still");
+    }
+
+    @Test
+    void everyDrinkHasANameInBothLanguages() throws Exception {
+        for (String language : List.of("en_us", "ru_ru")) {
+            String lang = Files.readString(Path.of("src/main/resources/assets/brewery/lang/" + language + ".json"));
+            for (String recipe : List.of("beer", "cider", "potato_mash", "cane_mash")) {
+                DrinkProfile drink = read(recipe);
+                for (String id : List.of(drink.id(), drink.distilled(), drink.aged())) {
+                    assertTrue(id.isEmpty() || lang.contains("\"drink.brewery." + id + "\""),
+                            language + " has no name for " + id);
+                }
+            }
+        }
+    }
+
+    @Test
+    void omittedStagesMeanTheRoadEnds() {
+        var json = JsonParser.parseString("{\"id\": \"kvass\", \"alcohol\": 5}");
+        DrinkProfile kvass = DrinkProfile.CODEC.parse(JsonOps.INSTANCE, json).getOrThrow();
+
+        assertFalse(kvass.canDistill());
+        assertFalse(kvass.canAge());
+    }
+}

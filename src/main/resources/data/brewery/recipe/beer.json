@@ -1,8 +1,28 @@
 {
   "type": "brewery:brewing",
-  "inputs": [{ "item": "minecraft:wheat" }, { "item": "minecraft:wheat" }],
-  "water": { "fluid": "minecraft:water", "amount": 1000 },
-  "result": { "fluid": "brewery:wort", "amount": 1000 },
+  "inputs": [
+    {
+      "item": "minecraft:wheat"
+    },
+    {
+      "item": "minecraft:wheat"
+    }
+  ],
+  "water": {
+    "fluid": "minecraft:water",
+    "amount": 1000
+  },
+  "result": {
+    "fluid": "brewery:wort",
+    "amount": 1000
+  },
   "brewTimeTicks": 200,
-  "heatLevel": "heated"
+  "heatLevel": "heated",
+  "drink": {
+    "id": "beer",
+    "alcohol": 20,
+    "distilled": "whiskey",
+    "distilledAlcohol": 40,
+    "aged": "aged_whiskey"
+  }
 }

@@ -86,6 +86,9 @@ public class SpoutBlock extends Block implements EntityBlock {
 
         BarrelBlockEntity barrel = findBarrel(level, pos);
         ItemStack bottle = barrel == null ? ItemStack.EMPTY : barrel.takeFinishedBottle();
+        if (bottle.isEmpty() && findDistillery(level, pos) instanceof DistilleryBlockEntity still) {
+            bottle = still.takeFinishedBottle();
+        }
         if (!SpoutLogic.fillFinishedBottle(!bottle.isEmpty(), true)) {
             KettleBlockEntity kettle = findKettle(level, pos);
             boolean hasWort = kettle != null && kettle.getWortAmount() >= KettleBlockEntity.WORT_PER_BREW;
@@ -115,6 +118,18 @@ public class SpoutBlock extends Block implements EntityBlock {
             BlockEntity neighbour = level.getBlockEntity(pos.relative(direction));
             if (neighbour instanceof BarrelBlockEntity barrel) {
                 return barrel;
+            }
+        }
+        return null;
+    }
+
+    /** The still this spout pours from, or {@code null} when there is none adjacent. */
+    @Nullable
+    static DistilleryBlockEntity findDistillery(Level level, BlockPos pos) {
+        for (Direction direction : Direction.values()) {
+            BlockEntity neighbour = level.getBlockEntity(pos.relative(direction));
+            if (neighbour instanceof DistilleryBlockEntity still) {
+                return still;
             }
         }
         return null;

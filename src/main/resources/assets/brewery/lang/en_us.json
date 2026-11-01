@@ -1,11 +1,11 @@
 {
   "itemGroup.brewery": "Create Brewery",
   "item.brewery.drink_bottle": "Drink Bottle",
-  "item.brewery.distillate": "Whiskey Distillate",
+  "item.brewery.distillate": "Distillate",
   "tooltip.brewery.distillate_data": "Distillate quality: %s/5",
   "block.brewery.kettle": "Brewing Kettle",
   "block.brewery.spout": "Bottling Spout",
-  "block.brewery.distillery": "Whiskey Distillery",
+  "block.brewery.distillery": "Distillery",
   "block.brewery.barrel": "Oak Aging Barrel",
   "container.brewery.barrel": "Oak Aging Barrel",
   "gui.brewery.barrel_start": "Start",
@@ -18,7 +18,7 @@
   "drink.brewery.whiskey": "Whiskey",
   "drink.brewery.aged_whiskey": "Aged Whiskey",
   "gui.brewery.distillery_stats": "%2$s RPM  %3$s/200",
-  "container.brewery.distillery": "Whiskey Distillery",
+  "container.brewery.distillery": "Distillery",
   "gui.brewery.distillery_load": "Load",
   "container.brewery.kettle": "Brewing Kettle",
   "fluid_type.brewery.wort": "Wort",
@@ -33,5 +33,14 @@
   "gui.brewery.distillery_status_no_rotation": "Needs rotation",
   "gui.brewery.kettle_status_brewing": "Brewing...",
   "gui.brewery.kettle_status_no_heat": "Needs heat",
-  "gui.brewery.kettle_status_idle": "Awaiting input"
+  "gui.brewery.kettle_status_idle": "Awaiting input",
+  "drink.brewery.distillate": "Whiskey",
+  "drink.brewery.cider": "Cider",
+  "drink.brewery.calvados": "Calvados",
+  "drink.brewery.aged_calvados": "Aged Calvados",
+  "drink.brewery.potato_mash": "Potato Mash",
+  "drink.brewery.vodka": "Vodka",
+  "drink.brewery.cane_mash": "Cane Mash",
+  "drink.brewery.rum": "Rum",
+  "drink.brewery.aged_rum": "Aged Rum"
 }

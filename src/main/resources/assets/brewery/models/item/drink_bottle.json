@@ -6,9 +6,39 @@
   "overrides": [
     {
       "predicate": {
-        "brewery:whiskey": 1
+        "brewery:drink": 1
       },
       "model": "brewery:item/whiskey_bottle"
+    },
+    {
+      "predicate": {
+        "brewery:drink": 2
+      },
+      "model": "brewery:item/cider_bottle"
+    },
+    {
+      "predicate": {
+        "brewery:drink": 3
+      },
+      "model": "brewery:item/mash_bottle"
+    },
+    {
+      "predicate": {
+        "brewery:drink": 4
+      },
+      "model": "brewery:item/calvados_bottle"
+    },
+    {
+      "predicate": {
+        "brewery:drink": 5
+      },
+      "model": "brewery:item/vodka_bottle"
+    },
+    {
+      "predicate": {
+        "brewery:drink": 6
+      },
+      "model": "brewery:item/rum_bottle"
     }
   ]
 }

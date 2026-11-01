@@ -2,6 +2,7 @@ package com.kostya.createbrewery.block;
 
 import com.kostya.createbrewery.DrinkData;
 import com.kostya.createbrewery.recipe.BrewingRecipe;
+import com.kostya.createbrewery.recipe.DrinkProfile;
 import com.kostya.createbrewery.recipe.ModRecipeTypes;
 import com.kostya.createbrewery.registry.ModDataComponents;
 import com.kostya.createbrewery.registry.ModFluids;
@@ -39,8 +40,6 @@ public class KettleBlockEntity extends BlockEntity {
     public static final int TANK_CAPACITY = 4000;
     /** How much wort a finished brew yields. */
     public static final int WORT_PER_BREW = 1000;
-    /** Strength of a bottle of beer, half that of whiskey. */
-    public static final int BEER_ALCOHOL = 20;
 
     /** How much extra room is needed to start a brew with this recipe. */
     private static int brewRoom(KettleLogic.RecipeView recipe) {
@@ -66,7 +65,7 @@ public class KettleBlockEntity extends BlockEntity {
             if (tank == 0) {
                 return waterAmount > 0 ? new FluidStack(Fluids.WATER, waterAmount) : FluidStack.EMPTY;
             }
-            return wortAmount > 0 ? wortStack(wortAmount, wortStars) : FluidStack.EMPTY;
+            return wortAmount > 0 ? wortStack(wortAmount, wortStars, wortDrink) : FluidStack.EMPTY;
         }
 
         @Override
@@ -98,13 +97,14 @@ public class KettleBlockEntity extends BlockEntity {
         public FluidStack drain(int maxDrain, FluidAction action) {
             int stars = wortStars;
             int drained = action.execute() ? drainWort(maxDrain) : Math.min(maxDrain, wortAmount);
-            return drained > 0 ? wortStack(drained, stars) : FluidStack.EMPTY;
+            return drained > 0 ? wortStack(drained, stars, wortDrink) : FluidStack.EMPTY;
         }
     };
 
     private int waterAmount;
     private int wortAmount;
     private int wortStars = DrinkData.MAX_STARS;
+    private String wortDrink = DrinkProfile.BEER.id();
     private int brewProgressTicks;
     private int heatLevel;
 
@@ -124,10 +124,14 @@ public class KettleBlockEntity extends BlockEntity {
         return wortStars;
     }
 
-    /** Wort carries its quality on the stack, so the rating survives Create's pipes. */
-    static FluidStack wortStack(int amount, int stars) {
+    public String getWortDrink() {
+        return wortDrink;
+    }
+
+    /** Wort carries its quality and drink on the stack, so both survive Create's pipes. */
+    static FluidStack wortStack(int amount, int stars, String drink) {
         FluidStack stack = new FluidStack(ModFluids.WORT.get(), amount);
-        stack.set(ModDataComponents.DRINK_DATA.get(), new DrinkData(stars, 0, "wort"));
+        stack.set(ModDataComponents.DRINK_DATA.get(), new DrinkData(stars, 0, drink));
         return stack;
     }
 
@@ -175,14 +179,14 @@ public class KettleBlockEntity extends BlockEntity {
      * @return the filled bottle, or {@link ItemStack#EMPTY} when there is no wort
      */
     public ItemStack bottleWort() {
-        if (wortAmount < WORT_PER_BREW) {
+        if (wortAmount < WORT_PER_BREW || level == null) {
             return ItemStack.EMPTY;
         }
         wortAmount -= WORT_PER_BREW;
         setChanged();
         ItemStack bottle = new ItemStack(ModItems.DRINK_BOTTLE.get());
-        // Wort bottled straight from the kettle is beer; distilling it is what makes whiskey.
-        bottle.set(ModDataComponents.DRINK_DATA.get(), new DrinkData(wortStars, BEER_ALCOHOL, "beer"));
+        DrinkProfile drink = BrewingRecipe.profileOf(level, wortDrink);
+        bottle.set(ModDataComponents.DRINK_DATA.get(), new DrinkData(wortStars, drink.alcohol(), wortDrink));
         return bottle;
     }
 
@@ -227,7 +231,9 @@ public class KettleBlockEntity extends BlockEntity {
 
         // Everything is computed against this tick's snapshot, so the state cannot
         // drift between the progress check and the actual brew.
-        boolean roomForMore = wortAmount + brewRoom(view) <= TANK_CAPACITY;
+        // The tank holds one wort at a time: a different drink waits until it has been drawn off.
+        boolean sameWort = wortAmount == 0 || recipe.value().drink().id().equals(wortDrink);
+        boolean roomForMore = sameWort && wortAmount + brewRoom(view) <= TANK_CAPACITY;
         int nextProgress = KettleLogic.advanceProgress(view, heatLevel, itemIds, waterAmount, brewProgressTicks);
 
         if (roomForMore && nextProgress > brewProgressTicks) {
@@ -251,6 +257,7 @@ public class KettleBlockEntity extends BlockEntity {
         int stars = KettleLogic.brewStars(heatLevel, view.idealHeatLevel());
         // Batches share one tank, so the weakest one decides the quality of the lot.
         wortStars = wortAmount > 0 ? Math.min(wortStars, stars) : stars;
+        wortDrink = recipe.value().drink().id();
         waterAmount -= view.wortAmount();
         wortAmount += result.wortAmount();
         result.consumed().forEach(this::consumeOne);
@@ -325,6 +332,7 @@ public class KettleBlockEntity extends BlockEntity {
         tag.putInt("Water", waterAmount);
         tag.putInt("Wort", wortAmount);
         tag.putInt("WortStars", wortStars);
+        tag.putString("WortDrink", wortDrink);
         tag.putInt("BrewProgress", brewProgressTicks);
     }
 
@@ -337,6 +345,7 @@ public class KettleBlockEntity extends BlockEntity {
         waterAmount = tag.getInt("Water");
         wortAmount = tag.getInt("Wort");
         wortStars = tag.contains("WortStars") ? tag.getInt("WortStars") : DrinkData.MAX_STARS;
+        wortDrink = tag.contains("WortDrink") ? tag.getString("WortDrink") : DrinkProfile.BEER.id();
         brewProgressTicks = tag.getInt("BrewProgress");
     }
 }

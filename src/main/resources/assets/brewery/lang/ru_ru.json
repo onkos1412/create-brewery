@@ -1,7 +1,7 @@
 {
   "itemGroup.brewery": "Create Brewery",
   "item.brewery.drink_bottle": "Бутылка напитка",
-  "item.brewery.distillate": "Дистиллят виски",
+  "item.brewery.distillate": "Дистиллят",
   "tooltip.brewery.distillate_data": "Качество дистиллята: %s/5",
   "block.brewery.kettle": "Пивоваренный котёл",
   "block.brewery.spout": "Носик для розлива",
@@ -33,5 +33,14 @@
   "gui.brewery.distillery_status_no_rotation": "Нужно вращение",
   "gui.brewery.kettle_status_brewing": "Варка...",
   "gui.brewery.kettle_status_no_heat": "Нужен нагрев",
-  "gui.brewery.kettle_status_idle": "Ждёт сырьё"
+  "gui.brewery.kettle_status_idle": "Ждёт сырьё",
+  "drink.brewery.distillate": "Виски",
+  "drink.brewery.cider": "Сидр",
+  "drink.brewery.calvados": "Кальвадос",
+  "drink.brewery.aged_calvados": "Выдержанный кальвадос",
+  "drink.brewery.potato_mash": "Картофельная брага",
+  "drink.brewery.vodka": "Водка",
+  "drink.brewery.cane_mash": "Тростниковая брага",
+  "drink.brewery.rum": "Ром",
+  "drink.brewery.aged_rum": "Выдержанный ром"
 }

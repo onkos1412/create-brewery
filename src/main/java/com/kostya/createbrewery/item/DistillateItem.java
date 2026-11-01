@@ -11,7 +11,7 @@ import net.minecraft.world.item.TooltipFlag;
 
 import java.util.List;
 
-/** Intermediate whiskey distillate produced by the distillery. */
+/** A product of the distillery, waiting for a barrel or, like vodka, for a bottle. */
 public class DistillateItem extends Item {
 
     public DistillateItem(Properties properties) {
@@ -22,7 +22,7 @@ public class DistillateItem extends Item {
     public DataComponentMap components() {
         return DataComponentMap.builder()
                 .addAll(super.components())
-                .set(ModDataComponents.DRINK_DATA.get(), new DrinkData(DrinkData.MAX_STARS, 40, "distillate"))
+                .set(ModDataComponents.DRINK_DATA.get(), new DrinkData(DrinkData.MAX_STARS, 40, "whiskey"))
                 .build();
     }
 
@@ -30,6 +30,7 @@ public class DistillateItem extends Item {
     public void appendHoverText(ItemStack stack, TooltipContext context, List<Component> tooltip, TooltipFlag flag) {
         DrinkData data = stack.get(ModDataComponents.DRINK_DATA.get());
         if (data != null) {
+            tooltip.add(Component.translatable("drink.brewery." + data.stage()).withStyle(ChatFormatting.GRAY));
             tooltip.add(Component.translatable("tooltip.brewery.distillate_data", data.stars())
                     .withStyle(ChatFormatting.GOLD));
         }
