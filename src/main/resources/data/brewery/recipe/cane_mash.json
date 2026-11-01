@@ -23,6 +23,10 @@
     "alcohol": 10,
     "distilled": "rum",
     "distilledAlcohol": 45,
-    "aged": "aged_rum"
+    "aged": "aged_rum",
+    "distillTicks": 240,
+    "idealRpm": 48,
+    "agingDays": 5,
+    "wood": "dark_oak"
   }
 }

@@ -135,6 +135,11 @@ public class DistilleryBlockEntity extends BlockEntity {
         return bottle;
     }
 
+    /** The settings of the wort inside, for the GUI. */
+    public DrinkProfile getProfile() {
+        return level == null ? DrinkProfile.BEER : BrewingRecipe.profileOf(level, wortDrink);
+    }
+
     public int getInputStars() {
         return inputStars;
     }
@@ -193,20 +198,20 @@ public class DistilleryBlockEntity extends BlockEntity {
             return;
         }
 
+        DrinkProfile drink = BrewingRecipe.profileOf(level, wortDrink);
         progressTicks++;
-        if (progressTicks < DistilleryLogic.IDEAL_TICKS) {
+        if (progressTicks < drink.distillTicks()) {
             setChanged();
             return;
         }
 
         DistilleryLogic.Result result = DistilleryLogic.process(
-                wortAmount, heatLevel, rpm, progressTicks, inputStars);
+                wortAmount, heatLevel, rpm, progressTicks, inputStars, drink.distillTicks(), drink.idealRpm());
         if (!result.distilled()) {
             return;
         }
 
         ItemStack distillate = new ItemStack(ModItems.DISTILLATE.get());
-        DrinkProfile drink = BrewingRecipe.profileOf(level, wortDrink);
         distillate.set(ModDataComponents.DRINK_DATA.get(),
                 new DrinkData(result.stars(), drink.distilledAlcohol(), drink.distilled()));
         output.setStackInSlot(0, distillate);

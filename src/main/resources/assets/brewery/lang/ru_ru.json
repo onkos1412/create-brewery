@@ -17,7 +17,7 @@
   "drink.brewery.beer": "Пиво",
   "drink.brewery.whiskey": "Виски",
   "drink.brewery.aged_whiskey": "Выдержанный виски",
-  "gui.brewery.distillery_stats": "%2$s об/мин  %3$s/200",
+  "gui.brewery.distillery_stats": "%s из %s об/мин",
   "container.brewery.distillery": "Перегонный куб",
   "gui.brewery.distillery_load": "Загрузить",
   "container.brewery.kettle": "Пивоваренный котёл",
@@ -42,5 +42,6 @@
   "drink.brewery.vodka": "Водка",
   "drink.brewery.cane_mash": "Тростниковая брага",
   "drink.brewery.rum": "Ром",
-  "drink.brewery.aged_rum": "Выдержанный ром"
+  "drink.brewery.aged_rum": "Выдержанный ром",
+  "tooltip.brewery.distillate_aging": "Выдержка: %s дн., %s"
 }

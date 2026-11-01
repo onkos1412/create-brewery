@@ -22,13 +22,18 @@ public final class DistilleryLogic {
     }
 
     public static Result process(int wortAmount, int heat, float rpm, int elapsedTicks, int inputStars) {
+        return process(wortAmount, heat, rpm, elapsedTicks, inputStars, IDEAL_TICKS, IDEAL_RPM);
+    }
+
+    public static Result process(int wortAmount, int heat, float rpm, int elapsedTicks, int inputStars,
+                                 int idealTicks, float idealRpm) {
         if (wortAmount < WORT_REQUIRED
                 || !DistillingRules.canDistill(heat, IDEAL_HEAT, rpm)
-                || elapsedTicks < IDEAL_TICKS) {
+                || elapsedTicks < idealTicks) {
             return Result.nothing();
         }
 
-        int score = DistillingRules.score(heat, IDEAL_HEAT, elapsedTicks, IDEAL_TICKS, rpm, IDEAL_RPM);
+        int score = DistillingRules.score(heat, IDEAL_HEAT, elapsedTicks, idealTicks, rpm, idealRpm);
         int stars = Math.min(inputStars, QualityRules.starsFromScore(score));
         return new Result(true, DISTILLATE_AMOUNT, stars, ALCOHOL);
     }

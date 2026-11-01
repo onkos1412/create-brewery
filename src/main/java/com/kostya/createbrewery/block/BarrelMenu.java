@@ -102,11 +102,12 @@ public class BarrelMenu extends AbstractContainerMenu {
                 return synced[index];
             }
             // Menu data travels as a short: three days of raw ticks would overflow it.
-            long elapsed = Math.min(AgingRules.REQUIRED_TICKS, barrel.getElapsedTicks());
+            long required = barrel.getRequiredTicks();
+            long elapsed = Math.min(required, barrel.getElapsedTicks());
             return switch (index) {
                 case 0 -> (int) (elapsed / AgingRules.TICKS_PER_DAY);
                 case 1 -> barrel.getStartedAt() >= 0 ? 1 : 0;
-                case 2 -> (int) (elapsed * 100 / AgingRules.REQUIRED_TICKS);
+                case 2 -> (int) (elapsed * 100 / required);
                 default -> 0;
             };
         }

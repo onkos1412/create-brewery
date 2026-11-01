@@ -17,7 +17,7 @@
   "drink.brewery.beer": "Beer",
   "drink.brewery.whiskey": "Whiskey",
   "drink.brewery.aged_whiskey": "Aged Whiskey",
-  "gui.brewery.distillery_stats": "%2$s RPM  %3$s/200",
+  "gui.brewery.distillery_stats": "%s of %s RPM",
   "container.brewery.distillery": "Distillery",
   "gui.brewery.distillery_load": "Load",
   "container.brewery.kettle": "Brewing Kettle",
@@ -42,5 +42,6 @@
   "drink.brewery.vodka": "Vodka",
   "drink.brewery.cane_mash": "Cane Mash",
   "drink.brewery.rum": "Rum",
-  "drink.brewery.aged_rum": "Aged Rum"
+  "drink.brewery.aged_rum": "Aged Rum",
+  "tooltip.brewery.distillate_aging": "Aging: %s days, %s"
 }

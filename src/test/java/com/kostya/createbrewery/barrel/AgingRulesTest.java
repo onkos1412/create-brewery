@@ -17,6 +17,14 @@ class AgingRulesTest {
     }
 
     @Test
+    void eachDrinkPrefersItsOwnWoodAndDays() {
+        long fiveDays = 5 * AgingRules.TICKS_PER_DAY;
+        assertEquals(100, AgingRules.score("minecraft:dark_oak_log", "dark_oak", fiveDays, 5));
+        assertEquals(60, AgingRules.score("minecraft:oak_log", "dark_oak", fiveDays, 5));
+        assertEquals(0, AgingRules.score("minecraft:dark_oak_log", "dark_oak", fiveDays - 1, 5));
+    }
+
+    @Test
     void acceptsAnyWoodButNothingElse() {
         assertTrue(AgingRules.isAcceptedWood("minecraft:oak_log"));
         assertTrue(AgingRules.isAcceptedWood("minecraft:spruce_planks"));

@@ -27,4 +27,17 @@ public final class AgingRules {
         }
         return isValidWood(woodId) ? 100 : 60;
     }
+
+    /** Whether {@code woodId} is the planks or log of {@code wood}, such as {@code dark_oak}. */
+    public static boolean isPreferredWood(String woodId, String wood) {
+        return woodId.endsWith(":" + wood + "_planks") || woodId.endsWith(":" + wood + "_log");
+    }
+
+    /** The barrel's score once a drink's own days have passed: the right wood is perfect. */
+    public static int score(String woodId, String preferredWood, long elapsedTicks, int days) {
+        if (elapsedTicks < days * TICKS_PER_DAY) {
+            return 0;
+        }
+        return isPreferredWood(woodId, preferredWood) ? 100 : 60;
+    }
 }

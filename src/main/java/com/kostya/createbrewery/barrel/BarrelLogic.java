@@ -15,7 +15,12 @@ public final class BarrelLogic {
 
     public static Result process(int distillateStars, int alcohol, String woodId,
                                  int amount, long elapsedTicks) {
-        int score = AgingRules.score(woodId, elapsedTicks);
+        return process(distillateStars, alcohol, woodId, "oak", amount, elapsedTicks, (int) (AgingRules.REQUIRED_TICKS / AgingRules.TICKS_PER_DAY));
+    }
+
+    public static Result process(int distillateStars, int alcohol, String woodId, String preferredWood,
+                                 int amount, long elapsedTicks, int days) {
+        int score = AgingRules.score(woodId, preferredWood, elapsedTicks, days);
         if (score == 0 || amount <= 0) {
             return Result.waiting();
         }

@@ -61,6 +61,15 @@ public class DistilleryMenu extends AbstractContainerMenu {
         return data.get(3);
     }
 
+    /** How long the wort inside takes; never zero, since the screen divides by it. */
+    public int getIdealTicks() {
+        return Math.max(1, data.get(4));
+    }
+
+    public int getIdealRpm() {
+        return data.get(5);
+    }
+
     @Override
     public boolean stillValid(Player player) {
         return distillery == null || stillValid(
@@ -91,7 +100,7 @@ public class DistilleryMenu extends AbstractContainerMenu {
     }
 
     private final class Data implements ContainerData {
-        private final int[] synced = new int[4];
+        private final int[] synced = new int[6];
 
         @Override
         public int get(int index) {
@@ -104,6 +113,8 @@ public class DistilleryMenu extends AbstractContainerMenu {
                 case 1 -> distillery.getHeatLevel();
                 case 2 -> Math.round(distillery.getRpm());
                 case 3 -> distillery.getWortAmount();
+                case 4 -> distillery.getProfile().distillTicks();
+                case 5 -> distillery.getProfile().idealRpm();
                 default -> 0;
             };
         }

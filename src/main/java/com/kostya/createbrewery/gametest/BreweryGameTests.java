@@ -15,6 +15,7 @@ import com.kostya.createbrewery.registry.ModItems;
 import com.simibubi.create.AllBlocks;
 import com.simibubi.create.content.kinetics.base.DirectionalKineticBlock;
 import com.simibubi.create.content.kinetics.base.RotatedPillarKineticBlock;
+import com.simibubi.create.content.logistics.funnel.FunnelBlock;
 import com.simibubi.create.foundation.blockEntity.behaviour.BlockEntityBehaviour;
 import com.simibubi.create.foundation.blockEntity.behaviour.scrollValue.ScrollValueBehaviour;
 import net.minecraft.core.BlockPos;
@@ -31,6 +32,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.material.Fluids;
 import net.neoforged.neoforge.capabilities.Capabilities;
 import net.neoforged.neoforge.fluids.FluidStack;
@@ -53,7 +55,7 @@ public class BreweryGameTests {
     private static final BlockPos BARREL = new BlockPos(5, 2, 1);
 
     /** Kettle → distillery → barrel → spout through capabilities, as pipes and funnels would. */
-    @GameTest(template = "empty", timeoutTicks = 1200)
+    @GameTest(template = "empty", timeoutTicks = 1200, batch = "aging_whiskey")
     public static void perfectWhiskeyPathGivesFiveStars(GameTestHelper helper) {
         KettleBlockEntity kettle = placeHeatedKettle(helper);
 
@@ -220,6 +222,100 @@ public class BreweryGameTests {
                 .thenExecute(() -> helper.assertTrue("cider".equals(kettle.getWortDrink()),
                         "tank holds " + kettle.getWortDrink()))
                 .thenSucceed();
+    }
+
+    @GameTest(template = "empty", timeoutTicks = 1500, batch = "aging_calvados")
+    public static void applesAgeIntoCalvadosInBirch(GameTestHelper helper) {
+        agedRoad(helper, Items.APPLE, 64, Items.BIRCH_PLANKS, "aged_calvados", DrinkData.MAX_STARS);
+    }
+
+    @GameTest(template = "empty", timeoutTicks = 1500, batch = "aging_rum")
+    public static void caneAgesIntoRumInDarkOak(GameTestHelper helper) {
+        agedRoad(helper, Items.SUGAR_CANE, 48, Items.DARK_OAK_LOG, "aged_rum", DrinkData.MAX_STARS);
+    }
+
+    /** Each drink has its own wood: what makes perfect whiskey only makes a decent rum. */
+    @GameTest(template = "empty", timeoutTicks = 1500, batch = "aging_rum_wood")
+    public static void wrongWoodLowersRum(GameTestHelper helper) {
+        agedRoad(helper, Items.SUGAR_CANE, 48, Items.OAK_PLANKS, "aged_rum", 3);
+    }
+
+    private static void agedRoad(GameTestHelper helper, Item ingredient, int rpm, Item wood, String aged, int stars) {
+        KettleBlockEntity kettle = placeKettle(helper, ingredient);
+        helper.setBlock(DISTILLERY.below(), Blocks.CAMPFIRE);
+        helper.setBlock(DISTILLERY, ModBlocks.DISTILLERY.get());
+        helper.setBlock(DISTILLERY.above(), AllBlocks.CREATIVE_MOTOR.get());
+        BlockEntityBehaviour.get(helper.getBlockEntity(DISTILLERY.above()), ScrollValueBehaviour.TYPE).setValue(rpm);
+        DistilleryBlockEntity distillery = helper.getBlockEntity(DISTILLERY);
+        helper.setBlock(BARREL, ModBlocks.BARREL.get());
+        BarrelBlockEntity barrel = helper.getBlockEntity(BARREL);
+
+        helper.startSequence()
+                .thenWaitUntil(() -> helper.assertTrue(kettle.getWortAmount() >= 1000, "kettle brewed no wort"))
+                .thenExecute(() -> fluids(helper, DISTILLERY).fill(
+                        fluids(helper, KETTLE).drain(1000, IFluidHandler.FluidAction.EXECUTE),
+                        IFluidHandler.FluidAction.EXECUTE))
+                .thenWaitUntil(() -> helper.assertFalse(distillery.getOutput().getStackInSlot(0).isEmpty(),
+                        "no distillate; rpm=" + distillery.getRpm()))
+                .thenExecute(() -> {
+                    IItemHandler barrelItems = items(helper, BARREL);
+                    barrelItems.insertItem(0, items(helper, DISTILLERY).extractItem(0, 1, false), false);
+                    barrelItems.insertItem(1, new ItemStack(wood), false);
+                })
+                .thenExecuteAfter(2, () -> {
+                    helper.assertTrue(barrel.getStartedAt() >= 0, "barrel did not start");
+                    helper.getLevel().setDayTime(helper.getLevel().getDayTime() + barrel.getRequiredTicks());
+                })
+                .thenWaitUntil(() -> helper.assertFalse(barrel.getOutput().getStackInSlot(0).isEmpty(),
+                        "barrel did not finish"))
+                .thenExecute(() -> {
+                    DrinkData drink = data(barrel.getOutput().getStackInSlot(0));
+                    helper.assertTrue(aged.equals(drink.stage()), "aged into " + drink.stage());
+                    helper.assertTrue(drink.stars() == stars, drink.stage() + " stars " + drink.stars());
+                })
+                .thenSucceed();
+    }
+
+    /** A real funnel takes items dropped on it into the kettle and the barrel. */
+    @GameTest(template = "empty", timeoutTicks = 300)
+    public static void createFunnelsFillMachines(GameTestHelper helper) {
+        helper.setBlock(KETTLE, ModBlocks.KETTLE.get());
+        KettleBlockEntity kettle = helper.getBlockEntity(KETTLE);
+        helper.setBlock(BARREL, ModBlocks.BARREL.get());
+        BarrelBlockEntity barrel = helper.getBlockEntity(BARREL);
+        BlockState funnel = AllBlocks.ANDESITE_FUNNEL.get().defaultBlockState()
+                .setValue(FunnelBlock.FACING, Direction.UP).setValue(FunnelBlock.POWERED, false);
+        helper.setBlock(KETTLE.above(), funnel);
+        helper.setBlock(BARREL.above(), funnel);
+
+        helper.spawnItem(Items.WHEAT, KETTLE.getX() + 0.5f, KETTLE.getY() + 1.6f, KETTLE.getZ() + 0.5f);
+        helper.spawnItem(Items.OAK_LOG, BARREL.getX() + 0.5f, BARREL.getY() + 1.6f, BARREL.getZ() + 0.5f);
+        helper.succeedWhen(() -> {
+            helper.assertTrue(kettle.getInput().getStackInSlot(0).is(Items.WHEAT), "funnel skipped the kettle");
+            helper.assertTrue(barrel.getInput().getStackInSlot(1).is(Items.OAK_LOG), "funnel skipped the barrel");
+        });
+    }
+
+    /** Wort through a real pipe, not just a pump touching both machines. */
+    @GameTest(template = "empty", timeoutTicks = 800)
+    public static void createPipeCarriesWort(GameTestHelper helper) {
+        placeHeatedKettle(helper);
+        BlockPos pump = KETTLE.east();
+        BlockPos pipe = pump.east();
+        BlockPos still = pipe.east();
+        helper.setBlock(pump, AllBlocks.MECHANICAL_PUMP.get().defaultBlockState()
+                .setValue(DirectionalKineticBlock.FACING, Direction.EAST));
+        helper.setBlock(pump.above(), AllBlocks.COGWHEEL.get().defaultBlockState()
+                .setValue(RotatedPillarKineticBlock.AXIS, Direction.Axis.X));
+        helper.setBlock(KETTLE.above(), AllBlocks.CREATIVE_MOTOR.get().defaultBlockState()
+                .setValue(DirectionalKineticBlock.FACING, Direction.EAST));
+        helper.setBlock(still, ModBlocks.DISTILLERY.get());
+        DistilleryBlockEntity distillery = helper.getBlockEntity(still);
+        helper.setBlock(pipe, AllBlocks.FLUID_PIPE.get().updateBlockState(AllBlocks.FLUID_PIPE.getDefaultState(),
+                Direction.EAST, null, helper.getLevel(), helper.absolutePos(pipe)));
+
+        helper.succeedWhen(() -> helper.assertTrue(distillery.getWortAmount() == 1000,
+                "wort at the far end: " + distillery.getWortAmount()));
     }
 
     /** A funnel fills the slot well past one batch; only water should limit the brewing. */

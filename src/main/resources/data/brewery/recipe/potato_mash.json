@@ -22,6 +22,8 @@
     "id": "potato_mash",
     "alcohol": 10,
     "distilled": "vodka",
-    "distilledAlcohol": 40
+    "distilledAlcohol": 40,
+    "distillTicks": 400,
+    "idealRpm": 96
   }
 }

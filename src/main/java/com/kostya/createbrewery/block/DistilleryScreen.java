@@ -29,17 +29,17 @@ public class DistilleryScreen extends AbstractContainerScreen<DistilleryMenu> {
     @Override
     protected void renderBg(GuiGraphics graphics, float partialTick, int mouseX, int mouseY) {
         graphics.blit(TEXTURE, leftPos, topPos, 0, 0, imageWidth, imageHeight);
-        int progress = Mth.clamp(menu.getProgress(), 0, DistilleryLogic.IDEAL_TICKS);
+        int progress = Mth.clamp(menu.getProgress(), 0, menu.getIdealTicks());
         MachineWidgets.tank(graphics, leftPos + TANK_X, topPos + TANK_Y, TANK_HEIGHT,
                 menu.getWort(), DistilleryLogic.WORT_REQUIRED, MachineWidgets.WORT_COLORS);
-        MachineWidgets.arrow(graphics, leftPos + 50, topPos + 36, progress, DistilleryLogic.IDEAL_TICKS);
+        MachineWidgets.arrow(graphics, leftPos + 50, topPos + 36, progress, menu.getIdealTicks());
         MachineWidgets.flame(graphics, leftPos + 36, topPos + 37, menu.getHeat() >= DistillingRules.MIN_HEAT);
         MachineWidgets.button(graphics, font, leftPos + BUTTON_X, topPos + BUTTON_Y,
                 Component.translatable("gui.brewery.distillery_load"), overButton(mouseX, mouseY));
         graphics.drawString(font, Component.translatable(statusKey()),
                 leftPos + 82, topPos + 57, 0x404040, false);
         graphics.drawString(font, Component.translatable("gui.brewery.distillery_stats",
-                        menu.getHeat(), menu.getRpm(), progress),
+                        menu.getRpm(), menu.getIdealRpm()),
                 leftPos + 82, topPos + 73, 0x404040, false);
     }
 

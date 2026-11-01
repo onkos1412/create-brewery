@@ -23,6 +23,10 @@
     "alcohol": 15,
     "distilled": "calvados",
     "distilledAlcohol": 40,
-    "aged": "aged_calvados"
+    "aged": "aged_calvados",
+    "distillTicks": 300,
+    "idealRpm": 64,
+    "agingDays": 2,
+    "wood": "birch"
   }
 }

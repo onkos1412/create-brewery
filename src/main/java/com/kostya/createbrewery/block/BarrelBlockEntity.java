@@ -109,12 +109,20 @@ public class BarrelBlockEntity extends BlockEntity {
     /** What this distillate ages into, or {@code null} when it does not belong in a barrel. */
     @Nullable
     private String agedStage(ItemStack distillate) {
-        DrinkData data = distillate.get(ModDataComponents.DRINK_DATA.get());
-        if (data == null || level == null) {
-            return DrinkProfile.BEER.aged();
-        }
-        DrinkProfile drink = BrewingRecipe.profileDistilledTo(level, data.stage());
+        DrinkProfile drink = profileOf(distillate);
         return drink.canAge() ? drink.aged() : null;
+    }
+
+    private DrinkProfile profileOf(ItemStack distillate) {
+        DrinkData data = distillate.get(ModDataComponents.DRINK_DATA.get());
+        return data == null || level == null
+                ? DrinkProfile.BEER
+                : BrewingRecipe.profileDistilledTo(level, data.stage());
+    }
+
+    /** How long the batch inside takes. */
+    public long getRequiredTicks() {
+        return profileOf(input.getStackInSlot(0)).agingDays() * AgingRules.TICKS_PER_DAY;
     }
 
     public IItemHandler getAutomationItems() {
@@ -173,14 +181,15 @@ public class BarrelBlockEntity extends BlockEntity {
         if (startedAt < 0 && (!autoStart || !startAging())) {
             return;
         }
-        if (!AgingRules.isComplete(getElapsedTicks())) {
+        ItemStack distillate = input.getStackInSlot(0);
+        DrinkProfile profile = profileOf(distillate);
+        if (getElapsedTicks() < profile.agingDays() * AgingRules.TICKS_PER_DAY) {
             return;
         }
-        ItemStack distillate = input.getStackInSlot(0);
         DrinkData data = distillate.getOrDefault(ModDataComponents.DRINK_DATA.get(),
                 new DrinkData(DrinkData.MAX_STARS, DrinkData.DEFAULT_ALCOHOL, "distillate"));
-        BarrelLogic.Result result = BarrelLogic.process(data.stars(), data.alcohol(), woodId,
-                distillate.getCount() * 1000, getElapsedTicks());
+        BarrelLogic.Result result = BarrelLogic.process(data.stars(), data.alcohol(), woodId, profile.wood(),
+                distillate.getCount() * 1000, getElapsedTicks(), profile.agingDays());
         if (!result.ready()) {
             return;
         }
