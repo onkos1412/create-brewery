@@ -1,13 +1,15 @@
 #!/usr/bin/env python3
-"""Generates the mod's block/item textures, GUI sheets and block models.
+"""Generates the mod's block/item textures, GUI sheets, block models and Ponder structures.
 
 Usage: python tools/gen_art.py [preview.png]
 With an argument it also writes an isometric preview of the block models.
 """
+import gzip
 import json
 import math
 import pathlib
 import random
+import struct
 import sys
 
 from PIL import Image, ImageDraw
@@ -615,6 +617,79 @@ def write_gui():
     save(parts, GUI, "machine_parts")
 
 
+# ---- ponder scenes ------------------------------------------------------------------
+
+def nbt_string(value):
+    raw = value.encode("utf-8")
+    return struct.pack(">H", len(raw)) + raw
+
+
+def nbt_field(tag, name, payload):
+    return bytes([tag]) + nbt_string(name) + payload
+
+
+def nbt_int_list(values):
+    return bytes([3]) + struct.pack(">i", len(values)) + b"".join(struct.pack(">i", v) for v in values)
+
+
+def nbt_compound_list(items):
+    return bytes([10]) + struct.pack(">i", len(items)) + b"".join(items)
+
+
+def write_scene(name, placed):
+    """Writes a 5x4x5 structure: a stone floor plus `placed`, a {(x, y, z): (block, properties)} map."""
+    blocks = {(x, 0, z): ("minecraft:smooth_stone", {}) for x in range(5) for z in range(5)}
+    blocks.update(placed)
+    palette = []
+    entries = []
+    for pos, state in blocks.items():
+        if state not in palette:
+            palette.append(state)
+        entries.append(nbt_field(9, "pos", nbt_int_list(list(pos)))
+                       + nbt_field(3, "state", struct.pack(">i", palette.index(state))) + b"\0")
+    palette_nbt = []
+    for block, props in palette:
+        body = nbt_field(8, "Name", nbt_string(block))
+        if props:
+            inner = b"".join(nbt_field(8, k, nbt_string(v)) for k, v in props.items()) + b"\0"
+            body += nbt_field(10, "Properties", inner)
+        palette_nbt.append(body + b"\0")
+    data = (bytes([10]) + nbt_string("")
+            + nbt_field(3, "DataVersion", struct.pack(">i", 3955))
+            + nbt_field(9, "size", nbt_int_list([5, 4, 5]))
+            + nbt_field(9, "palette", nbt_compound_list(palette_nbt))
+            + nbt_field(9, "blocks", nbt_compound_list(entries))
+            + nbt_field(9, "entities", bytes([0]) + struct.pack(">i", 0))
+            + b"\0")
+    target = ROOT / "ponder" / f"{name}.nbt"
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_bytes(gzip.compress(data, mtime=0))
+
+
+def write_ponder():
+    fire = ("minecraft:campfire", {"lit": "true", "facing": "north"})
+    write_scene("kettle", {
+        (2, 1, 2): fire,
+        (2, 2, 2): ("brewery:kettle", {"brewing": "false"}),
+        (3, 2, 2): ("brewery:spout", {"facing": "east"}),
+    })
+    write_scene("distillery", {
+        (2, 1, 2): fire,
+        (2, 2, 2): ("brewery:distillery", {"facing": "south"}),
+        (2, 3, 2): ("create:creative_motor", {"facing": "up"}),
+        (1, 2, 2): ("create:mechanical_pump", {"facing": "east"}),
+        (1, 3, 2): ("create:cogwheel", {"axis": "x"}),
+        (0, 3, 2): ("create:creative_motor", {"facing": "east"}),
+        (0, 2, 2): ("brewery:kettle", {"brewing": "false"}),
+        (0, 1, 2): fire,
+    })
+    write_scene("barrel", {
+        (2, 1, 2): ("brewery:barrel", {"facing": "north"}),
+        (2, 2, 2): ("create:andesite_funnel", {"facing": "up"}),
+        (3, 1, 2): ("brewery:spout", {"facing": "east"}),
+    })
+
+
 # ---- preview ------------------------------------------------------------------------
 
 def preview(path):
@@ -715,6 +790,7 @@ def main():
     write_item_textures()
     write_models()
     write_gui()
+    write_ponder()
     if len(sys.argv) > 1:
         preview(sys.argv[1])
 

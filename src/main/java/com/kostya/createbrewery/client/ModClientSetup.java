@@ -9,6 +9,7 @@ import com.kostya.createbrewery.block.ModMenus;
 import com.kostya.createbrewery.recipe.ModRecipeTypes;
 import com.kostya.createbrewery.registry.ModDataComponents;
 import com.kostya.createbrewery.registry.ModItems;
+import net.createmod.ponder.foundation.PonderIndex;
 import net.minecraft.client.RecipeBookCategories;
 import net.minecraft.client.renderer.item.ItemProperties;
 import net.neoforged.api.distmarker.Dist;
@@ -44,6 +45,7 @@ public final class ModClientSetup {
     /** Lets the bottle's item model pick its art from the drink inside. */
     @SubscribeEvent
     public static void registerItemProperties(FMLClientSetupEvent event) {
+        PonderIndex.addPlugin(new BreweryPonder());
         event.enqueueWork(() -> ItemProperties.register(ModItems.DRINK_BOTTLE.get(), CreateBrewery.id("drink"),
                 (stack, level, entity, seed) -> {
                     DrinkData data = stack.get(ModDataComponents.DRINK_DATA.get());
