@@ -27,13 +27,15 @@ import java.util.Map;
 public final class ModClientSetup {
 
     /** Values of the {@code brewery:drink} property, matching the overrides in drink_bottle.json. */
-    private static final Map<String, Float> BOTTLE_ART = Map.of(
-            "whiskey", 1f, "aged_whiskey", 1f,
-            "cider", 2f,
-            "potato_mash", 3f, "cane_mash", 3f,
-            "calvados", 4f, "aged_calvados", 4f,
-            "vodka", 5f,
-            "rum", 6f, "aged_rum", 6f);
+    private static final Map<String, Float> BOTTLE_ART = Map.ofEntries(
+            Map.entry("whiskey", 1f), Map.entry("aged_whiskey", 1f),
+            Map.entry("cider", 2f),
+            Map.entry("potato_mash", 3f), Map.entry("cane_mash", 3f),
+            Map.entry("calvados", 4f), Map.entry("aged_calvados", 4f),
+            Map.entry("vodka", 5f),
+            Map.entry("rum", 6f), Map.entry("aged_rum", 6f),
+            Map.entry("young_wine", 7f), Map.entry("wine", 7f),
+            Map.entry("young_mead", 8f), Map.entry("mead", 8f));
 
     private ModClientSetup() {
     }

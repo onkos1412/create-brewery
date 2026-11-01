@@ -44,5 +44,9 @@
   "drink.brewery.rum": "Rum",
   "drink.brewery.aged_rum": "Aged Rum",
   "tooltip.brewery.distillate_aging": "Aging: %s days, %s",
-  "tooltip.brewery.distillate_pour": "Use to pour into an empty bottle from your inventory"
+  "tooltip.brewery.distillate_pour": "Use to pour into an empty bottle from your inventory",
+  "drink.brewery.young_wine": "Young Wine",
+  "drink.brewery.wine": "Wine",
+  "drink.brewery.young_mead": "Young Mead",
+  "drink.brewery.mead": "Mead"
 }

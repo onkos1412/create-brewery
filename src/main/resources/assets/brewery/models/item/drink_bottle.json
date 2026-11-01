@@ -39,6 +39,18 @@
         "brewery:drink": 6
       },
       "model": "brewery:item/rum_bottle"
+    },
+    {
+      "predicate": {
+        "brewery:drink": 7
+      },
+      "model": "brewery:item/wine_bottle"
+    },
+    {
+      "predicate": {
+        "brewery:drink": 8
+      },
+      "model": "brewery:item/mead_bottle"
     }
   ]
 }

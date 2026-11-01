@@ -1,0 +1,29 @@
+{
+  "type": "brewery:brewing",
+  "inputs": [
+    {
+      "item": "minecraft:honeycomb"
+    },
+    {
+      "item": "minecraft:honeycomb"
+    }
+  ],
+  "water": {
+    "fluid": "minecraft:water",
+    "amount": 1000
+  },
+  "result": {
+    "fluid": "brewery:wort",
+    "amount": 1000
+  },
+  "brewTimeTicks": 200,
+  "heatLevel": "heated",
+  "drink": {
+    "id": "young_mead",
+    "alcohol": 10,
+    "distilledAlcohol": 20,
+    "aged": "mead",
+    "agingDays": 2,
+    "wood": "spruce"
+  }
+}

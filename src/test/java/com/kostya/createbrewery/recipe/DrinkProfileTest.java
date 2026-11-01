@@ -29,13 +29,17 @@ class DrinkProfileTest {
         DrinkProfile mash = read("potato_mash");
         assertEquals("vodka", mash.distilled());
         assertFalse(mash.canAge(), "vodka is bottled straight from the still");
+
+        assertTrue(read("wine").agesInTheBottle());
+        assertTrue(read("mead").agesInTheBottle());
+        assertFalse(read("beer").agesInTheBottle());
     }
 
     @Test
     void everyDrinkHasANameInBothLanguages() throws Exception {
         for (String language : List.of("en_us", "ru_ru")) {
             String lang = Files.readString(Path.of("src/main/resources/assets/brewery/lang/" + language + ".json"));
-            for (String recipe : List.of("beer", "cider", "potato_mash", "cane_mash")) {
+            for (String recipe : List.of("beer", "cider", "potato_mash", "cane_mash", "wine", "mead")) {
                 DrinkProfile drink = read(recipe);
                 for (String id : List.of(drink.id(), drink.distilled(), drink.aged())) {
                     assertTrue(id.isEmpty() || lang.contains("\"drink.brewery." + id + "\""),

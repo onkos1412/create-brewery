@@ -9,7 +9,7 @@ import com.mojang.serialization.codecs.RecordCodecBuilder;
  * @param id               the drink bottled straight from the kettle, and the wort's identity
  * @param alcohol          strength of that drink
  * @param distilled        what the still makes of it; blank when it cannot be distilled
- * @param distilledAlcohol strength after distilling
+ * @param distilledAlcohol strength after distilling, or after aging for a drink that skips the still
  * @param aged             what the barrel makes of the distillate; blank when it is bottled right from the still
  * @param distillTicks     how long distilling takes
  * @param idealRpm         the speed that distills perfectly
@@ -41,5 +41,10 @@ public record DrinkProfile(String id, int alcohol, String distilled, int distill
 
     public boolean canAge() {
         return !aged.isEmpty();
+    }
+
+    /** Wine and the like: bottled young from the kettle, then aged without ever seeing the still. */
+    public boolean agesInTheBottle() {
+        return canAge() && !canDistill();
     }
 }

@@ -11,6 +11,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.world.Containers;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.entity.BlockEntity;
@@ -42,7 +43,7 @@ public class BarrelBlockEntity extends BlockEntity {
             }
             return slot == WOOD_SLOT
                     ? AgingRules.isAcceptedWood(BuiltInRegistries.ITEM.getKey(stack.getItem()).toString())
-                    : stack.is(ModItems.DISTILLATE.get()) && agedStage(stack) != null;
+                    : isYoungDrink(stack) || stack.is(ModItems.DISTILLATE.get()) && agedStage(stack) != null;
         }
 
         /** A running batch stays sealed, or its contents could be swapped out before it finishes. */
@@ -166,11 +167,24 @@ public class BarrelBlockEntity extends BlockEntity {
         return drink.canAge() ? drink.aged() : null;
     }
 
-    private DrinkProfile profileOf(ItemStack distillate) {
-        DrinkData data = distillate.get(ModDataComponents.DRINK_DATA.get());
-        return data == null || level == null
-                ? DrinkProfile.BEER
+    private DrinkProfile profileOf(ItemStack product) {
+        DrinkData data = product.get(ModDataComponents.DRINK_DATA.get());
+        if (data == null || level == null) {
+            return DrinkProfile.BEER;
+        }
+        return product.is(ModItems.DRINK_BOTTLE.get())
+                ? BrewingRecipe.profileOf(level, data.stage())
                 : BrewingRecipe.profileDistilledTo(level, data.stage());
+    }
+
+    /** A bottle of something that matures here without distilling, like young wine. */
+    private boolean isYoungDrink(ItemStack stack) {
+        DrinkData data = stack.get(ModDataComponents.DRINK_DATA.get());
+        if (!stack.is(ModItems.DRINK_BOTTLE.get()) || data == null || level == null) {
+            return false;
+        }
+        DrinkProfile drink = BrewingRecipe.profileOf(level, data.stage());
+        return drink.id().equals(data.stage()) && drink.agesInTheBottle();
     }
 
     /** How long the batch inside takes. */
@@ -213,7 +227,7 @@ public class BarrelBlockEntity extends BlockEntity {
     public boolean startAging() {
         ItemStack distillate = input.getStackInSlot(0);
         ItemStack wood = input.getStackInSlot(1);
-        if (startedAt >= 0 || distillate.isEmpty() || !distillate.is(ModItems.DISTILLATE.get()) || wood.isEmpty()) {
+        if (startedAt >= 0 || distillate.isEmpty() || !input.isItemValid(0, distillate) || wood.isEmpty()) {
             return false;
         }
         String id = BuiltInRegistries.ITEM.getKey(wood.getItem()).toString();
@@ -248,9 +262,16 @@ public class BarrelBlockEntity extends BlockEntity {
         }
         String stage = agedStage(distillate);
         ItemStack aged = new ItemStack(ModItems.DRINK_BOTTLE.get());
-        aged.set(ModDataComponents.DRINK_DATA.get(), new DrinkData(result.stars(), result.alcohol(),
+        boolean young = distillate.is(ModItems.DRINK_BOTTLE.get());
+        aged.set(ModDataComponents.DRINK_DATA.get(), new DrinkData(result.stars(),
+                young ? profile.distilledAlcohol() : result.alcohol(),
                 stage == null ? DrinkProfile.BEER.aged() : stage));
         output.setStackInSlot(0, aged);
+        if (young) {
+            // The bottle it came in is empty now: it waits with the others, or falls out if they are full.
+            ItemStack spare = bottles.insertItem(0, new ItemStack(Items.GLASS_BOTTLE), false);
+            Containers.dropItemStack(level, worldPosition.getX(), worldPosition.getY() + 1, worldPosition.getZ(), spare);
+        }
         distillate.shrink(1);
         input.setStackInSlot(0, distillate);
         startedAt = -1L;

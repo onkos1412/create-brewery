@@ -44,5 +44,9 @@
   "drink.brewery.rum": "Ром",
   "drink.brewery.aged_rum": "Выдержанный ром",
   "tooltip.brewery.distillate_aging": "Выдержка: %s дн., %s",
-  "tooltip.brewery.distillate_pour": "ПКМ: разлить в пустую бутылку из инвентаря"
+  "tooltip.brewery.distillate_pour": "ПКМ: разлить в пустую бутылку из инвентаря",
+  "drink.brewery.young_wine": "Молодое вино",
+  "drink.brewery.wine": "Вино",
+  "drink.brewery.young_mead": "Молодая медовуха",
+  "drink.brewery.mead": "Медовуха"
 }

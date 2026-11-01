@@ -129,8 +129,76 @@ public class BreweryGameTests {
         helper.succeedWhen(() -> {
             ItemStack output = distillery.getOutput().getStackInSlot(0);
             helper.assertFalse(output.isEmpty(), "no distillate at 16 RPM; rpm=" + distillery.getRpm());
-            helper.assertTrue(data(output).stars() == 4, "stars at 16 RPM: " + data(output).stars());
+            helper.assertTrue(data(output).stars() == 2, "stars at 16 RPM: " + data(output).stars());
         });
+    }
+
+    /** A setting that is completely off makes the worst drink there is, but still makes one. */
+    @GameTest(template = "empty", timeoutTicks = 400)
+    public static void wildRpmMakesOneStar(GameTestHelper helper) {
+        helper.setBlock(DISTILLERY.below(), Blocks.CAMPFIRE);
+        helper.setBlock(DISTILLERY, ModBlocks.DISTILLERY.get());
+        helper.setBlock(DISTILLERY.above(), AllBlocks.CREATIVE_MOTOR.get());
+        BlockEntityBehaviour.get(helper.getBlockEntity(DISTILLERY.above()), ScrollValueBehaviour.TYPE)
+                .setValue(256);
+        DistilleryBlockEntity distillery = helper.getBlockEntity(DISTILLERY);
+        fluids(helper, DISTILLERY).fill(new FluidStack(ModFluids.WORT.get(), 1000), IFluidHandler.FluidAction.EXECUTE);
+
+        helper.succeedWhen(() -> {
+            ItemStack output = distillery.getOutput().getStackInSlot(0);
+            helper.assertFalse(output.isEmpty(), "no distillate at 256 RPM; rpm=" + distillery.getRpm());
+            helper.assertTrue(data(output).stars() == 1, "stars at 256 RPM: " + data(output).stars());
+        });
+    }
+
+    /** Wine goes kettle, bottle, barrel: the still refuses it, and the bottle comes back empty. */
+    @GameTest(template = "empty", timeoutTicks = 800, batch = "aging_wine")
+    public static void berriesAgeIntoWineInTheBottle(GameTestHelper helper) {
+        KettleBlockEntity kettle = placeKettle(helper, Items.SWEET_BERRIES);
+        helper.setBlock(DISTILLERY, ModBlocks.DISTILLERY.get());
+        helper.setBlock(BARREL, ModBlocks.BARREL.get());
+        BarrelBlockEntity barrel = helper.getBlockEntity(BARREL);
+
+        helper.startSequence()
+                .thenWaitUntil(() -> helper.assertTrue(kettle.getWortAmount() >= 1000, "kettle brewed no wort"))
+                .thenExecute(() -> {
+                    helper.assertTrue(fluids(helper, DISTILLERY).fill(
+                                    fluids(helper, KETTLE).getFluidInTank(1).copy(), IFluidHandler.FluidAction.SIMULATE) == 0,
+                            "still took wine must");
+                    ItemStack young = kettle.bottleWort();
+                    helper.assertTrue("young_wine".equals(data(young).stage()), "bottled " + data(young).stage());
+                    IItemHandler barrelItems = items(helper, BARREL);
+                    helper.assertTrue(barrelItems.insertItem(0, young, false).isEmpty(), "barrel refused young wine");
+                    barrelItems.insertItem(1, new ItemStack(Items.OAK_PLANKS), false);
+                })
+                .thenExecuteAfter(2, () -> {
+                    helper.assertTrue(barrel.getStartedAt() >= 0, "barrel did not start");
+                    helper.getLevel().setDayTime(helper.getLevel().getDayTime() + barrel.getRequiredTicks());
+                })
+                .thenWaitUntil(() -> helper.assertFalse(barrel.getOutput().getStackInSlot(0).isEmpty(),
+                        "barrel did not finish"))
+                .thenExecute(() -> {
+                    DrinkData wine = data(barrel.getOutput().getStackInSlot(0));
+                    helper.assertTrue("wine".equals(wine.stage()), "aged into " + wine.stage());
+                    helper.assertTrue(wine.stars() == DrinkData.MAX_STARS, "wine stars " + wine.stars());
+                    helper.assertTrue(wine.alcohol() == 25, "wine strength " + wine.alcohol());
+                    helper.assertTrue(barrel.getBottles().getStackInSlot(0).is(Items.GLASS_BOTTLE),
+                            "the empty bottle did not come back");
+                })
+                .thenSucceed();
+    }
+
+    /** Drinks that are already finished must not go into the barrel a second time. */
+    @GameTest(template = "empty")
+    public static void barrelRefusesFinishedBottles(GameTestHelper helper) {
+        helper.setBlock(BARREL, ModBlocks.BARREL.get());
+        for (String stage : java.util.List.of("wine", "beer", "aged_whiskey")) {
+            ItemStack bottle = new ItemStack(ModItems.DRINK_BOTTLE.get());
+            bottle.set(ModDataComponents.DRINK_DATA.get(), new DrinkData(5, 20, stage));
+            helper.assertTrue(items(helper, BARREL).insertItem(0, bottle, true).getCount() == 1,
+                    "barrel took " + stage);
+        }
+        helper.succeed();
     }
 
     @GameTest(template = "empty", timeoutTicks = 400)

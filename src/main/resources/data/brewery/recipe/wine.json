@@ -1,0 +1,29 @@
+{
+  "type": "brewery:brewing",
+  "inputs": [
+    {
+      "item": "minecraft:sweet_berries"
+    },
+    {
+      "item": "minecraft:sweet_berries"
+    }
+  ],
+  "water": {
+    "fluid": "minecraft:water",
+    "amount": 1000
+  },
+  "result": {
+    "fluid": "brewery:wort",
+    "amount": 1000
+  },
+  "brewTimeTicks": 200,
+  "heatLevel": "heated",
+  "drink": {
+    "id": "young_wine",
+    "alcohol": 10,
+    "distilledAlcohol": 25,
+    "aged": "wine",
+    "agingDays": 4,
+    "wood": "oak"
+  }
+}

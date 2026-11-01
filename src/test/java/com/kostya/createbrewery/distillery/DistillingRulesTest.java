@@ -21,6 +21,14 @@ class DistillingRulesTest {
     }
 
     @Test
+    void theWorstDeviationDecidesTheScore() {
+        assertEquals(94, DistillingRules.score(1, 1, 200, 200, 30f, 32f));
+        assertEquals(50, DistillingRules.score(1, 1, 200, 200, 16f, 32f));
+        assertEquals(0, DistillingRules.score(1, 1, 200, 200, 256f, 32f));
+        assertEquals(50, DistillingRules.score(2, 1, 200, 200, 32f, 32f));
+    }
+
+    @Test
     void imperfectConditionsReduceButDoNotBreakTheScore() {
         int score = DistillingRules.score(1, 1, 260, 200, 24f, 32f);
 

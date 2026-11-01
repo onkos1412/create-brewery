@@ -15,7 +15,8 @@ public final class DistillingRules {
 
     /**
      * Scores heat, elapsed time and speed against the recipe's ideal values.
-     * Exact values score 100; each normalized deviation costs up to 50 points.
+     * Exact values score 100, and the single worst deviation decides the rest: precision is
+     * the point of the machine, so a badly wrong setting must not hide behind two right ones.
      */
     public static int score(int heat, int idealHeat, int elapsedTicks, int idealTicks,
                             float rpm, float idealRpm) {
@@ -25,7 +26,7 @@ public final class DistillingRules {
         float heatPenalty = heat == idealHeat ? 0f : Math.min(1f, (heat - idealHeat) / 2f);
         float timePenalty = Math.min(1f, Math.abs(elapsedTicks - idealTicks) / (float) idealTicks);
         float rpmPenalty = Math.min(1f, Math.abs(rpm - idealRpm) / idealRpm);
-        float penalty = (heatPenalty + timePenalty + rpmPenalty) / 3f;
+        float penalty = Math.max(heatPenalty, Math.max(timePenalty, rpmPenalty));
         return Math.max(0, Math.min(100, Math.round(100f * (1f - penalty))));
     }
 }
