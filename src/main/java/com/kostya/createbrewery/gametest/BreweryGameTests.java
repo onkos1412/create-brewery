@@ -33,6 +33,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.HopperBlock;
 import net.minecraft.world.level.block.entity.HopperBlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.material.Fluids;
@@ -323,6 +324,32 @@ public class BreweryGameTests {
         helper.assertTrue(still2.getWortAmount() == 600, "wort " + still2.getWortAmount());
         helper.assertTrue(still2.getInputStars() == 3, "stars " + still2.getInputStars());
         helper.succeed();
+    }
+
+    /** The whole wine line with no player: kettle, spout, a real hopper, barrel, bottle back. */
+    @GameTest(template = "empty", timeoutTicks = 600, batch = "aging_wine_line")
+    public static void wineLineRunsWithoutAPlayer(GameTestHelper helper) {
+        placeKettle(helper, Items.SWEET_BERRIES);
+        BlockPos spout = KETTLE.east();
+        BlockPos hopper = spout.below();
+        BlockPos barrelPos = hopper.east();
+        helper.setBlock(spout, ModBlocks.SPOUT.get());
+        helper.setBlock(barrelPos, ModBlocks.BARREL.get());
+        BarrelBlockEntity barrel = helper.getBlockEntity(barrelPos);
+        helper.setBlock(hopper, Blocks.HOPPER.defaultBlockState().setValue(HopperBlock.FACING, Direction.EAST));
+        items(helper, spout).insertItem(0, new ItemStack(Items.GLASS_BOTTLE), false);
+        items(helper, barrelPos).insertItem(1, new ItemStack(Items.OAK_LOG), false);
+
+        helper.startSequence()
+                .thenWaitUntil(() -> helper.assertTrue(barrel.getStartedAt() >= 0, "young wine never reached the barrel"))
+                .thenExecute(() -> helper.getLevel().setDayTime(helper.getLevel().getDayTime() + barrel.getRequiredTicks()))
+                .thenWaitUntil(() -> helper.assertFalse(barrel.getOutput().getStackInSlot(0).isEmpty(), "not aged"))
+                .thenExecute(() -> {
+                    DrinkData wine = data(barrel.getOutput().getStackInSlot(0));
+                    helper.assertTrue("wine".equals(wine.stage()) && wine.stars() == 5, "made " + wine);
+                    helper.assertTrue(barrel.getBottles().getStackInSlot(0).is(Items.GLASS_BOTTLE), "bottle not back");
+                })
+                .thenSucceed();
     }
 
     /** Drinks that are already finished must not go into the barrel a second time. */
