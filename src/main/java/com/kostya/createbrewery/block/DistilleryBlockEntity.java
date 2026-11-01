@@ -24,6 +24,7 @@ import net.neoforged.neoforge.items.ItemStackHandler;
 public class DistilleryBlockEntity extends BlockEntity {
 
     private static final int INPUT_WORT = DistilleryLogic.WORT_REQUIRED;
+    private static final int SPOILED_ALCOHOL = 10;
     private int wortAmount;
     private int inputStars = DrinkData.MAX_STARS;
     private String wortDrink = DrinkProfile.BEER.id();
@@ -126,7 +127,7 @@ public class DistilleryBlockEntity extends BlockEntity {
             return ItemStack.EMPTY;
         }
         DrinkData data = distillate.get(ModDataComponents.DRINK_DATA.get());
-        if (data == null || BrewingRecipe.profileDistilledTo(level, data.stage()).canAge()) {
+        if (data == null || !data.isSpoiled() && BrewingRecipe.profileDistilledTo(level, data.stage()).canAge()) {
             return ItemStack.EMPTY;
         }
         output.extractItem(0, 1, false);
@@ -212,8 +213,9 @@ public class DistilleryBlockEntity extends BlockEntity {
         }
 
         ItemStack distillate = new ItemStack(ModItems.DISTILLATE.get());
-        distillate.set(ModDataComponents.DRINK_DATA.get(),
-                new DrinkData(result.stars(), drink.distilledAlcohol(), drink.distilled()));
+        distillate.set(ModDataComponents.DRINK_DATA.get(), result.spoiled()
+                ? new DrinkData(DrinkData.MIN_STARS, SPOILED_ALCOHOL, DrinkData.SPOILED_STAGE)
+                : new DrinkData(result.stars(), drink.distilledAlcohol(), drink.distilled()));
         output.setStackInSlot(0, distillate);
         wortAmount = 0;
         progressTicks = 0;

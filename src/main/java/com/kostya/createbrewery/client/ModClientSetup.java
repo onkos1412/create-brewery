@@ -35,7 +35,8 @@ public final class ModClientSetup {
             Map.entry("vodka", 5f),
             Map.entry("rum", 6f), Map.entry("aged_rum", 6f),
             Map.entry("young_wine", 7f), Map.entry("wine", 7f),
-            Map.entry("young_mead", 8f), Map.entry("mead", 8f));
+            Map.entry("young_mead", 8f), Map.entry("mead", 8f),
+            Map.entry(DrinkData.SPOILED_STAGE, 9f));
 
     private ModClientSetup() {
     }

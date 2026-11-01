@@ -163,6 +163,10 @@ public class BarrelBlockEntity extends BlockEntity {
     /** What this distillate ages into, or {@code null} when it does not belong in a barrel. */
     @Nullable
     private String agedStage(ItemStack distillate) {
+        DrinkData data = distillate.get(ModDataComponents.DRINK_DATA.get());
+        if (data != null && data.isSpoiled()) {
+            return null;
+        }
         DrinkProfile drink = profileOf(distillate);
         return drink.canAge() ? drink.aged() : null;
     }

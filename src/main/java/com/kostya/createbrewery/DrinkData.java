@@ -11,6 +11,8 @@ public record DrinkData(int stars, int alcohol, String stage) {
     public static final int MAX_ALCOHOL = 100;
     public static final int DEFAULT_ALCOHOL = 40;
     public static final String DEFAULT_STAGE = "whiskey";
+    /** What a completely missed setting makes instead of the intended drink. */
+    public static final String SPOILED_STAGE = "spoiled";
 
     /** Optional fields keep components written by the skeleton readable. */
     public static final Codec<DrinkData> CODEC = RecordCodecBuilder.create(instance -> instance.group(
@@ -21,6 +23,10 @@ public record DrinkData(int stars, int alcohol, String stage) {
 
     public DrinkData(int stars) {
         this(stars, DEFAULT_ALCOHOL, DEFAULT_STAGE);
+    }
+
+    public boolean isSpoiled() {
+        return SPOILED_STAGE.equals(stage);
     }
 
     public DrinkData {

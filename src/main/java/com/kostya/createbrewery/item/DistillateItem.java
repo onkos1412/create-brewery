@@ -40,7 +40,7 @@ public class DistillateItem extends Item {
     public InteractionResultHolder<ItemStack> use(Level level, Player player, InteractionHand hand) {
         ItemStack stack = player.getItemInHand(hand);
         DrinkData data = stack.get(ModDataComponents.DRINK_DATA.get());
-        if (data == null || BrewingRecipe.profileDistilledTo(level, data.stage()).canAge()) {
+        if (data == null || !data.isSpoiled() && BrewingRecipe.profileDistilledTo(level, data.stage()).canAge()) {
             return InteractionResultHolder.pass(stack);
         }
         int glass = player.getInventory().findSlotMatchingItem(new ItemStack(Items.GLASS_BOTTLE));
@@ -69,7 +69,7 @@ public class DistillateItem extends Item {
                     .withStyle(ChatFormatting.GOLD));
             if (context.level() != null) {
                 DrinkProfile drink = BrewingRecipe.profileDistilledTo(context.level(), data.stage());
-                if (drink.canAge()) {
+                if (!data.isSpoiled() && drink.canAge()) {
                     tooltip.add(Component.translatable("tooltip.brewery.distillate_aging", drink.agingDays(),
                                     Component.translatable("block.minecraft." + drink.wood() + "_planks"))
                             .withStyle(ChatFormatting.GRAY));

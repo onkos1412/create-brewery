@@ -220,6 +220,7 @@ def write_item_textures():
     save(bottle("#8c5a3c", ["#7a3a18", "#5c2a10", "#3f1c0a"], ("#e8dcc0", "#1d1a18"), True), ITEM, "rum_bottle")
     save(bottle("#7a4a5a", ["#9c2440", "#7a1a30", "#5a1022"], ("#f0e8d8", "#7a1a30"), False), ITEM, "wine_bottle")
     save(bottle("#d8b870", ["#f2c84a", "#d8a830", "#b08820"], ("#3a2a14", "#f2c84a"), False), ITEM, "mead_bottle")
+    save(bottle("#6a7040", ["#7a8a30", "#5c6a20", "#3f4a14"], None, False), ITEM, "spoiled_bottle")
     save(bottle("#dfe9e6", ["#f3e7c0", "#e6d49a", "#cbb676"], None, True), ITEM, "distillate")
 
 
@@ -441,7 +442,7 @@ def write_models():
     dump(items / "distillate.json", {"parent": "minecraft:item/generated",
                                      "textures": {"layer0": "brewery:item/distillate"}})
     # The base model is beer; the `brewery:drink` property picks the others (see ModClientSetup).
-    art = ["whiskey", "cider", "mash", "calvados", "vodka", "rum", "wine", "mead"]
+    art = ["whiskey", "cider", "mash", "calvados", "vodka", "rum", "wine", "mead", "spoiled"]
     for name in art:
         dump(items / f"{name}_bottle.json", {"parent": "minecraft:item/generated",
                                              "textures": {"layer0": f"brewery:item/{name}_bottle"}})

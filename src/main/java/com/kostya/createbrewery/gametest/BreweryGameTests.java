@@ -134,22 +134,55 @@ public class BreweryGameTests {
         });
     }
 
-    /** A setting that is completely off makes the worst drink there is, but still makes one. */
+    /** Far off but not a complete miss: the worst rating, but still the intended drink. */
     @GameTest(template = "empty", timeoutTicks = 400)
-    public static void wildRpmMakesOneStar(GameTestHelper helper) {
-        helper.setBlock(DISTILLERY.below(), Blocks.CAMPFIRE);
-        helper.setBlock(DISTILLERY, ModBlocks.DISTILLERY.get());
-        helper.setBlock(DISTILLERY.above(), AllBlocks.CREATIVE_MOTOR.get());
-        BlockEntityBehaviour.get(helper.getBlockEntity(DISTILLERY.above()), ScrollValueBehaviour.TYPE)
-                .setValue(256);
-        DistilleryBlockEntity distillery = helper.getBlockEntity(DISTILLERY);
-        fluids(helper, DISTILLERY).fill(new FluidStack(ModFluids.WORT.get(), 1000), IFluidHandler.FluidAction.EXECUTE);
+    public static void farOffRpmMakesOneStar(GameTestHelper helper) {
+        DistilleryBlockEntity distillery = distilleryAt(helper, 56);
 
         helper.succeedWhen(() -> {
             ItemStack output = distillery.getOutput().getStackInSlot(0);
-            helper.assertFalse(output.isEmpty(), "no distillate at 256 RPM; rpm=" + distillery.getRpm());
-            helper.assertTrue(data(output).stars() == 1, "stars at 256 RPM: " + data(output).stars());
+            helper.assertFalse(output.isEmpty(), "no distillate; rpm=" + distillery.getRpm());
+            helper.assertTrue(data(output).stars() == 1, "stars at 56 RPM: " + data(output).stars());
+            helper.assertTrue("whiskey".equals(data(output).stage()), "made " + data(output).stage());
         });
+    }
+
+    /** A complete miss spoils the batch: no barrel takes it, it pours, and drinking it hurts. */
+    @GameTest(template = "empty", timeoutTicks = 400)
+    public static void wildRpmSpoilsTheBatch(GameTestHelper helper) {
+        DistilleryBlockEntity distillery = distilleryAt(helper, 256);
+        helper.setBlock(BARREL, ModBlocks.BARREL.get());
+
+        helper.startSequence()
+                .thenWaitUntil(() -> helper.assertFalse(distillery.getOutput().getStackInSlot(0).isEmpty(),
+                        "no output; rpm=" + distillery.getRpm()))
+                .thenExecute(() -> {
+                    ItemStack spoiled = distillery.getOutput().getStackInSlot(0).copy();
+                    helper.assertTrue(data(spoiled).isSpoiled(), "made " + data(spoiled).stage());
+                    helper.assertTrue(items(helper, BARREL).insertItem(0, spoiled.copy(), true).getCount() == 1,
+                            "barrel took a spoiled batch");
+
+                    Player player = helper.makeMockPlayer(GameType.SURVIVAL);
+                    player.setItemInHand(InteractionHand.MAIN_HAND, spoiled);
+                    player.getInventory().add(new ItemStack(Items.GLASS_BOTTLE));
+                    spoiled.getItem().use(helper.getLevel(), player, InteractionHand.MAIN_HAND);
+                    ItemStack bottle = findBottle(helper, player);
+                    helper.assertTrue(data(bottle).isSpoiled(), "poured " + data(bottle).stage());
+
+                    bottle.getItem().finishUsingItem(bottle, helper.getLevel(), player);
+                    helper.assertTrue(player.hasEffect(MobEffects.POISON) && player.hasEffect(MobEffects.HUNGER),
+                            "spoiled drink did not hurt");
+                })
+                .thenSucceed();
+    }
+
+    private static DistilleryBlockEntity distilleryAt(GameTestHelper helper, int rpm) {
+        helper.setBlock(DISTILLERY.below(), Blocks.CAMPFIRE);
+        helper.setBlock(DISTILLERY, ModBlocks.DISTILLERY.get());
+        helper.setBlock(DISTILLERY.above(), AllBlocks.CREATIVE_MOTOR.get());
+        BlockEntityBehaviour.get(helper.getBlockEntity(DISTILLERY.above()), ScrollValueBehaviour.TYPE).setValue(rpm);
+        fluids(helper, DISTILLERY).fill(new FluidStack(ModFluids.WORT.get(), 1000), IFluidHandler.FluidAction.EXECUTE);
+        return helper.getBlockEntity(DISTILLERY);
     }
 
     /** Wine goes kettle, bottle, barrel: the still refuses it, and the bottle comes back empty. */

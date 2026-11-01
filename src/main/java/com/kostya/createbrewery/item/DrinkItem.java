@@ -74,10 +74,15 @@ public class DrinkItem extends Item {
             if (!level.isClientSide) {
                 // Alcohol is stored on the product, while quality remains a separate value.
                 DrunkManager.addDrunk(player, data.alcohol() / 5);
-                if (QualityRules.nauseaTicks(data.stars()) > 0) {
+                if (data.isSpoiled()) {
+                    player.addEffect(new MobEffectInstance(MobEffects.CONFUSION, 400));
+                    player.addEffect(new MobEffectInstance(MobEffects.POISON, 300));
+                    player.addEffect(new MobEffectInstance(MobEffects.HUNGER, 600, 1));
+                    player.addEffect(new MobEffectInstance(MobEffects.BLINDNESS, 100));
+                } else if (QualityRules.nauseaTicks(data.stars()) > 0) {
                     player.addEffect(new MobEffectInstance(MobEffects.CONFUSION, QualityRules.nauseaTicks(data.stars())));
                 }
-                if (QualityRules.poisonTicks(data.stars()) > 0) {
+                if (!data.isSpoiled() && QualityRules.poisonTicks(data.stars()) > 0) {
                     player.addEffect(new MobEffectInstance(MobEffects.POISON, QualityRules.poisonTicks(data.stars())));
                 }
             }

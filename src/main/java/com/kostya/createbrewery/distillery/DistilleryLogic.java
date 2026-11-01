@@ -15,9 +15,9 @@ public final class DistilleryLogic {
     private DistilleryLogic() {
     }
 
-    public record Result(boolean distilled, int amount, int stars, int alcohol) {
+    public record Result(boolean distilled, int amount, int stars, int alcohol, boolean spoiled) {
         static Result nothing() {
-            return new Result(false, 0, 1, 0);
+            return new Result(false, 0, 1, 0, false);
         }
     }
 
@@ -35,6 +35,6 @@ public final class DistilleryLogic {
 
         int score = DistillingRules.score(heat, IDEAL_HEAT, elapsedTicks, idealTicks, rpm, idealRpm);
         int stars = Math.min(inputStars, QualityRules.starsFromScore(score));
-        return new Result(true, DISTILLATE_AMOUNT, stars, ALCOHOL);
+        return new Result(true, DISTILLATE_AMOUNT, stars, ALCOHOL, score == 0);
     }
 }

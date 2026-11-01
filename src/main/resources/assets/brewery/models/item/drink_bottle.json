@@ -51,6 +51,12 @@
         "brewery:drink": 8
       },
       "model": "brewery:item/mead_bottle"
+    },
+    {
+      "predicate": {
+        "brewery:drink": 9
+      },
+      "model": "brewery:item/spoiled_bottle"
     }
   ]
 }

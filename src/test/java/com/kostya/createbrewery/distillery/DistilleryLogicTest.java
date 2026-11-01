@@ -35,6 +35,14 @@ class DistilleryLogicTest {
     }
 
     @Test
+    void onlyACompleteMissSpoilsTheBatch() {
+        assertFalse(DistilleryLogic.process(1000, 1, 32f, 200, 5).spoiled());
+        assertFalse(DistilleryLogic.process(1000, 1, 56f, 200, 5).spoiled());
+        assertEquals(1, DistilleryLogic.process(1000, 1, 56f, 200, 5).stars());
+        assertTrue(DistilleryLogic.process(1000, 1, 64f, 200, 5).spoiled());
+    }
+
+    @Test
     void insufficientWortCannotDistill() {
         assertFalse(DistilleryLogic.process(999, 1, 32f, 200, 5).distilled());
     }
