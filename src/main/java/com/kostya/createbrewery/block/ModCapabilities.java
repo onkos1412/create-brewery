@@ -1,11 +1,13 @@
 package com.kostya.createbrewery.block;
 
 import com.kostya.createbrewery.CreateBrewery;
+import com.simibubi.create.api.stress.BlockStressValues;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.Containers;
 import net.minecraft.world.level.Level;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.fml.event.lifecycle.FMLCommonSetupEvent;
 import net.neoforged.neoforge.capabilities.Capabilities;
 import net.neoforged.neoforge.capabilities.RegisterCapabilitiesEvent;
 import net.neoforged.neoforge.items.IItemHandler;
@@ -13,6 +15,7 @@ import net.neoforged.neoforge.items.IItemHandler;
 /** Exposes the machines to Create's pipes and funnels, and to any other automation. */
 @EventBusSubscriber(modid = CreateBrewery.MOD_ID)
 public final class ModCapabilities {
+    private static final double STILL_STRESS = 4.0;
 
     private ModCapabilities() {
     }
@@ -38,6 +41,12 @@ public final class ModCapabilities {
                 (barrel, side) -> barrel.getAutomationItems());
         event.registerBlockEntity(Capabilities.ItemHandler.BLOCK, ModBlocks.SPOUT_BLOCK_ENTITY.get(),
                 (spout, side) -> spout.getItems());
+    }
+
+    /** The distillery loads a network as much as a millstone does. */
+    @SubscribeEvent
+    public static void registerStress(FMLCommonSetupEvent event) {
+        BlockStressValues.IMPACTS.register(ModBlocks.DISTILLERY.get(), () -> STILL_STRESS);
     }
 
     /** Spills a machine's inventories into the world when its block is removed. */

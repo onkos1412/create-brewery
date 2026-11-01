@@ -7,23 +7,20 @@ import com.kostya.createbrewery.recipe.DrinkProfile;
 import com.kostya.createbrewery.registry.ModDataComponents;
 import com.kostya.createbrewery.registry.ModFluids;
 import com.kostya.createbrewery.registry.ModItems;
-import com.simibubi.create.AllBlocks;
-import com.simibubi.create.content.kinetics.base.IRotate;
 import com.simibubi.create.content.kinetics.base.KineticBlockEntity;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.neoforged.neoforge.fluids.FluidStack;
 import net.neoforged.neoforge.fluids.capability.IFluidHandler;
 import net.neoforged.neoforge.items.ItemStackHandler;
 
-/** Server state for the first, manually loaded whiskey distillery. */
-public class DistilleryBlockEntity extends BlockEntity {
+/** The distillery: a Create kinetic machine, driven through the shaft in its back. */
+public class DistilleryBlockEntity extends KineticBlockEntity {
 
     private static final int INPUT_WORT = DistilleryLogic.WORT_REQUIRED;
     private static final int SPOILED_ALCOHOL = 10;
@@ -32,7 +29,6 @@ public class DistilleryBlockEntity extends BlockEntity {
     private String wortDrink = DrinkProfile.BEER.id();
     private int progressTicks;
     private int heatLevel;
-    private float rpm;
 
     private final ItemStackHandler output = new ItemStackHandler(1) {
         @Override
@@ -171,7 +167,7 @@ public class DistilleryBlockEntity extends BlockEntity {
     }
 
     public float getRpm() {
-        return rpm;
+        return Math.abs(getSpeed());
     }
 
     /** Pulls one 1000 mB batch from an adjacent kettle, if the cube is empty. */
@@ -196,17 +192,16 @@ public class DistilleryBlockEntity extends BlockEntity {
         return false;
     }
 
-    public void serverTick() {
+    @Override
+    public void tick() {
+        super.tick();
         if (level == null || level.isClientSide()) {
             return;
         }
+        float rpm = getRpm();
 
         // Read before the early return, so the GUI shows live values while the cube is idle.
         heatLevel = KettleBlockEntity.readHeatLevel(level, worldPosition.below());
-        rpm = readRpm(level, worldPosition);
-        if (rpm == 0f && level.getBlockState(worldPosition.above()).is(ModBlocks.DISTILLERY_TOP.get())) {
-            rpm = readRpm(level, worldPosition.above());
-        }
         if (wortAmount < INPUT_WORT || !output.getStackInSlot(0).isEmpty()) {
             return;
         }
@@ -238,33 +233,9 @@ public class DistilleryBlockEntity extends BlockEntity {
         setChanged();
     }
 
-    /**
-     * The speed driving the cube. A neighbour whose shaft points at the cube wins over one that
-     * merely touches it; idle blocks are ignored, and so are pumps feeding the cube wort.
-     */
-    private static float readRpm(Level level, BlockPos pos) {
-        float touching = 0f;
-        for (Direction direction : Direction.values()) {
-            BlockPos neighbourPos = pos.relative(direction);
-            BlockState state = level.getBlockState(neighbourPos);
-            if (!(level.getBlockEntity(neighbourPos) instanceof KineticBlockEntity kinetic)
-                    || kinetic.getSpeed() == 0f || AllBlocks.MECHANICAL_PUMP.has(state)) {
-                continue;
-            }
-            if (state.getBlock() instanceof IRotate rotate
-                    && rotate.hasShaftTowards(level, neighbourPos, state, direction.getOpposite())) {
-                return Math.abs(kinetic.getSpeed());
-            }
-            if (touching == 0f) {
-                touching = Math.abs(kinetic.getSpeed());
-            }
-        }
-        return touching;
-    }
-
     @Override
-    protected void saveAdditional(CompoundTag tag, HolderLookup.Provider registries) {
-        super.saveAdditional(tag, registries);
+    protected void write(CompoundTag tag, HolderLookup.Provider registries, boolean clientPacket) {
+        super.write(tag, registries, clientPacket);
         tag.putInt("Wort", wortAmount);
         tag.putInt("InputStars", inputStars);
         tag.putString("WortDrink", wortDrink);
@@ -273,8 +244,8 @@ public class DistilleryBlockEntity extends BlockEntity {
     }
 
     @Override
-    protected void loadAdditional(CompoundTag tag, HolderLookup.Provider registries) {
-        super.loadAdditional(tag, registries);
+    protected void read(CompoundTag tag, HolderLookup.Provider registries, boolean clientPacket) {
+        super.read(tag, registries, clientPacket);
         wortAmount = tag.getInt("Wort");
         inputStars = tag.contains("InputStars") ? tag.getInt("InputStars") : DrinkData.MAX_STARS;
         wortDrink = tag.contains("WortDrink") ? tag.getString("WortDrink") : DrinkProfile.BEER.id();

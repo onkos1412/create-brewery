@@ -111,7 +111,8 @@ public final class BreweryPonder implements PonderPlugin {
 
         show(scene, util, motor, Direction.SOUTH);
         create.world().setKineticSpeed(util.select().position(motor), 32);
-        say(scene, util, motor, Direction.NORTH, "Give it rotation. Each drink has its own ideal speed, shown in the menu");
+        create.world().setKineticSpeed(util.select().position(still), 32);
+        say(scene, util, motor, Direction.NORTH, "Drive the shaft in its back. Each drink has its own ideal speed, shown in the menu");
 
         scene.overlay().showText(TEXT_TICKS)
                 .text("Close to the ideal speed keeps the stars. Half of it costs most of them, and double spoils the batch")

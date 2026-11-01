@@ -221,6 +221,8 @@ def distillery_elements():
             north=("tank", FULL), south=("tank", FULL), east=("tank", FULL), west=("tank", FULL)),
         box([0, 12, 0], [16, 13, 16], "brass", down=("brass", FULL), up=("top", FULL)),
         box([4, 13, 4], [12, 14, 12], "brass", "north south east west up"),
+        # A collar around the shaft that enters the back; the turning shaft itself is rendered live.
+        box([5, 5, 15], [11, 11, 15.5], "casing", "north east west up down", south=("gearbox", FULL)),
     ]
 
 

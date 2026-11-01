@@ -5,6 +5,7 @@ import com.kostya.createbrewery.DrinkData;
 import com.kostya.createbrewery.block.BarrelScreen;
 import com.kostya.createbrewery.block.DistilleryScreen;
 import com.kostya.createbrewery.block.KettleScreen;
+import com.kostya.createbrewery.block.ModBlocks;
 import com.kostya.createbrewery.block.ModMenus;
 import com.kostya.createbrewery.recipe.ModRecipeTypes;
 import com.kostya.createbrewery.registry.ModDataComponents;
@@ -16,6 +17,7 @@ import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.fml.event.lifecycle.FMLClientSetupEvent;
+import net.neoforged.neoforge.client.event.EntityRenderersEvent;
 import net.neoforged.neoforge.client.event.RegisterMenuScreensEvent;
 import net.neoforged.neoforge.client.event.RegisterRecipeBookCategoriesEvent;
 
@@ -42,10 +44,16 @@ public final class ModClientSetup {
     private ModClientSetup() {
     }
 
+    @SubscribeEvent
+    public static void registerRenderers(EntityRenderersEvent.RegisterRenderers event) {
+        event.registerBlockEntityRenderer(ModBlocks.DISTILLERY_BLOCK_ENTITY.get(), DistilleryRenderer::new);
+    }
+
     /** Lets the bottle's item model pick its art from the drink inside. */
     @SubscribeEvent
     public static void registerItemProperties(FMLClientSetupEvent event) {
         PonderIndex.addPlugin(new BreweryPonder());
+        event.enqueueWork(DistilleryRenderer::registerVisual);
         event.enqueueWork(() -> ItemProperties.register(ModItems.DRINK_BOTTLE.get(), CreateBrewery.id("drink"),
                 (stack, level, entity, seed) -> {
                     DrinkData data = stack.get(ModDataComponents.DRINK_DATA.get());

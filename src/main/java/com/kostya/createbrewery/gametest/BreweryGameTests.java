@@ -65,9 +65,7 @@ public class BreweryGameTests {
 
         helper.setBlock(DISTILLERY.below(), Blocks.CAMPFIRE);
         helper.setBlock(DISTILLERY, ModBlocks.DISTILLERY.get());
-        helper.setBlock(DISTILLERY.above(), AllBlocks.CREATIVE_MOTOR.get());
-        BlockEntityBehaviour.get(helper.getBlockEntity(DISTILLERY.above()), ScrollValueBehaviour.TYPE)
-                .setValue(32);
+        driveStill(helper, DISTILLERY, 32);
         DistilleryBlockEntity distillery = helper.getBlockEntity(DISTILLERY);
 
         helper.setBlock(BARREL, ModBlocks.BARREL.get());
@@ -123,9 +121,7 @@ public class BreweryGameTests {
     public static void wrongRpmLowersQuality(GameTestHelper helper) {
         helper.setBlock(DISTILLERY.below(), Blocks.CAMPFIRE);
         helper.setBlock(DISTILLERY, ModBlocks.DISTILLERY.get());
-        helper.setBlock(DISTILLERY.above(), AllBlocks.CREATIVE_MOTOR.get());
-        BlockEntityBehaviour.get(helper.getBlockEntity(DISTILLERY.above()), ScrollValueBehaviour.TYPE)
-                .setValue(16);
+        driveStill(helper, DISTILLERY, 16);
         DistilleryBlockEntity distillery = helper.getBlockEntity(DISTILLERY);
         fluids(helper, DISTILLERY).fill(new FluidStack(ModFluids.WORT.get(), 1000), IFluidHandler.FluidAction.EXECUTE);
 
@@ -178,11 +174,18 @@ public class BreweryGameTests {
                 .thenSucceed();
     }
 
+    /** A motor against the shaft in the still's back, which faces south by default. */
+    private static void driveStill(GameTestHelper helper, BlockPos still, int rpm) {
+        BlockPos motor = still.south();
+        helper.setBlock(motor, AllBlocks.CREATIVE_MOTOR.get().defaultBlockState()
+                .setValue(DirectionalKineticBlock.FACING, Direction.NORTH));
+        BlockEntityBehaviour.get(helper.getBlockEntity(motor), ScrollValueBehaviour.TYPE).setValue(rpm);
+    }
+
     private static DistilleryBlockEntity distilleryAt(GameTestHelper helper, int rpm) {
         helper.setBlock(DISTILLERY.below(), Blocks.CAMPFIRE);
         helper.setBlock(DISTILLERY, ModBlocks.DISTILLERY.get());
-        helper.setBlock(DISTILLERY.above(), AllBlocks.CREATIVE_MOTOR.get());
-        BlockEntityBehaviour.get(helper.getBlockEntity(DISTILLERY.above()), ScrollValueBehaviour.TYPE).setValue(rpm);
+        driveStill(helper, DISTILLERY, rpm);
         fluids(helper, DISTILLERY).fill(new FluidStack(ModFluids.WORT.get(), 1000), IFluidHandler.FluidAction.EXECUTE);
         return helper.getBlockEntity(DISTILLERY);
     }
@@ -366,18 +369,9 @@ public class BreweryGameTests {
         fluids(helper, top).fill(new FluidStack(ModFluids.WORT.get(), 300), IFluidHandler.FluidAction.EXECUTE);
         helper.assertTrue(still.getWortAmount() == 300, "column did not reach the tank: " + still.getWortAmount());
 
-        // Rotation on the column counts as well.
-        helper.setBlock(top.above(), AllBlocks.CREATIVE_MOTOR.get().defaultBlockState()
-                .setValue(DirectionalKineticBlock.FACING, Direction.DOWN));
-        BlockEntityBehaviour.get(helper.getBlockEntity(top.above()), ScrollValueBehaviour.TYPE).setValue(48);
-
-        helper.startSequence()
-                .thenWaitUntil(() -> helper.assertTrue(still.getRpm() == 48f, "rpm through the column " + still.getRpm()))
-                .thenExecute(() -> {
-                    helper.setBlock(DISTILLERY, Blocks.AIR);
-                    helper.assertBlockNotPresent(ModBlocks.DISTILLERY_TOP.get(), top);
-                })
-                .thenSucceed();
+        helper.setBlock(DISTILLERY, Blocks.AIR);
+        helper.assertBlockNotPresent(ModBlocks.DISTILLERY_TOP.get(), top);
+        helper.succeed();
     }
 
     /** Breaking the column by hand takes the machine with it. */
@@ -457,32 +451,43 @@ public class BreweryGameTests {
                 .thenSucceed();
     }
 
-    /** An idle shaft and a running pump touching the still must not hide the motor driving it. */
+    /** Rotation only enters through the shaft in the back, and the still loads the network. */
     @GameTest(template = "empty", timeoutTicks = 100)
-    public static void stillReadsTheMotorNotItsNeighbours(GameTestHelper helper) {
+    public static void stillTakesRotationThroughItsBack(GameTestHelper helper) {
         helper.setBlock(DISTILLERY, ModBlocks.DISTILLERY.get());
-        DistilleryBlockEntity distillery = helper.getBlockEntity(DISTILLERY);
-        helper.setBlock(DISTILLERY.above(), AllBlocks.SHAFT.get().defaultBlockState()
-                .setValue(RotatedPillarKineticBlock.AXIS, Direction.Axis.Y));
-
-        BlockPos pump = DISTILLERY.west();
-        helper.setBlock(pump, AllBlocks.MECHANICAL_PUMP.get().defaultBlockState()
-                .setValue(DirectionalKineticBlock.FACING, Direction.EAST));
-        helper.setBlock(pump.north(), AllBlocks.COGWHEEL.get().defaultBlockState()
-                .setValue(RotatedPillarKineticBlock.AXIS, Direction.Axis.X));
-        helper.setBlock(pump.north().west(), AllBlocks.CREATIVE_MOTOR.get().defaultBlockState()
+        DistilleryBlockEntity still = helper.getBlockEntity(DISTILLERY);
+        helper.setBlock(DISTILLERY.above(), AllBlocks.CREATIVE_MOTOR.get().defaultBlockState()
+                .setValue(DirectionalKineticBlock.FACING, Direction.DOWN));
+        helper.setBlock(DISTILLERY.west(), AllBlocks.CREATIVE_MOTOR.get().defaultBlockState()
                 .setValue(DirectionalKineticBlock.FACING, Direction.EAST));
 
-        BlockPos motor = DISTILLERY.east();
-        helper.setBlock(motor, AllBlocks.CREATIVE_MOTOR.get().defaultBlockState()
-                .setValue(DirectionalKineticBlock.FACING, Direction.WEST));
-        BlockEntityBehaviour.get(helper.getBlockEntity(motor), ScrollValueBehaviour.TYPE).setValue(48);
+        helper.startSequence()
+                .thenExecuteAfter(10, () -> helper.assertTrue(still.getRpm() == 0f, "side motors drove it: " + still.getRpm()))
+                .thenExecute(() -> driveStill(helper, DISTILLERY, 48))
+                .thenWaitUntil(() -> helper.assertTrue(still.getRpm() == 48f, "rpm " + still.getRpm()))
+                .thenExecute(() -> helper.assertTrue(still.calculateStressApplied() == 4f,
+                        "stress impact " + still.calculateStressApplied()))
+                .thenSucceed();
+    }
 
-        helper.succeedWhen(() -> {
-            helper.assertTrue(((KineticBlockEntity) helper.getBlockEntity(pump)).getSpeed() != 0f, "pump idle");
-            distillery.serverTick();
-            helper.assertTrue(distillery.getRpm() == 48f, "still reads " + distillery.getRpm());
-        });
+    /** A shaft with nothing driving it leaves the batch waiting. */
+    @GameTest(template = "empty", timeoutTicks = 300)
+    public static void unpoweredShaftLeavesTheBatchWaiting(GameTestHelper helper) {
+        helper.setBlock(DISTILLERY.below(), Blocks.CAMPFIRE);
+        helper.setBlock(DISTILLERY, ModBlocks.DISTILLERY.get());
+        DistilleryBlockEntity still = helper.getBlockEntity(DISTILLERY);
+        fluids(helper, DISTILLERY).fill(new FluidStack(ModFluids.WORT.get(), 1000), IFluidHandler.FluidAction.EXECUTE);
+        BlockPos shaft = DISTILLERY.south();
+        helper.setBlock(shaft, AllBlocks.SHAFT.get().defaultBlockState()
+                .setValue(RotatedPillarKineticBlock.AXIS, Direction.Axis.Z));
+        KineticBlockEntity kinetic = helper.getBlockEntity(shaft);
+        helper.startSequence()
+                .thenExecuteAfter(40, () -> {
+                    helper.assertTrue(still.getRpm() == 0f, "unpowered still spins at " + still.getRpm());
+                    helper.assertTrue(still.getProgressTicks() == 0, "progress without power: " + still.getProgressTicks());
+                    helper.assertTrue(kinetic.getSpeed() == 0f, "shaft spins with no source");
+                })
+                .thenSucceed();
     }
 
     /** The whole whiskey line with no player: pump, still, funnels, barrel, spout. */
@@ -499,8 +504,7 @@ public class BreweryGameTests {
         BlockPos still = new BlockPos(3, 2, 1);
         helper.setBlock(still.below(), Blocks.CAMPFIRE);
         helper.setBlock(still, ModBlocks.DISTILLERY.get());
-        helper.setBlock(still.above(), AllBlocks.CREATIVE_MOTOR.get());
-        BlockEntityBehaviour.get(helper.getBlockEntity(still.above()), ScrollValueBehaviour.TYPE).setValue(32);
+        driveStill(helper, still, 32);
 
         // The still's funnel drops the distillate onto the barrel's funnel.
         helper.setBlock(still.east(), AllBlocks.ANDESITE_FUNNEL.get().defaultBlockState()
@@ -581,9 +585,7 @@ public class BreweryGameTests {
         KettleBlockEntity kettle = placeKettle(helper, Items.POTATO);
         helper.setBlock(DISTILLERY.below(), Blocks.CAMPFIRE);
         helper.setBlock(DISTILLERY, ModBlocks.DISTILLERY.get());
-        helper.setBlock(DISTILLERY.above(), AllBlocks.CREATIVE_MOTOR.get());
-        BlockEntityBehaviour.get(helper.getBlockEntity(DISTILLERY.above()), ScrollValueBehaviour.TYPE)
-                .setValue(32);
+        driveStill(helper, DISTILLERY, 32);
         DistilleryBlockEntity distillery = helper.getBlockEntity(DISTILLERY);
         helper.setBlock(DISTILLERY.east(), ModBlocks.SPOUT.get());
         helper.setBlock(BARREL, ModBlocks.BARREL.get());
@@ -651,8 +653,7 @@ public class BreweryGameTests {
         KettleBlockEntity kettle = placeKettle(helper, ingredient);
         helper.setBlock(DISTILLERY.below(), Blocks.CAMPFIRE);
         helper.setBlock(DISTILLERY, ModBlocks.DISTILLERY.get());
-        helper.setBlock(DISTILLERY.above(), AllBlocks.CREATIVE_MOTOR.get());
-        BlockEntityBehaviour.get(helper.getBlockEntity(DISTILLERY.above()), ScrollValueBehaviour.TYPE).setValue(rpm);
+        driveStill(helper, DISTILLERY, rpm);
         DistilleryBlockEntity distillery = helper.getBlockEntity(DISTILLERY);
         helper.setBlock(BARREL, ModBlocks.BARREL.get());
         BarrelBlockEntity barrel = helper.getBlockEntity(BARREL);
