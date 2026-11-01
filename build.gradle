@@ -26,11 +26,21 @@ sourceSets.main.resources {
 }
 
 repositories {
+    // Gradle's own client times out fetching the JEI jars from BlameJared on some networks,
+    // so a copy placed in ~/.m2 by hand wins; everyone else gets them from the repository below.
+    mavenLocal {
+        content { includeGroup 'mezz.jei' }
+    }
     // Add here additional repositories if required by some of the dependencies below.
     maven {
         // Create and its related mods (Ponder, Flywheel, Registrate)
         name = 'Create Mod'
         url = 'https://maven.createmod.net'
+    }
+    maven {
+        // JEI
+        name = 'BlameJared'
+        url = 'https://maven.blamejared.com'
     }
     maven {
         // Registrate snapshots
@@ -158,12 +168,10 @@ dependencies {
     runtimeOnly "dev.engine-room.flywheel:flywheel-neoforge-1.21.1:1.0.6"
     implementation "com.tterrag.registrate:Registrate:MC1.21-1.3.0+67"
 
-    // Example optional mod dependency with JEI
-    // The JEI API is declared for compile time use, while the full JEI artifact is used at runtime
-    // compileOnly "mezz.jei:jei-${mc_version}-common-api:${jei_version}"
-    // compileOnly "mezz.jei:jei-${mc_version}-neoforge-api:${jei_version}"
-    // We add the full version to localRuntime, not runtimeOnly, so that we do not publish a dependency on it
-    // localRuntime "mezz.jei:jei-${mc_version}-neoforge:${jei_version}"
+    // JEI is optional: the API is compile time only, and the full mod runs only in this workspace.
+    compileOnly "mezz.jei:jei-${minecraft_version}-common-api:${jei_version}"
+    compileOnly "mezz.jei:jei-${minecraft_version}-neoforge-api:${jei_version}"
+    localRuntime "mezz.jei:jei-${minecraft_version}-neoforge:${jei_version}"
 
     // Example mod dependency using a mod jar from ./libs with a flat dir repository
     // This maps to ./libs/coolmod-${mc_version}-${coolmod_version}.jar

@@ -49,5 +49,9 @@
   "drink.brewery.wine": "Вино",
   "drink.brewery.young_mead": "Молодая медовуха",
   "drink.brewery.mead": "Медовуха",
-  "drink.brewery.spoiled": "Испорченный напиток"
+  "drink.brewery.spoiled": "Испорченный напиток",
+  "jei.brewery.category": "Пивоварение",
+  "jei.brewery.brew": "Котёл: %s",
+  "jei.brewery.distill": "Куб: %s, %s об/мин",
+  "jei.brewery.age": "Бочка: %s дн., %s"
 }

@@ -49,5 +49,9 @@
   "drink.brewery.wine": "Wine",
   "drink.brewery.young_mead": "Young Mead",
   "drink.brewery.mead": "Mead",
-  "drink.brewery.spoiled": "Spoiled Drink"
+  "drink.brewery.spoiled": "Spoiled Drink",
+  "jei.brewery.category": "Brewing",
+  "jei.brewery.brew": "Kettle: %s",
+  "jei.brewery.distill": "Still: %s, %s RPM",
+  "jei.brewery.age": "Barrel: %s days, %s"
 }
