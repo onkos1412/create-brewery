@@ -214,8 +214,9 @@ def distillery_elements():
         # The foot of the column and of its return pipe, which the block above carries on.
         box([5, 14, 5], [11, 16, 11], "tank", "north south east west"),
         box([12, 13, 6.5], [15, 16, 9.5], "tank", "north south east west"),
-        # The port the shaft enters by: the gearbox's ring and hole; the turning shaft itself is rendered live.
-        box([2, 4, 15], [14, 12, 16], "casing", "east west", south=("gearbox", [2, 4, 14, 12])),
+        # A collar around the shaft that enters the back; the turning shaft itself is rendered live.
+        # The whole gearbox face in miniature, the one texture meant to be squeezed: see ModelTexelTest.
+        box([5, 5, 15], [11, 11, 15.5], "casing", "north east west up down", south=("gearbox", FULL)),
     ]
 
 

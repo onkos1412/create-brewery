@@ -91,7 +91,8 @@ class ModelTexelTest {
         double z = to.get(2).getAsDouble() - from.get(2).getAsDouble();
         element.getAsJsonObject("faces").asMap().forEach((name, value) -> {
             JsonObject face = value.getAsJsonObject();
-            if (!face.has("uv")) {
+            // The still's shaft collar shows a whole gearbox face in miniature, on purpose.
+            if (!face.has("uv") || face.get("texture").getAsString().equals("#gearbox")) {
                 return;
             }
             var uv = face.getAsJsonArray("uv");
