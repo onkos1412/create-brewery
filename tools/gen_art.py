@@ -381,13 +381,14 @@ def write_models():
 
 # ---- GUI ----------------------------------------------------------------------------
 
-PANEL = "#d8c8a4"
-PANEL_LIGHT = "#f4e9cc"
-PANEL_DARK = "#8f7d58"
-INV = "#b9ae98"
-INV_LIGHT = "#dcd3bf"
-INV_DARK = "#7d7461"
-SLOT_FILL = "#6f6656"
+PANEL = "#b8b4a6"
+PANEL_LIGHT = "#dcd8ca"
+PANEL_DARK = "#77736a"
+INV = "#a09c8e"
+INV_LIGHT = "#c4c0b2"
+INV_DARK = "#6a665c"
+SLOT_FILL = "#5a574e"
+DIM = "#8a867a"
 
 
 def bevel(d, box_xy, fill, light, dark):
@@ -402,18 +403,28 @@ def bevel(d, box_xy, fill, light, dark):
 def slot(d, x, y):
     """Frames the 16x16 item area whose top-left is (x, y), as the menu's slot coordinates do."""
     d.rectangle((x - 1, y - 1, x + 16, y + 16), fill=rgb(SLOT_FILL))
-    d.line((x - 1, y + 16, x - 1, y - 1), fill=rgb("#3e382d"))
-    d.line((x - 1, y - 1, x + 16, y - 1), fill=rgb("#3e382d"))
-    d.line((x + 16, y - 1, x + 16, y + 16), fill=rgb("#f6efdc"))
-    d.line((x - 1, y + 16, x + 16, y + 16), fill=rgb("#f6efdc"))
+    d.line((x - 1, y + 16, x - 1, y - 1), fill=rgb("#2e2c26"))
+    d.line((x - 1, y - 1, x + 16, y - 1), fill=rgb("#2e2c26"))
+    d.line((x + 16, y - 1, x + 16, y + 16), fill=rgb("#dcd8ca"))
+    d.line((x - 1, y + 16, x + 16, y + 16), fill=rgb("#dcd8ca"))
 
 
 def recess(d, x0, y0, x1, y1):
-    d.rectangle((x0, y0, x1, y1), fill=rgb("#c8b78f"))
+    d.rectangle((x0, y0, x1, y1), fill=rgb("#a8a496"))
     d.line((x0, y1, x0, y0), fill=rgb(PANEL_DARK))
     d.line((x0, y0, x1, y0), fill=rgb(PANEL_DARK))
     d.line((x1, y0, x1, y1), fill=rgb(PANEL_LIGHT))
     d.line((x0, y1, x1, y1), fill=rgb(PANEL_LIGHT))
+
+
+def display(d, x0, y0, x1, y1):
+    """A dark readout in a brass frame; the screen writes on it."""
+    d.rectangle((x0, y0, x1, y1), fill=rgb("#1c211e"))
+    d.line((x0, y1, x0, y0), fill=rgb(BRASS[1]))
+    d.line((x0, y0, x1, y0), fill=rgb(BRASS[1]))
+    d.line((x1, y0, x1, y1), fill=rgb(BRASS[4]))
+    d.line((x0, y1, x1, y1), fill=rgb(BRASS[4]))
+    d.line((x0 + 1, y0 + 1, x1 - 1, y0 + 1), fill=rgb("#101412"))
 
 
 def tank(d, x, y, height):
@@ -437,15 +448,15 @@ def arrow(d, x, y, color):
 
 def ghost_bottle(img, x, y):
     d = ImageDraw.Draw(img)
-    color = rgb("#857b69")
+    color = rgb("#6e6b60")
     d.rectangle((x + 7, y + 2, x + 8, y + 5), fill=color)
     d.rectangle((x + 4, y + 6, x + 11, y + 13), fill=color)
 
 
 def ghost_log(img, x, y):
     d = ImageDraw.Draw(img)
-    d.rectangle((x + 3, y + 4, x + 12, y + 11), fill=rgb("#857b69"))
-    d.rectangle((x + 5, y + 6, x + 10, y + 9), fill=rgb("#6f6656"))
+    d.rectangle((x + 3, y + 4, x + 12, y + 11), fill=rgb("#6e6b60"))
+    d.rectangle((x + 5, y + 6, x + 10, y + 9), fill=rgb(SLOT_FILL))
 
 
 def machine_sheet(seed):
@@ -463,7 +474,7 @@ def machine_sheet(seed):
     # Faint brushed metal on the panel.
     for _ in range(420):
         x, y = rng.randrange(4, 172), rng.randrange(4, 70)
-        img.putpixel((x, y), rgb(rng.choice(("#d2c29c", "#dfd0ac"))))
+        img.putpixel((x, y), rgb(rng.choice(("#b2aea0", "#bfbbad"))))
     # Inventory slab, under a brass divider.
     d.rectangle((3, 71, 172, 162), fill=rgb(INV))
     d.line((3, 70, 172, 70), fill=rgb(BRASS[2]))
@@ -489,20 +500,22 @@ def write_gui():
         slot(d, 26 + i * 18, 20)
     tank(d, 130, 18, 46)
     tank(d, 150, 18, 46)
+    display(d, 8, 52, 122, 66)
     save(img, GUI, "kettle")
 
     # Distillery: wort tank -> arrow -> distillate.
     img, d = machine_sheet(2)
-    tank(d, 20, 18, 34)
-    arrow(d, 50, 36, rgb("#a8986f"))
-    slot(d, 80, 35)
-    ghost_bottle(img, 80, 35)
+    tank(d, 12, 18, 34)
+    arrow(d, 42, 36, rgb(DIM))
+    slot(d, 66, 35)
+    ghost_bottle(img, 66, 35)
+    display(d, 88, 16, 168, 52)
     save(img, GUI, "distillery")
 
     # Barrel: distillate + wood -> finished bottle.
     img, d = machine_sheet(3)
     # The gap between the slots is short, so the arrow's tail tucks under the wood slot's frame.
-    arrow(d, 92, 36, rgb("#a8986f"))
+    arrow(d, 92, 36, rgb(DIM))
     for x, y in ((26, 17), (44, 17), (26, 35), (44, 35)):
         slot(d, x, y)
         ghost_bottle(img, x, y)
@@ -512,7 +525,8 @@ def write_gui():
         slot(d, x, y)
     slot(d, 152, 35)
     ghost_bottle(img, 152, 35)
-    d.rectangle((64, 41, 76, 45), fill=rgb("#a8986f"))
+    d.rectangle((64, 41, 76, 45), fill=rgb(DIM))
+    display(d, 76, 55, 168, 68)
     save(img, GUI, "barrel")
 
     # Parts sheet shared by the screens.
@@ -534,7 +548,7 @@ def write_gui():
         "...xxooooxx..",
     ]
     for top, palette in ((0, {"x": "#d8501c", "o": "#f39a24", "y": "#fde07a"}),
-                         (16, {"x": "#8b8069", "o": "#9b907a", "y": "#a99e88"})):
+                         (16, {"x": "#77736a", "o": "#858177", "y": "#928e84"})):
         for row, line in enumerate(flame):
             for col, ch in enumerate(line):
                 if ch in palette:

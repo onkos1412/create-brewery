@@ -17,6 +17,15 @@ final class MachineWidgets {
 
     static final int[] WATER_COLORS = {0xFF2F6FD0, 0xFF4A8CE8, 0xFF8FC0F8};
 
+    /** Readout colours on the machines' dark displays. */
+    static final int GOOD = 0xFF7CE08A;
+    static final int WARN = 0xFFFFB347;
+    static final int BAD = 0xFFFF6B5E;
+    static final int IDLE = 0xFFB8C4B8;
+
+    private static final int GAUGE_TRACK = 0xFF1C211E;
+    private static final int GAUGE_MARK = 0xFFFFFFFF;
+
     private MachineWidgets() {
     }
 
@@ -50,6 +59,14 @@ final class MachineWidgets {
         graphics.fill(x + 2, top, x + TANK_WIDTH - 2, y + height, colors[1]);
         graphics.fill(x + TANK_WIDTH - 2, top, x + TANK_WIDTH, y + height, colors[0]);
         graphics.fill(x, top, x + TANK_WIDTH, top + 1, colors[2]);
+        // Glass over the liquid: a streak of light and the scale's marks.
+        graphics.fill(x + 2, top + 1, x + 3, y + height, 0x40FFFFFF);
+        for (int tick = 1; tick < 4; tick++) {
+            int mark = y + height * tick / 4;
+            if (mark > top) {
+                graphics.fill(x + TANK_WIDTH - 3, mark, x + TANK_WIDTH, mark + 1, 0x60000000);
+            }
+        }
     }
 
     /** Lights a 22x15 arrow from the left over the frame's dim one. */
@@ -63,6 +80,27 @@ final class MachineWidgets {
         if (width > 0) {
             graphics.blit(PARTS, x, y, skip, 0, width, 15);
         }
+    }
+
+    /** Text on a display, squeezed when a long translation would run off it. */
+    static void text(GuiGraphics graphics, Font font, Component text, int x, int y, int maxWidth, int color) {
+        int width = font.width(text);
+        graphics.pose().pushPose();
+        graphics.pose().translate(x, y, 0);
+        if (width > maxWidth) {
+            float scale = maxWidth / (float) width;
+            graphics.pose().scale(scale, scale, 1);
+        }
+        graphics.drawString(font, text, 0, 0, color, false);
+        graphics.pose().popPose();
+    }
+
+    /** A speed gauge whose middle mark is the ideal: the bar reaches it at exactly the right speed. */
+    static void speedGauge(GuiGraphics graphics, int x, int y, int width, int height, float rpm, int ideal, int color) {
+        graphics.fill(x, y, x + width, y + height, GAUGE_TRACK);
+        int fill = Mth.clamp(Math.round(rpm * width / (2f * Math.max(1, ideal))), 0, width);
+        graphics.fill(x, y + 1, x + fill, y + height - 1, color);
+        graphics.fill(x + width / 2, y, x + width / 2 + 1, y + height, GAUGE_MARK);
     }
 
     static void flame(GuiGraphics graphics, int x, int y, boolean lit) {

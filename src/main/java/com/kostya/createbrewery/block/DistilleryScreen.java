@@ -2,6 +2,8 @@ package com.kostya.createbrewery.block;
 
 import com.kostya.createbrewery.distillery.DistilleryLogic;
 import com.kostya.createbrewery.distillery.DistillingRules;
+import com.kostya.createbrewery.DrinkData;
+import com.kostya.createbrewery.quality.QualityRules;
 import com.kostya.createbrewery.quality.StarLine;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
@@ -14,11 +16,17 @@ public class DistilleryScreen extends AbstractContainerScreen<DistilleryMenu> {
     private static final ResourceLocation TEXTURE =
             ResourceLocation.fromNamespaceAndPath("brewery", "textures/gui/distillery.png");
 
-    private static final int TANK_X = 20;
+    private static final int TANK_X = 12;
     private static final int TANK_Y = 18;
     private static final int TANK_HEIGHT = 34;
     private static final int BUTTON_X = 8;
     private static final int BUTTON_Y = 56;
+    private static final int DISPLAY_X = 92;
+    private static final int DISPLAY_WIDTH = 73;
+    private static final int GAUGE_X = 76;
+    private static final int GAUGE_Y = 58;
+    private static final int GAUGE_WIDTH = 92;
+    private static final int GAUGE_HEIGHT = 10;
 
     public DistilleryScreen(DistilleryMenu menu, Inventory inventory, Component title) {
         super(menu, inventory, title);
@@ -33,15 +41,31 @@ public class DistilleryScreen extends AbstractContainerScreen<DistilleryMenu> {
         int progress = Mth.clamp(menu.getProgress(), 0, menu.getIdealTicks());
         MachineWidgets.tank(graphics, leftPos + TANK_X, topPos + TANK_Y, TANK_HEIGHT,
                 menu.getWort(), DistilleryLogic.WORT_REQUIRED, MachineWidgets.shades(menu.getWortColor()));
-        MachineWidgets.arrow(graphics, leftPos + 50, topPos + 36, progress, menu.getIdealTicks());
-        MachineWidgets.flame(graphics, leftPos + 36, topPos + 37, menu.getHeat() >= DistillingRules.MIN_HEAT);
+        MachineWidgets.arrow(graphics, leftPos + 42, topPos + 36, progress, menu.getIdealTicks());
+        MachineWidgets.flame(graphics, leftPos + 28, topPos + 37, menu.getHeat() >= DistillingRules.MIN_HEAT);
         MachineWidgets.button(graphics, font, leftPos + BUTTON_X, topPos + BUTTON_Y,
                 Component.translatable("gui.brewery.distillery_load"), overButton(mouseX, mouseY));
-        graphics.drawString(font, Component.translatable(statusKey()),
-                leftPos + 82, topPos + 57, 0x404040, false);
-        graphics.drawString(font, Component.translatable("gui.brewery.distillery_stats",
-                        menu.getRpm(), menu.getIdealRpm()),
-                leftPos + 82, topPos + 73, 0x404040, false);
+        String status = statusKey();
+        MachineWidgets.text(graphics, font, Component.translatable(status), leftPos + DISPLAY_X, topPos + 20, DISPLAY_WIDTH,
+                status.endsWith("running") || status.endsWith("done") ? MachineWidgets.GOOD : MachineWidgets.BAD);
+        int speedColor = speedColor();
+        MachineWidgets.text(graphics, font, Component.translatable("gui.brewery.distillery_stats",
+                        menu.getRpm(), menu.getIdealRpm()), leftPos + DISPLAY_X, topPos + 31, DISPLAY_WIDTH, speedColor);
+        if (menu.getWort() > 0) {
+            graphics.drawString(font, StarLine.of(menu.getWortStars()), leftPos + DISPLAY_X, topPos + 42, 0xFFFFFF, false);
+        }
+        MachineWidgets.speedGauge(graphics, leftPos + GAUGE_X, topPos + GAUGE_Y, GAUGE_WIDTH, GAUGE_HEIGHT,
+                menu.getRpm(), menu.getIdealRpm(), speedColor);
+    }
+
+    /** Green while the speed alone would still earn five stars, the same sum the still itself does. */
+    private int speedColor() {
+        if (menu.getRpm() < DistillingRules.MIN_RPM) {
+            return MachineWidgets.BAD;
+        }
+        int ideal = Math.max(1, menu.getIdealRpm());
+        int score = Math.round(100f * (1f - Math.min(1f, Math.abs(menu.getRpm() - ideal) / (float) ideal)));
+        return QualityRules.starsFromScore(score) == DrinkData.MAX_STARS ? MachineWidgets.GOOD : MachineWidgets.WARN;
     }
 
     private String statusKey() {

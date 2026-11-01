@@ -22,7 +22,7 @@ public class DistilleryMenu extends AbstractContainerMenu {
         super(ModMenus.DISTILLERY.get(), containerId);
         this.distillery = distillery;
         addSlot(new SlotItemHandler(distillery == null ? new net.neoforged.neoforge.items.ItemStackHandler(1)
-                : distillery.getOutput(), 0, 80, 35) {
+                : distillery.getOutput(), 0, 66, 35) {
             @Override
             public boolean mayPlace(ItemStack stack) {
                 return false;

@@ -22,8 +22,7 @@ class MachineGuiLayoutTest {
         assertTrue(menu.contains("142"));
         assertTrue(screen.contains("inventoryLabelY = 74"));
         assertTrue(screen.contains("menu.isReady() ? \"gui.brewery.barrel_ready\""));
-        assertTrue(screen.contains("leftPos + 84, topPos + 57"));
-        assertTrue(screen.contains("leftPos + 84, topPos + 73"));
+        assertTrue(screen.contains("DISPLAY_Y = 58"));
         assertTrue(!screen.contains("gui.brewery.barrel_status"));
     }
 
@@ -32,8 +31,8 @@ class MachineGuiLayoutTest {
         String english = Files.readString(Path.of("src/main/resources/assets/brewery/lang/en_us.json"));
         String russian = Files.readString(Path.of("src/main/resources/assets/brewery/lang/ru_ru.json"));
 
-        assertTrue(english.contains("\"gui.brewery.barrel_days\": \"Days: %s\""));
-        assertTrue(russian.contains("\"gui.brewery.barrel_days\": \"Дни: %s\""));
+        assertTrue(english.contains("\"gui.brewery.barrel_days\": \"%s d.\""));
+        assertTrue(russian.contains("\"gui.brewery.barrel_days\": \"%s дн.\""));
         assertTrue(russian.contains("\"gui.brewery.distillery_load\": \"Загрузить\""));
     }
 
@@ -42,7 +41,7 @@ class MachineGuiLayoutTest {
         String menu = Files.readString(JAVA.resolve("DistilleryMenu.java"));
         String screen = Files.readString(JAVA.resolve("DistilleryScreen.java"));
 
-        assertTrue(menu.contains("80, 35"));
+        assertTrue(menu.contains("66, 35"));
         assertTrue(menu.contains("84 + row * SLOT_SIZE"));
         assertTrue(menu.contains("142"));
         assertTrue(screen.contains("inventoryLabelY = 74"));

@@ -27,7 +27,11 @@ public class KettleScreen extends AbstractContainerScreen<KettleMenu> {
     private static final int WATER_X = 130;
     private static final int WORT_X = 150;
 
-    private static final int TRACK_COLOR = 0xFF302C26;
+    private static final int DISPLAY_X = 12;
+    private static final int DISPLAY_Y = 55;
+    private static final int DISPLAY_WIDTH = 107;
+
+    private static final int TRACK_COLOR = 0xFF1C211E;
     private static final int FILL_COLOR = 0xFFC97A1E;
     private static final int FILL_HIGHLIGHT = 0xFFF0B04A;
 
@@ -68,7 +72,17 @@ public class KettleScreen extends AbstractContainerScreen<KettleMenu> {
         String status = !heated ? "gui.brewery.kettle_status_no_heat"
                 : menu.getBrewProgress() > 0 ? "gui.brewery.kettle_status_brewing"
                 : "gui.brewery.kettle_status_idle";
-        graphics.drawString(font, Component.translatable(status), leftPos + BAR_X, topPos + 55, 0x404040, false);
+        int statusColor = !heated ? MachineWidgets.BAD
+                : menu.getBrewProgress() > 0 ? MachineWidgets.GOOD : MachineWidgets.IDLE;
+        int textWidth = DISPLAY_WIDTH;
+        if (menu.getWortAmount() > 0) {
+            Component stars = StarLine.of(menu.getWortStars());
+            int starsWidth = font.width(stars);
+            graphics.drawString(font, stars, leftPos + DISPLAY_X + DISPLAY_WIDTH - starsWidth, topPos + DISPLAY_Y, 0xFFFFFF, false);
+            textWidth -= starsWidth + 4;
+        }
+        MachineWidgets.text(graphics, font, Component.translatable(status), leftPos + DISPLAY_X, topPos + DISPLAY_Y,
+                textWidth, statusColor);
     }
 
     /** Hovering a gauge shows its exact value. */
