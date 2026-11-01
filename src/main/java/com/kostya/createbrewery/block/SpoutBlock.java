@@ -143,11 +143,7 @@ public class SpoutBlock extends Block implements EntityBlock {
         for (Direction direction : Direction.values()) {
             BlockEntity neighbour = level.getBlockEntity(pos.relative(direction));
             if (neighbour instanceof BarrelBlockEntity barrel) {
-                return barrel;
-            }
-            BlockState state = level.getBlockState(pos.relative(direction));
-            if (state.is(ModBlocks.BARREL_PART.get()) && BarrelPartBlock.controller(level, pos.relative(direction), state) != null) {
-                return BarrelPartBlock.controller(level, pos.relative(direction), state);
+                return barrel.root();
             }
         }
         return null;

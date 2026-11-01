@@ -235,63 +235,26 @@ def along_z(texture):
     return {"up": (texture, None, 90), "down": (texture, None, 90)}
 
 
-def barrel_elements():
-    """A single-block cask, as barrels placed before they grew remain."""
+def barrel_elements(open_front=False, open_back=False):
+    """A cask squared off like a Create casing. An open end joins the next barrel with no head between."""
     tap = "north south east west up down"
-    return [
-        box([1, 1, 1], [15, 15, 15], "staves", "east west", **along_z("staves")),
-        box([0, 0, 0], [16, 16, 2], "hoop", "east west up down", north=("head", FULL), south="staves"),
-        box([0, 0, 14], [16, 16, 16], "hoop", "east west up down", south=("head", FULL), north="staves"),
+    planks = along_z("staves")
+    lo = 0 if open_front else 2
+    hi = 16 if open_back else 14
+    parts = [
+        box([1, 1, lo], [15, 15, hi], "staves", "east west", **planks),
         box([0, 0, 6], [16, 16, 7], "hoop", "up down east west"),
         box([0, 0, 9], [16, 16, 10], "hoop", "up down east west"),
-        box([6.5, 3, -1], [9.5, 5, 0], "brass", tap),
-        box([7, 1.5, -1], [9, 3, 0], "brass", tap),
     ]
-
-
-def tiled(start, end, texture, faces, **overrides):
-    """A box wider than one block, cut on block lines so each face shows the texture at its true size."""
-    cuts = []
-    for axis in range(3):
-        points = {start[axis], end[axis]} | {v for v in (0, 16, 32) if start[axis] < v < end[axis]}
-        cuts.append(sorted(points))
-    parts = []
-    for x0, x1 in zip(cuts[0], cuts[0][1:]):
-        for y0, y1 in zip(cuts[1], cuts[1][1:]):
-            for z0, z1 in zip(cuts[2], cuts[2][1:]):
-                u0, v0, w0 = x0 % 16, y0 % 16, z0 % 16
-                u1, v1, w1 = u0 + (x1 - x0), v0 + (y1 - y0), w0 + (z1 - z0)
-                uvs = {
-                    "north": [16 - u1, 16 - v1, 16 - u0, 16 - v0], "south": [u0, 16 - v1, u1, 16 - v0],
-                    "west": [w0, 16 - v1, w1, 16 - v0], "east": [16 - w1, 16 - v1, 16 - w0, 16 - v0],
-                    "up": [u0, w0, u1, w1], "down": [u0, 16 - w1, u1, 16 - w0],
-                }
-                outer = {"north": z0 == start[2], "south": z1 == end[2], "west": x0 == start[0],
-                         "east": x1 == end[0], "down": y0 == start[1], "up": y1 == end[1]}
-                built = {}
-                for name in faces.split():
-                    if outer[name]:
-                        use, rotation = overrides.get(name, (texture, None))
-                        built[name] = face(use, uvs[name], rotation)
-                if built:
-                    parts.append({"from": [x0, y0, z0], "to": [x1, y1, z1], "faces": built})
+    if not open_front:
+        parts += [
+            box([0, 0, 0], [16, 16, 2], "hoop", "east west up down", north=("head", FULL), south="staves"),
+            box([6.5, 3, -1], [9.5, 5, 0], "brass", tap),
+            box([7, 1.5, -1], [9, 3, 0], "brass", tap),
+        ]
+    if not open_back:
+        parts.append(box([0, 0, 14], [16, 16, 16], "hoop", "east west up down", south=("head", FULL), north="staves"))
     return parts
-
-
-def big_barrel_elements():
-    """The 2x2x2 cask, anchored on the barrel block: casing heads, oak staves and andesite hoops."""
-    sides = "east west up down"
-    planks = {"up": ("staves", 90), "down": ("staves", 90)}
-    tap = "north south east west up down"
-    return [
-        *tiled([1, 1, 3], [31, 31, 29], "staves", sides, **planks),
-        *tiled([0, 0, 0], [32, 32, 3], "hoop", "north south " + sides, north=("head", None), south=("staves", None)),
-        *tiled([0, 0, 29], [32, 32, 32], "hoop", "north south " + sides, south=("head", None), north=("staves", None)),
-        *tiled([0, 0, 9], [32, 32, 11], "hoop", sides),
-        *tiled([0, 0, 21], [32, 32, 23], "hoop", sides),
-        box([14, 6, -1], [18, 10, 0], "brass", tap),
-        box([15, 3, -1], [17, 6, 0], "brass", tap),
-    ]
 
 
 def raised(elements):
@@ -354,11 +317,11 @@ def write_models():
         "staves": "minecraft:block/spruce_planks", "head": create("andesite_casing"),
         "hoop": create("andesite_block"), "brass": create("brass_block"),
     }
-    dump(MODELS / "barrel.json", model("minecraft:block/spruce_planks", barrel_textures, barrel_elements()))
-    # Smooth lighting samples around one block only, and smears shadows across a model this size.
-    dump(MODELS / "barrel_big.json", {**model("minecraft:block/spruce_planks", barrel_textures, big_barrel_elements()),
-                                      "ambientocclusion": False})
-    dump(MODELS / "barrel_part.json", {"textures": {"particle": "minecraft:block/spruce_planks"}})
+    for front in (False, True):
+        for back in (False, True):
+            name = "barrel" + ("_open_front" if front else "") + ("_open_back" if back else "")
+            dump(MODELS / f"{name}.json", model("minecraft:block/spruce_planks", barrel_textures,
+                                                barrel_elements(front, back)))
     dump(MODELS / "spout.json", model(create("copper_casing"), {
         "casing": create("copper_casing"), "tank": create("fluid_tank"), "top": create("fluid_tank_top"),
         "brass": create("brass_block"),
@@ -370,11 +333,12 @@ def write_models():
     }})
     variants = {}
     for facing, y in (("north", 0), ("east", 90), ("south", 180), ("west", 270)):
-        variants[f"facing={facing},formed=false"] = {"model": "brewery:block/barrel", "y": y}
-        variants[f"facing={facing},formed=true"] = {"model": "brewery:block/barrel_big", "y": y}
+        for front in (False, True):
+            for back in (False, True):
+                name = "barrel" + ("_open_front" if front else "") + ("_open_back" if back else "")
+                key = f"facing={facing},open_back={str(back).lower()},open_front={str(front).lower()}"
+                variants[key] = {"model": f"brewery:block/{name}", "y": y}
     dump(STATES / "barrel.json", {"variants": variants})
-    # Parts draw nothing, but breaking one still needs particles from a model.
-    dump(STATES / "barrel_part.json", {"variants": {"": {"model": "brewery:block/barrel_part"}}})
     for name in ("distillery", "distillery_top"):
         dump(STATES / f"{name}.json", {"variants": {
             "facing=north": {"model": f"brewery:block/{name}"},
@@ -384,16 +348,7 @@ def write_models():
         }})
 
     items = ROOT / "models/item"
-    dump(items / "barrel.json", {
-        **model("minecraft:block/spruce_planks", barrel_textures, big_barrel_elements()),
-        "display": {
-            "gui": {"rotation": [30, 225, 0], "translation": [0, -2.5, 0], "scale": [0.31, 0.31, 0.31]},
-            "ground": {"rotation": [0, 0, 0], "translation": [0, 1, 0], "scale": [0.12, 0.12, 0.12]},
-            "fixed": {"rotation": [0, 0, 0], "translation": [0, 0, 0], "scale": [0.31, 0.31, 0.31]},
-            "thirdperson_righthand": {"rotation": [75, 45, 0], "translation": [0, 1.5, 0], "scale": [0.2, 0.2, 0.2]},
-            "firstperson_righthand": {"rotation": [0, 45, 0], "translation": [0, 0, 0], "scale": [0.2, 0.2, 0.2]},
-        },
-    })
+    dump(items / "barrel.json", {"parent": "brewery:block/barrel"})
     # The item shows the whole two-block still, scaled down to fit a slot.
     dump(items / "distillery.json", {
         **model(create("fluid_tank"), still_textures, distillery_elements() + raised(distillery_top_elements())),
@@ -651,12 +606,9 @@ def write_ponder():
         (0, 1, 2): fire,
     })
     write_scene("barrel", {
-        (1, 1, 1): ("brewery:barrel", {"facing": "north", "formed": "true"}),
-        **{(1 + x, 1 + y, 1 + z): ("brewery:barrel_part", {"facing": "north", "x": str(x == 1).lower(),
-                                                           "y": str(y == 1).lower(), "z": str(z == 1).lower()})
-           for x in range(2) for y in range(2) for z in range(2) if x + y + z > 0},
-        (1, 3, 1): ("create:andesite_funnel", {"facing": "up"}),
-        (3, 1, 1): ("brewery:spout", {"facing": "east"}),
+        **{(1 + x, 1 + y, 2): ("brewery:barrel", {"facing": "north"}) for x in range(2) for y in range(2)},
+        (1, 3, 2): ("create:andesite_funnel", {"facing": "up"}),
+        (3, 1, 2): ("brewery:spout", {"facing": "east"}),
     })
 
 

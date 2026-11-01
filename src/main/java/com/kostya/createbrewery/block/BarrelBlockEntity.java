@@ -8,19 +8,26 @@ import com.kostya.createbrewery.recipe.DrinkProfile;
 import com.kostya.createbrewery.registry.ModDataComponents;
 import com.kostya.createbrewery.registry.ModItems;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.Containers;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.neoforged.neoforge.items.IItemHandler;
 import net.neoforged.neoforge.items.ItemStackHandler;
 import org.jetbrains.annotations.Nullable;
 
-/** A barrel ageing up to four stacks of one drink at a time, with one kind of wood. */
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+
+/** One barrel, alone or in a group that shares one store of up to four stacks of one drink. */
 public class BarrelBlockEntity extends BlockEntity {
     private static final int WOOD_SLOT = 1;
     private static final int FIRST_DRINK_SLOT = 2;
@@ -30,6 +37,17 @@ public class BarrelBlockEntity extends BlockEntity {
     private static final int AUTOMATION_SLOTS = 10;
     /** The slots of {@link #input} that hold a batch; slot 1 is the wood. */
     private static final int[] BATCH_SLOTS = {0, 2, 3, 4};
+    private static final int BARRELS_PER_STACK_STEP = 4;
+    private static final int STACK_STEP = 16;
+    /** Past this many barrels a group grows no further: stacks are saved with at most 99 items. */
+    private static final int MAX_COUNTED_BARRELS = 24;
+    private static final int WOOD_LIMIT = 64;
+
+    /** The barrel holding this group's contents; the one barrel of a lone barrel. Worked out on demand. */
+    @Nullable
+    private BarrelBlockEntity root;
+    /** How many barrels are in the group, as far as the root knows. */
+    private int groupSize = 1;
 
     private long startedAt = -1L;
     private long finishedAt = -1L;
@@ -55,13 +73,24 @@ public class BarrelBlockEntity extends BlockEntity {
             }
             return slot == WOOD_SLOT
                     ? AgingRules.isAcceptedWood(BuiltInRegistries.ITEM.getKey(stack.getItem()).toString())
-                    : isAgeable(stack) && fitsTheBatch(slot, stack);
+                    : batchIndex(slot) < openStacks() && isAgeable(stack) && fitsTheBatch(slot, stack);
         }
 
         /** A running batch stays sealed, or its contents could be swapped out before it finishes. */
         @Override
         public ItemStack extractItem(int slot, int amount, boolean simulate) {
             return startedAt >= 0 ? ItemStack.EMPTY : super.extractItem(slot, amount, simulate);
+        }
+
+        @Override
+        public int getSlotLimit(int slot) {
+            return slot == WOOD_SLOT ? WOOD_LIMIT : stackLimit();
+        }
+
+        /** Bigger groups stack past the item's own limit, which only a barrel's stack ever does. */
+        @Override
+        protected int getStackLimit(int slot, ItemStack stack) {
+            return getSlotLimit(slot);
         }
     };
     private final ItemStackHandler output = new ItemStackHandler(BATCH_SLOTS.length) {
@@ -103,10 +132,10 @@ public class BarrelBlockEntity extends BlockEntity {
         @Override
         public ItemStack getStackInSlot(int slot) {
             if (slot == BOTTLE_SLOT) {
-                return bottles.getStackInSlot(0);
+                return root().bottles.getStackInSlot(0);
             }
             int drink = drinkSlot(slot);
-            return drink >= 0 ? output.getStackInSlot(drink) : input.getStackInSlot(inputSlot(slot));
+            return drink >= 0 ? root().output.getStackInSlot(drink) : root().input.getStackInSlot(inputSlot(slot));
         }
 
         @Override
@@ -115,12 +144,12 @@ public class BarrelBlockEntity extends BlockEntity {
                 return stack;
             }
             if (slot == BOTTLE_SLOT) {
-                return bottles.insertItem(0, stack, simulate);
+                return root().bottles.insertItem(0, stack, simulate);
             }
-            ItemStack remainder = input.insertItem(inputSlot(slot), stack, simulate);
+            ItemStack remainder = root().input.insertItem(inputSlot(slot), stack, simulate);
             if (!simulate && remainder.getCount() < stack.getCount()) {
-                autoStart = true;
-                setChanged();
+                root().autoStart = true;
+                root().setChanged();
             }
             return remainder;
         }
@@ -128,13 +157,13 @@ public class BarrelBlockEntity extends BlockEntity {
         @Override
         public ItemStack extractItem(int slot, int amount, boolean simulate) {
             int drink = drinkSlot(slot);
-            int paid = Math.min(amount, bottles.getStackInSlot(0).getCount());
+            int paid = Math.min(amount, root().bottles.getStackInSlot(0).getCount());
             if (drink < 0 || paid <= 0) {
                 return ItemStack.EMPTY;
             }
-            ItemStack taken = output.extractItem(drink, paid, simulate);
+            ItemStack taken = root().output.extractItem(drink, paid, simulate);
             if (!simulate) {
-                spendBottles(taken.getCount());
+                root().spendBottles(taken.getCount());
             }
             return taken;
         }
@@ -142,18 +171,18 @@ public class BarrelBlockEntity extends BlockEntity {
         @Override
         public int getSlotLimit(int slot) {
             if (slot == BOTTLE_SLOT) {
-                return bottles.getSlotLimit(0);
+                return root().bottles.getSlotLimit(0);
             }
             int drink = drinkSlot(slot);
-            return drink >= 0 ? output.getSlotLimit(drink) : input.getSlotLimit(inputSlot(slot));
+            return drink >= 0 ? root().output.getSlotLimit(drink) : root().input.getSlotLimit(inputSlot(slot));
         }
 
         @Override
         public boolean isItemValid(int slot, ItemStack stack) {
             if (slot == BOTTLE_SLOT) {
-                return bottles.isItemValid(0, stack);
+                return root().bottles.isItemValid(0, stack);
             }
-            return drinkSlot(slot) < 0 && input.isItemValid(inputSlot(slot), stack);
+            return drinkSlot(slot) < 0 && root().input.isItemValid(inputSlot(slot), stack);
         }
     };
 
@@ -208,6 +237,177 @@ public class BarrelBlockEntity extends BlockEntity {
         return product.is(ModItems.DRINK_BOTTLE.get())
                 ? BrewingRecipe.profileOf(level, data.stage())
                 : BrewingRecipe.profileDistilledTo(level, data.stage());
+    }
+
+    /** Which batch an {@link #input} slot holds. */
+    private static int batchIndex(int slot) {
+        return slot == 0 ? 0 : slot - 1;
+    }
+
+    /** How many of the four stacks are open: one per barrel. */
+    public int openStacks() {
+        return Math.min(groupSize, BATCH_SLOTS.length);
+    }
+
+    /** How much each open stack holds: another sixteen for every four barrels. */
+    private int stackLimit() {
+        int counted = Math.min(groupSize, MAX_COUNTED_BARRELS);
+        return STACK_STEP * ((counted + BARRELS_PER_STACK_STEP - 1) / BARRELS_PER_STACK_STEP);
+    }
+
+    /** The barrel that holds this barrel's group's contents. */
+    public BarrelBlockEntity root() {
+        if (level == null || level.isClientSide()) {
+            return this;
+        }
+        if (root == null || root.isRemoved()) {
+            regroup();
+        }
+        return root;
+    }
+
+    /** Every barrel touching this one, directly or through others, that faces the same way. */
+    private List<BarrelBlockEntity> members() {
+        List<BarrelBlockEntity> found = new ArrayList<>(List.of(this));
+        Direction facing = getBlockState().getValue(BarrelBlock.FACING);
+        Set<BlockPos> seen = new HashSet<>(Set.of(worldPosition));
+        for (int next = 0; next < found.size(); next++) {
+            for (Direction direction : Direction.values()) {
+                BlockPos pos = found.get(next).worldPosition.relative(direction);
+                // The world's block decides, not the entity: one being broken still has an entity for a moment.
+                BlockState state = level.getBlockState(pos);
+                if (seen.add(pos) && state.is(ModBlocks.BARREL.get()) && state.getValue(BarrelBlock.FACING) == facing
+                        && level.getBlockEntity(pos) instanceof BarrelBlockEntity barrel) {
+                    found.add(barrel);
+                }
+            }
+        }
+        return found;
+    }
+
+    /** Picks the group's root: a running batch wins, then whoever holds the most, and folds the rest into it. */
+    private void regroup() {
+        List<BarrelBlockEntity> members = members();
+        BarrelBlockEntity best = members.getFirst();
+        for (BarrelBlockEntity member : members) {
+            if (member.rootScore() > best.rootScore()
+                    || member.rootScore() == best.rootScore() && member.worldPosition.asLong() < best.worldPosition.asLong()) {
+                best = member;
+            }
+        }
+        best.groupSize = members.size();
+        for (BarrelBlockEntity member : members) {
+            member.root = best;
+            if (member != best) {
+                member.groupSize = 1;
+                member.pourInto(best);
+            }
+        }
+    }
+
+    private long rootScore() {
+        long held = 0;
+        for (ItemStackHandler handler : List.of(input, output, bottles)) {
+            for (int slot = 0; slot < handler.getSlots(); slot++) {
+                held += handler.getStackInSlot(slot).getCount();
+            }
+        }
+        return startedAt >= 0 || finishedAt >= 0 ? Long.MAX_VALUE / 2 + held : held;
+    }
+
+    /** Hands everything over to the group's root; what it has no room for falls out. Nothing is lost. */
+    private void pourInto(BarrelBlockEntity target) {
+        for (int slot = 0; slot < input.getSlots(); slot++) {
+            ItemStack stack = input.getStackInSlot(slot);
+            if (!stack.isEmpty()) {
+                input.setStackInSlot(slot, ItemStack.EMPTY);
+                spill(target.input.insertItem(slot, stack, false));
+            }
+        }
+        for (int slot = 0; slot < output.getSlots(); slot++) {
+            ItemStack stack = output.getStackInSlot(slot);
+            if (!stack.isEmpty()) {
+                output.setStackInSlot(slot, ItemStack.EMPTY);
+                if (target.output.getStackInSlot(slot).isEmpty()) {
+                    target.output.setStackInSlot(slot, stack);
+                } else {
+                    spill(stack);
+                }
+            }
+        }
+        ItemStack spare = bottles.getStackInSlot(0);
+        if (!spare.isEmpty()) {
+            bottles.setStackInSlot(0, ItemStack.EMPTY);
+            spill(target.bottles.insertItem(0, spare, false));
+        }
+        target.autoStart |= autoStart;
+        startedAt = -1L;
+        finishedAt = -1L;
+        autoStart = false;
+        setChanged();
+    }
+
+    private void spill(ItemStack stack) {
+        // Over-full stacks from a big group have to fall out in stacks the item allows.
+        while (!stack.isEmpty()) {
+            Containers.dropItemStack(level, worldPosition.getX(), worldPosition.getY() + 1, worldPosition.getZ(),
+                    stack.split(stack.getMaxStackSize()));
+        }
+    }
+
+    /**
+     * Called as this barrel is broken. Its contents move on to a touching barrel, if there is
+     * one; the block is already gone from the world, which is why it searches from here.
+     */
+    void leaveGroup(Direction facing) {
+        if (root != null && root != this) {
+            return;
+        }
+        for (Direction direction : Direction.values()) {
+            if (level.getBlockEntity(worldPosition.relative(direction)) instanceof BarrelBlockEntity next
+                    && !next.isRemoved() && next.getBlockState().getValue(BarrelBlock.FACING) == facing) {
+                next.takeOver(this);
+                return;
+            }
+        }
+    }
+
+    private void takeOver(BarrelBlockEntity old) {
+        for (int slot = 0; slot < input.getSlots(); slot++) {
+            input.setStackInSlot(slot, old.input.getStackInSlot(slot));
+            old.input.setStackInSlot(slot, ItemStack.EMPTY);
+        }
+        for (int slot = 0; slot < output.getSlots(); slot++) {
+            output.setStackInSlot(slot, old.output.getStackInSlot(slot));
+            old.output.setStackInSlot(slot, ItemStack.EMPTY);
+        }
+        bottles.setStackInSlot(0, old.bottles.getStackInSlot(0));
+        old.bottles.setStackInSlot(0, ItemStack.EMPTY);
+        startedAt = old.startedAt;
+        finishedAt = old.finishedAt;
+        lastDayTime = old.lastDayTime;
+        agedTicks = old.agedTicks;
+        overAgedTicks = old.overAgedTicks;
+        overAgedPeriods = old.overAgedPeriods;
+        finishedDays = old.finishedDays;
+        woodId = old.woodId;
+        autoStart = old.autoStart;
+        setChanged();
+    }
+
+    /** A barrel came or went at {@code pos}: every group touching it must work itself out again. */
+    static void regroupAround(Level level, BlockPos pos, Direction facing) {
+        if (level.isClientSide()) {
+            return;
+        }
+        for (Direction direction : Direction.values()) {
+            if (level.getBlockEntity(pos.relative(direction)) instanceof BarrelBlockEntity barrel
+                    && barrel.getBlockState().getValue(BarrelBlock.FACING) == facing) {
+                for (BarrelBlockEntity member : barrel.members()) {
+                    member.root = null;
+                }
+            }
+        }
     }
 
     private boolean isAgeable(ItemStack stack) {
@@ -347,7 +547,7 @@ public class BarrelBlockEntity extends BlockEntity {
     }
 
     public void serverTick() {
-        if (level == null || level.isClientSide()) {
+        if (level == null || level.isClientSide() || root() != this) {
             return;
         }
         advanceClocks();

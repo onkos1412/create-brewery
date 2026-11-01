@@ -80,12 +80,6 @@ public final class ModBlocks {
             BarrelBlock::new,
             BlockBehaviour.Properties.of().mapColor(MapColor.WOOD).strength(2.0f, 3.0f).noOcclusion());
 
-    /** The rest of a big barrel. It has no item: placing the barrel places it. */
-    public static final DeferredBlock<BarrelPartBlock> BARREL_PART = BLOCKS.registerBlock("barrel_part",
-            BarrelPartBlock::new,
-            BlockBehaviour.Properties.of().mapColor(MapColor.WOOD).strength(2.0f, 3.0f).noOcclusion()
-                    .pushReaction(PushReaction.BLOCK));
-
     public static final DeferredHolder<Item, BlockItem> BARREL_ITEM = BLOCK_ITEMS.register("barrel",
             () -> new BlockItem(BARREL.get(), new Item.Properties()));
 

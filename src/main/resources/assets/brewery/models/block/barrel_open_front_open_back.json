@@ -1,0 +1,92 @@
+{
+  "parent": "minecraft:block/block",
+  "textures": {
+    "particle": "minecraft:block/spruce_planks",
+    "staves": "minecraft:block/spruce_planks",
+    "head": "create:block/andesite_casing",
+    "hoop": "create:block/andesite_block",
+    "brass": "create:block/brass_block"
+  },
+  "elements": [
+    {
+      "from": [
+        1,
+        1,
+        0
+      ],
+      "to": [
+        15,
+        15,
+        16
+      ],
+      "faces": {
+        "east": {
+          "texture": "#staves"
+        },
+        "west": {
+          "texture": "#staves"
+        },
+        "up": {
+          "texture": "#staves",
+          "rotation": 90
+        },
+        "down": {
+          "texture": "#staves",
+          "rotation": 90
+        }
+      }
+    },
+    {
+      "from": [
+        0,
+        0,
+        6
+      ],
+      "to": [
+        16,
+        16,
+        7
+      ],
+      "faces": {
+        "up": {
+          "texture": "#hoop"
+        },
+        "down": {
+          "texture": "#hoop"
+        },
+        "east": {
+          "texture": "#hoop"
+        },
+        "west": {
+          "texture": "#hoop"
+        }
+      }
+    },
+    {
+      "from": [
+        0,
+        0,
+        9
+      ],
+      "to": [
+        16,
+        16,
+        10
+      ],
+      "faces": {
+        "up": {
+          "texture": "#hoop"
+        },
+        "down": {
+          "texture": "#hoop"
+        },
+        "east": {
+          "texture": "#hoop"
+        },
+        "west": {
+          "texture": "#hoop"
+        }
+      }
+    }
+  ]
+}

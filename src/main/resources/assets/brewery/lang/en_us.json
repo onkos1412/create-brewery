@@ -67,10 +67,11 @@
   "brewery.ponder.distillery.text_4": "Close to the ideal speed keeps the stars. Half of it costs most of them, and double spoils the batch",
   "brewery.ponder.distillery.text_5": "The distillate goes to a barrel. Vodka needs none: pour it with a spout or from your hand",
   "brewery.ponder.barrel.header": "Aging and bottling",
-  "brewery.ponder.barrel.text_1": "The big barrel ages up to four stacks of one drink at once: distillate, or bottles of young wine or mead",
+  "brewery.ponder.barrel.text_1": "The barrel takes distillate, or a bottle of young wine or mead",
   "brewery.ponder.barrel.text_2": "Wood goes in too and is not used up. Each drink ages best in its own wood",
-  "brewery.ponder.barrel.text_3": "Press Start and wait the drink's days. Sleeping counts, so a bed speeds it up",
-  "brewery.ponder.barrel.text_4": "Fed by a funnel, it starts on its own and keeps going",
-  "brewery.ponder.barrel.text_5": "A spout bottles the drink, from your hand or from empty bottles fed in by funnel",
-  "brewery.ponder.barrel.text_6": "Collect it on time: a finished drink left in the barrel slowly loses its stars"
+  "brewery.ponder.barrel.text_3": "Barrels side by side, facing the same way, work as one. Each one adds room for more",
+  "brewery.ponder.barrel.text_4": "Press Start and wait the drink's days. Sleeping counts, so a bed speeds it up",
+  "brewery.ponder.barrel.text_5": "Fed by a funnel, it starts on its own and keeps going",
+  "brewery.ponder.barrel.text_6": "A spout bottles the drink, from your hand or from empty bottles fed in by funnel",
+  "brewery.ponder.barrel.text_7": "Collect it on time: a finished drink left in the barrel slowly loses its stars"
 }

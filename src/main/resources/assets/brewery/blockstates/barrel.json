@@ -1,35 +1,67 @@
 {
   "variants": {
-    "facing=north,formed=false": {
+    "facing=north,open_back=false,open_front=false": {
       "model": "brewery:block/barrel",
       "y": 0
     },
-    "facing=north,formed=true": {
-      "model": "brewery:block/barrel_big",
+    "facing=north,open_back=true,open_front=false": {
+      "model": "brewery:block/barrel_open_back",
       "y": 0
     },
-    "facing=east,formed=false": {
+    "facing=north,open_back=false,open_front=true": {
+      "model": "brewery:block/barrel_open_front",
+      "y": 0
+    },
+    "facing=north,open_back=true,open_front=true": {
+      "model": "brewery:block/barrel_open_front_open_back",
+      "y": 0
+    },
+    "facing=east,open_back=false,open_front=false": {
       "model": "brewery:block/barrel",
       "y": 90
     },
-    "facing=east,formed=true": {
-      "model": "brewery:block/barrel_big",
+    "facing=east,open_back=true,open_front=false": {
+      "model": "brewery:block/barrel_open_back",
       "y": 90
     },
-    "facing=south,formed=false": {
+    "facing=east,open_back=false,open_front=true": {
+      "model": "brewery:block/barrel_open_front",
+      "y": 90
+    },
+    "facing=east,open_back=true,open_front=true": {
+      "model": "brewery:block/barrel_open_front_open_back",
+      "y": 90
+    },
+    "facing=south,open_back=false,open_front=false": {
       "model": "brewery:block/barrel",
       "y": 180
     },
-    "facing=south,formed=true": {
-      "model": "brewery:block/barrel_big",
+    "facing=south,open_back=true,open_front=false": {
+      "model": "brewery:block/barrel_open_back",
       "y": 180
     },
-    "facing=west,formed=false": {
+    "facing=south,open_back=false,open_front=true": {
+      "model": "brewery:block/barrel_open_front",
+      "y": 180
+    },
+    "facing=south,open_back=true,open_front=true": {
+      "model": "brewery:block/barrel_open_front_open_back",
+      "y": 180
+    },
+    "facing=west,open_back=false,open_front=false": {
       "model": "brewery:block/barrel",
       "y": 270
     },
-    "facing=west,formed=true": {
-      "model": "brewery:block/barrel_big",
+    "facing=west,open_back=true,open_front=false": {
+      "model": "brewery:block/barrel_open_back",
+      "y": 270
+    },
+    "facing=west,open_back=false,open_front=true": {
+      "model": "brewery:block/barrel_open_front",
+      "y": 270
+    },
+    "facing=west,open_back=true,open_front=true": {
+      "model": "brewery:block/barrel_open_front_open_back",
       "y": 270
     }
   }

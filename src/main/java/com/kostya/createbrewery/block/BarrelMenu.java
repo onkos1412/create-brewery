@@ -14,6 +14,7 @@ public class BarrelMenu extends AbstractContainerMenu {
     private static final int BOTTLE_SLOT = 3;
     private static final int FIRST_EXTRA_DRINK = 7;
     private static final int MACHINE_SLOTS = 10;
+    private static final double MAX_REACH_SQUARED = 32 * 32;
 
     private final BarrelBlockEntity barrel;
     private final ContainerData data = new Data();
@@ -27,14 +28,14 @@ public class BarrelMenu extends AbstractContainerMenu {
         this.barrel = barrel;
         var handler = barrel == null ? new net.neoforged.neoforge.items.ItemStackHandler(5) : barrel.getInput();
         var drinks = barrel == null ? new net.neoforged.neoforge.items.ItemStackHandler(4) : barrel.getOutput();
-        addSlot(new SlotItemHandler(handler, 0, 44, 35));
+        addSlot(new BatchSlot(handler, 0, 44, 35, 0));
         addSlot(new SlotItemHandler(handler, 1, 80, 35));
         addSlot(new DrinkSlot(drinks, 0, 116, 35));
         addSlot(new SlotItemHandler(barrel == null ? new net.neoforged.neoforge.items.ItemStackHandler(1)
                 : barrel.getBottles(), 0, 152, 35));
-        addSlot(new SlotItemHandler(handler, 2, 26, 35));
-        addSlot(new SlotItemHandler(handler, 3, 26, 17));
-        addSlot(new SlotItemHandler(handler, 4, 44, 17));
+        addSlot(new BatchSlot(handler, 2, 26, 35, 1));
+        addSlot(new BatchSlot(handler, 3, 26, 17, 2));
+        addSlot(new BatchSlot(handler, 4, 44, 17, 3));
         addSlot(new DrinkSlot(drinks, 1, 134, 35));
         addSlot(new DrinkSlot(drinks, 2, 116, 17));
         addSlot(new DrinkSlot(drinks, 3, 134, 17));
@@ -80,10 +81,28 @@ public class BarrelMenu extends AbstractContainerMenu {
         return false;
     }
 
+    /** A distillate stack, shown only once the group has barrels enough to open it. */
+    private final class BatchSlot extends SlotItemHandler {
+        private final int batch;
+
+        BatchSlot(net.neoforged.neoforge.items.IItemHandler handler, int index, int x, int y, int batch) {
+            super(handler, index, x, y);
+            this.batch = batch;
+        }
+
+        @Override
+        public boolean isActive() {
+            return batch < data.get(3);
+        }
+    }
+
     /** Taking drinks here costs an empty bottle each, the same as at a funnel or the spout. */
     private final class DrinkSlot extends SlotItemHandler {
+        private final int drinkIndex;
+
         DrinkSlot(net.neoforged.neoforge.items.IItemHandler handler, int index, int x, int y) {
             super(handler, index, x, y);
+            drinkIndex = index;
         }
 
         @Override
@@ -92,8 +111,14 @@ public class BarrelMenu extends AbstractContainerMenu {
         }
 
         @Override
+        public boolean isActive() {
+            return drinkIndex < data.get(3);
+        }
+
+        @Override
         public boolean mayPickup(Player player) {
-            return (barrel == null || barrel.getBottleCount() >= getItem().getCount()) && super.mayPickup(player);
+            int taken = Math.min(getItem().getCount(), getItem().getMaxStackSize());
+            return (barrel == null || barrel.getBottleCount() >= taken) && super.mayPickup(player);
         }
 
         @Override
@@ -107,9 +132,10 @@ public class BarrelMenu extends AbstractContainerMenu {
 
     @Override
     public boolean stillValid(Player player) {
-        return barrel == null || stillValid(
-                net.minecraft.world.inventory.ContainerLevelAccess.create(barrel.getLevel(), barrel.getBlockPos()),
-                player, ModBlocks.BARREL.get());
+        // Measured from the whole group's middle would be nicer, but the menu may be held open
+        // from any of its barrels, so this only has to be generous enough for the largest one.
+        return barrel == null || !barrel.isRemoved()
+                && player.distanceToSqr(net.minecraft.world.phys.Vec3.atCenterOf(barrel.getBlockPos())) <= MAX_REACH_SQUARED;
     }
 
     @Override
@@ -141,7 +167,7 @@ public class BarrelMenu extends AbstractContainerMenu {
     }
 
     private final class Data implements ContainerData {
-        private final int[] synced = new int[3];
+        private final int[] synced = new int[4];
 
         @Override
         public int get(int index) {
@@ -156,6 +182,7 @@ public class BarrelMenu extends AbstractContainerMenu {
                 case 0 -> (int) (elapsed / AgingRules.TICKS_PER_DAY);
                 case 1 -> barrel.getStartedAt() >= 0 ? 1 : 0;
                 case 2 -> (int) (elapsed * 100 / required);
+                case 3 -> barrel.openStacks();
                 default -> 0;
             };
         }

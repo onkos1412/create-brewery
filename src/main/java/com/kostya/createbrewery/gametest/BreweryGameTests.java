@@ -6,7 +6,6 @@ import com.kostya.createbrewery.barrel.AgingRules;
 import com.kostya.createbrewery.block.BarrelBlock;
 import com.kostya.createbrewery.block.BarrelBlockEntity;
 import com.kostya.createbrewery.block.BarrelMenu;
-import com.kostya.createbrewery.block.BarrelPartBlock;
 import com.kostya.createbrewery.block.DistilleryBlockEntity;
 import com.kostya.createbrewery.block.KettleBlockEntity;
 import com.kostya.createbrewery.block.ModBlocks;
@@ -393,51 +392,86 @@ public class BreweryGameTests {
         helper.succeed();
     }
 
-    /** Placing a barrel raises the whole 2x2x2 structure, whichever way it faces, and it acts as one. */
-    @GameTest(template = "empty", timeoutTicks = 100)
-    public static void bigBarrelFormsAndActsAsOne(GameTestHelper helper) {
-        for (Direction facing : Direction.Plane.HORIZONTAL) {
-            BlockPos at = BARREL.above(0).west(2);
-            BlockPos abs = helper.absolutePos(at);
-            var state = ModBlocks.BARREL.get().defaultBlockState()
-                    .setValue(BarrelBlock.FACING, facing).setValue(BarrelBlock.FORMED, true);
-            helper.getLevel().setBlock(abs, state, 3);
-            state.getBlock().setPlacedBy(helper.getLevel(), abs, state, null, new ItemStack(ModBlocks.BARREL_ITEM.get()));
-
-            int found = 0;
-            for (BlockPos pos : BlockPos.betweenClosed(abs.offset(-2, 0, -2), abs.offset(2, 2, 2))) {
-                var other = helper.getLevel().getBlockState(pos);
-                if (other.is(ModBlocks.BARREL_PART.get())) {
-                    found++;
-                    helper.assertTrue(BarrelPartBlock.controller(helper.getLevel(), pos, other)
-                            instanceof BarrelBlockEntity, facing + " part lost its barrel");
-                }
-            }
-            helper.assertTrue(found == 7, facing + " formed " + found + " parts");
-
-            // Breaking any part takes the rest with it and drops the contents.
-            BarrelBlockEntity barrel = (BarrelBlockEntity) helper.getLevel().getBlockEntity(abs);
-            barrel.getInput().setStackInSlot(1, new ItemStack(Items.OAK_LOG, 3));
-            BlockPos part = abs.above();
-            helper.getLevel().setBlock(part, Blocks.AIR.defaultBlockState(), 3);
-            helper.assertTrue(helper.getLevel().getBlockState(abs).isAir(), facing + " barrel survived its part");
-            for (BlockPos pos : BlockPos.betweenClosed(abs.offset(-2, 0, -2), abs.offset(2, 2, 2))) {
-                helper.assertFalse(helper.getLevel().getBlockState(pos).is(ModBlocks.BARREL_PART.get()),
-                        facing + " left a part behind");
-            }
-            helper.assertTrue(helper.getLevel().getEntitiesOfClass(ItemEntity.class,
-                            new net.minecraft.world.phys.AABB(abs).inflate(2)).stream()
-                    .anyMatch(item -> item.getItem().is(Items.OAK_LOG)), facing + " lost its contents");
-            helper.killAllEntities();
+    private static BarrelBlockEntity placeBarrels(GameTestHelper helper, BlockPos... positions) {
+        for (BlockPos pos : positions) {
+            helper.setBlock(pos, ModBlocks.BARREL.get());
         }
+        return helper.getBlockEntity(positions[0]);
+    }
+
+    /** A lone barrel holds one stack; each barrel beside it opens another, and then deepens them. */
+    @GameTest(template = "empty")
+    public static void barrelsBesideEachOtherGrowTogether(GameTestHelper helper) {
+        BarrelBlockEntity first = placeBarrels(helper, BARREL);
+        ItemStack rum = new ItemStack(ModItems.DISTILLATE.get(), 16);
+        rum.set(ModDataComponents.DRINK_DATA.get(), new DrinkData(5, 45, "rum"));
+        helper.assertTrue(first.root().openStacks() == 1, "lone barrel opens " + first.root().openStacks());
+        helper.assertTrue(items(helper, BARREL).insertItem(4, rum.copy(), true).getCount() == 16, "locked stack took items");
+
+        // Four in a square open all four stacks, reachable from any of them.
+        placeBarrels(helper, BARREL.east(), BARREL.above(), BARREL.east().above());
+        helper.assertTrue(first.root().openStacks() == 4, "four barrels open " + first.root().openStacks());
+        helper.assertTrue(first.root() == ((BarrelBlockEntity) helper.getBlockEntity(BARREL.east().above())).root(), "two roots");
+        helper.assertTrue(items(helper, BARREL.east()).insertItem(4, rum.copy(), false).isEmpty(), "second barrel refused");
+        helper.assertTrue(items(helper, BARREL).getStackInSlot(4).getCount() == 16, "barrels do not share a store");
+
+        // A fifth makes each stack hold more than the item's own limit.
+        placeBarrels(helper, BARREL.south());
+        items(helper, BARREL).insertItem(0, rum.copy(), false);
+        items(helper, BARREL).insertItem(0, rum.copy(), false);
+        int held = items(helper, BARREL).getStackInSlot(0).getCount();
+        helper.assertTrue(held == 32, "stack stopped at " + held);
         helper.succeed();
     }
 
-    /** Four stacks of one drink age together and come out together, each keeping its own rating. */
+    /** A barrel facing another way stays on its own. */
+    @GameTest(template = "empty")
+    public static void barrelsFacingApartStaySeparate(GameTestHelper helper) {
+        BarrelBlockEntity first = placeBarrels(helper, BARREL);
+        helper.setBlock(BARREL.east(), ModBlocks.BARREL.get().defaultBlockState().setValue(BarrelBlock.FACING, Direction.EAST));
+        BarrelBlockEntity other = helper.getBlockEntity(BARREL.east());
+        helper.assertTrue(first.root() == first && other.root() == other, "barrels facing apart joined");
+        helper.assertTrue(first.root().openStacks() == 1, "still opens " + first.root().openStacks());
+        helper.succeed();
+    }
+
+    /** Breaking the barrel holding everything passes it on; breaking the last one drops it. */
+    @GameTest(template = "empty")
+    public static void breakingABarrelKeepsTheContents(GameTestHelper helper) {
+        BarrelBlockEntity first = placeBarrels(helper, BARREL, BARREL.east());
+        BarrelBlockEntity store = first.root();
+        BlockPos storePos = store == first ? BARREL : BARREL.east();
+        BlockPos otherPos = store == first ? BARREL.east() : BARREL;
+        store.getInput().setStackInSlot(1, new ItemStack(Items.OAK_LOG, 3));
+
+        helper.setBlock(storePos, Blocks.AIR);
+        BarrelBlockEntity survivor = helper.getBlockEntity(otherPos);
+        helper.assertTrue(survivor.root().getInput().getStackInSlot(1).getCount() == 3, "contents did not pass on");
+        helper.assertTrue(survivor.root().openStacks() == 1, "survivor still opens " + survivor.root().openStacks());
+
+        helper.setBlock(otherPos, Blocks.AIR);
+        BlockPos abs = helper.absolutePos(otherPos);
+        helper.assertTrue(helper.getLevel().getEntitiesOfClass(ItemEntity.class, new net.minecraft.world.phys.AABB(abs).inflate(2))
+                .stream().anyMatch(item -> item.getItem().is(Items.OAK_LOG)), "last barrel lost its contents");
+        helper.succeed();
+    }
+
+    /** Barrels along their axis read as one long barrel: their touching heads are not drawn. */
+    @GameTest(template = "empty")
+    public static void barrelsInLineOpenTowardEachOther(GameTestHelper helper) {
+        placeBarrels(helper, BARREL, BARREL.north());
+        var back = helper.getBlockState(BARREL);
+        var front = helper.getBlockState(BARREL.north());
+        helper.assertTrue(back.getValue(BarrelBlock.OPEN_FRONT) && !back.getValue(BarrelBlock.OPEN_BACK), "back barrel " + back);
+        helper.assertTrue(front.getValue(BarrelBlock.OPEN_BACK) && !front.getValue(BarrelBlock.OPEN_FRONT), "front barrel " + front);
+        helper.succeed();
+    }
+
+    /** Whole stacks age together, and each keeps its own rating. */
     @GameTest(template = "empty", timeoutTicks = 200, batch = "aging_big_batch")
     public static void barrelAgesFourStacksTogether(GameTestHelper helper) {
-        helper.setBlock(BARREL, ModBlocks.BARREL.get());
-        BarrelBlockEntity barrel = helper.getBlockEntity(BARREL);
+        BarrelBlockEntity barrel = placeBarrels(helper, BARREL, BARREL.east(), BARREL.above(), BARREL.east().above());
+        BarrelBlockEntity store = barrel.root();
         IItemHandler items = items(helper, BARREL);
         ItemStack rum5 = new ItemStack(ModItems.DISTILLATE.get(), 16);
         rum5.set(ModDataComponents.DRINK_DATA.get(), new DrinkData(5, 45, "rum"));
@@ -449,11 +483,11 @@ public class BreweryGameTests {
         helper.assertTrue(items.insertItem(0, rum5, false).isEmpty(), "first stack refused");
         helper.assertTrue(items.insertItem(4, rum3, false).isEmpty(), "second stack refused");
         helper.assertTrue(items.insertItem(5, whiskey, false).getCount() == 1, "mixed whiskey into a rum batch");
-        barrel.getInput().setStackInSlot(1, new ItemStack(Items.DARK_OAK_LOG));
-        helper.assertTrue(barrel.startAging(), "barrel did not start");
+        store.getInput().setStackInSlot(1, new ItemStack(Items.DARK_OAK_LOG));
+        helper.assertTrue(store.startAging(), "barrel did not start");
 
         helper.startSequence()
-                .thenExecute(() -> helper.getLevel().setDayTime(helper.getLevel().getDayTime() + barrel.getRequiredTicks()))
+                .thenExecute(() -> helper.getLevel().setDayTime(helper.getLevel().getDayTime() + store.getRequiredTicks()))
                 .thenWaitUntil(() -> helper.assertFalse(items.getStackInSlot(2).isEmpty(), "not finished"))
                 .thenExecute(() -> {
                     helper.assertTrue(items.getStackInSlot(2).getCount() == 16, "first stack " + items.getStackInSlot(2));
@@ -463,7 +497,7 @@ public class BreweryGameTests {
                     helper.assertTrue(items.extractItem(2, 16, false).isEmpty(), "drinks taken without bottles");
                     items.insertItem(3, new ItemStack(Items.GLASS_BOTTLE, 5), false);
                     helper.assertTrue(items.extractItem(2, 16, false).getCount() == 5, "bottles did not limit the take");
-                    helper.assertTrue(barrel.getBottleCount() == 0, "bottles not spent");
+                    helper.assertTrue(store.getBottleCount() == 0, "bottles not spent");
                 })
                 .thenSucceed();
     }
