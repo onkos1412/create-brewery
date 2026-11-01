@@ -29,6 +29,8 @@ public final class ModCapabilities {
                 (distillery, side) -> distillery.getOutput());
         event.registerBlockEntity(Capabilities.ItemHandler.BLOCK, ModBlocks.BARREL_BLOCK_ENTITY.get(),
                 (barrel, side) -> barrel.getAutomationItems());
+        event.registerBlockEntity(Capabilities.ItemHandler.BLOCK, ModBlocks.SPOUT_BLOCK_ENTITY.get(),
+                (spout, side) -> spout.getItems());
     }
 
     /** Spills a machine's inventories into the world when its block is removed. */

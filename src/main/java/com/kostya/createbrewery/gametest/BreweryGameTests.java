@@ -33,6 +33,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.entity.HopperBlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.material.Fluids;
 import net.neoforged.neoforge.capabilities.Capabilities;
@@ -186,6 +187,49 @@ public class BreweryGameTests {
                             "the empty bottle did not come back");
                 })
                 .thenSucceed();
+    }
+
+    /** No player at all: a funnel feeds the spout bottles, a real hopper takes the beer away. */
+    @GameTest(template = "empty", timeoutTicks = 500)
+    public static void spoutBottlesWithoutAPlayer(GameTestHelper helper) {
+        KettleBlockEntity kettle = placeHeatedKettle(helper);
+        BlockPos spout = KETTLE.east();
+        helper.setBlock(spout, ModBlocks.SPOUT.get());
+        helper.setBlock(spout.above(), AllBlocks.ANDESITE_FUNNEL.get().defaultBlockState()
+                .setValue(FunnelBlock.FACING, Direction.UP).setValue(FunnelBlock.POWERED, false));
+        helper.setBlock(spout.below(), Blocks.HOPPER);
+        helper.spawnItem(Items.GLASS_BOTTLE, spout.getX() + 0.5f, spout.getY() + 1.6f, spout.getZ() + 0.5f);
+
+        helper.succeedWhen(() -> {
+            HopperBlockEntity hopper = helper.getBlockEntity(spout.below());
+            helper.assertTrue(data(hopper.getItem(0)).stage().equals("beer"), "hopper holds " + hopper.getItem(0));
+            helper.assertTrue(kettle.getWortAmount() == 0, "wort left: " + kettle.getWortAmount());
+            helper.assertTrue(items(helper, spout).getStackInSlot(0).isEmpty(), "bottle not spent");
+        });
+    }
+
+    /** Empty bottles stay put, and nothing is poured until there is a drink to pour. */
+    @GameTest(template = "empty", timeoutTicks = 100)
+    public static void spoutHoldsEmptyBottlesBackFromFunnels(GameTestHelper helper) {
+        helper.setBlock(BARREL, ModBlocks.BARREL.get());
+        BlockPos spout = BARREL.east();
+        helper.setBlock(spout, ModBlocks.SPOUT.get());
+        IItemHandler items = items(helper, spout);
+        helper.assertTrue(items.insertItem(0, new ItemStack(Items.STONE), false).getCount() == 1, "took stone");
+        helper.assertTrue(items.insertItem(0, new ItemStack(Items.GLASS_BOTTLE, 3), false).isEmpty(), "refused bottles");
+
+        helper.runAfterDelay(10, () -> {
+            helper.assertTrue(items.extractItem(0, 1, false).isEmpty(), "empty bottle pulled back out");
+            helper.assertTrue(items.getStackInSlot(0).getCount() == 3, "bottles spent on nothing");
+            BarrelBlockEntity barrel = helper.getBlockEntity(BARREL);
+            ItemStack rum = new ItemStack(ModItems.DRINK_BOTTLE.get());
+            rum.set(ModDataComponents.DRINK_DATA.get(), new DrinkData(5, 45, "aged_rum"));
+            barrel.getOutput().setStackInSlot(0, rum);
+        });
+        helper.succeedWhen(() -> {
+            helper.assertTrue(data(items.getStackInSlot(1)).stage().equals("aged_rum"), "barrel drink not poured");
+            helper.assertTrue(items.getStackInSlot(0).getCount() == 2, "bottle not spent");
+        });
     }
 
     /** Drinks that are already finished must not go into the barrel a second time. */

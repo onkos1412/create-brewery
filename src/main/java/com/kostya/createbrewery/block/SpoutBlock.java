@@ -15,6 +15,8 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.EntityBlock;
 import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.entity.BlockEntityTicker;
+import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
@@ -25,8 +27,9 @@ import net.minecraft.world.phys.shapes.VoxelShape;
 import org.jetbrains.annotations.Nullable;
 
 /**
- * The bottling spout. Place it against a kettle and right-click while holding an empty
- * glass bottle to draw one bottle of the finished drink.
+ * The bottling spout. Place it against a machine and right-click while holding an empty
+ * glass bottle to draw one bottle of the finished drink, or feed it empty bottles by
+ * funnel and take the filled ones away (see {@link SpoutBlockEntity}).
  *
  * <p>The spout finds its kettle among its six neighbours, so it can be mounted on any
  * side of the kettle. {@code facing} is the direction the tap points, away from the
@@ -84,19 +87,7 @@ public class SpoutBlock extends Block implements EntityBlock {
             return ItemInteractionResult.SUCCESS;
         }
 
-        BarrelBlockEntity barrel = findBarrel(level, pos);
-        ItemStack bottle = barrel == null ? ItemStack.EMPTY : barrel.takeFinishedBottle();
-        if (bottle.isEmpty() && findDistillery(level, pos) instanceof DistilleryBlockEntity still) {
-            bottle = still.takeFinishedBottle();
-        }
-        if (!SpoutLogic.fillFinishedBottle(!bottle.isEmpty(), true)) {
-            KettleBlockEntity kettle = findKettle(level, pos);
-            boolean hasWort = kettle != null && kettle.getWortAmount() >= KettleBlockEntity.WORT_PER_BREW;
-            if (!SpoutLogic.fillBottle(hasWort, true)) {
-                return ItemInteractionResult.FAIL;
-            }
-            bottle = kettle.bottleWort();
-        }
+        ItemStack bottle = pour(level, pos);
         if (bottle.isEmpty()) {
             return ItemInteractionResult.FAIL;
         }
@@ -109,6 +100,41 @@ public class SpoutBlock extends Block implements EntityBlock {
         }
         level.playSound(null, pos, SoundEvents.BOTTLE_FILL, SoundSource.BLOCKS, 1.0f, 1.0f);
         return ItemInteractionResult.SUCCESS;
+    }
+
+    /** Takes one filled bottle from a neighbouring machine: barrel first, then still, then kettle. */
+    static ItemStack pour(Level level, BlockPos pos) {
+        BarrelBlockEntity barrel = findBarrel(level, pos);
+        ItemStack bottle = barrel == null ? ItemStack.EMPTY : barrel.takeFinishedBottle();
+        if (bottle.isEmpty() && findDistillery(level, pos) instanceof DistilleryBlockEntity still) {
+            bottle = still.takeFinishedBottle();
+        }
+        if (bottle.isEmpty() && findKettle(level, pos) instanceof KettleBlockEntity kettle) {
+            bottle = kettle.bottleWort();
+        }
+        return bottle;
+    }
+
+    @Nullable
+    @Override
+    public <T extends BlockEntity> BlockEntityTicker<T> getTicker(Level level, BlockState state,
+                                                                 BlockEntityType<T> type) {
+        if (level.isClientSide()) {
+            return null;
+        }
+        return (tickLevel, pos, tickState, entity) -> {
+            if (entity instanceof SpoutBlockEntity spout) {
+                spout.serverTick();
+            }
+        };
+    }
+
+    @Override
+    protected void onRemove(BlockState state, Level level, BlockPos pos, BlockState newState, boolean movedByPiston) {
+        if (!state.is(newState.getBlock()) && level.getBlockEntity(pos) instanceof SpoutBlockEntity spout) {
+            ModCapabilities.dropContents(level, pos, spout.getItems());
+        }
+        super.onRemove(state, level, pos, newState, movedByPiston);
     }
 
     /** The barrel this spout pours from, or {@code null} when there is none adjacent. */
