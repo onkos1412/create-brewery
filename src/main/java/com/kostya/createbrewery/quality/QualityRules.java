@@ -25,6 +25,16 @@ public final class QualityRules {
         return 1;
     }
 
+    /** How long a drink of this quality makes the drinker queasy: only poor ones do. */
+    public static int nauseaTicks(int stars) {
+        return stars <= 2 ? 200 : 0;
+    }
+
+    /** How long a drink of this quality poisons the drinker: only the worst does. */
+    public static int poisonTicks(int stars) {
+        return stars <= 1 ? 100 : 0;
+    }
+
     /** The weakest required stage determines the final quality. */
     public static int finalStars(List<Integer> scores) {
         if (scores.isEmpty()) {

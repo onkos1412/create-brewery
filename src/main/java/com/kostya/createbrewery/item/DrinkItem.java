@@ -2,6 +2,7 @@ package com.kostya.createbrewery.item;
 
 import com.kostya.createbrewery.DrinkData;
 import com.kostya.createbrewery.drunk.DrunkManager;
+import com.kostya.createbrewery.quality.QualityRules;
 import com.kostya.createbrewery.registry.ModDataComponents;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.component.DataComponentMap;
@@ -9,10 +10,14 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResultHolder;
+import net.minecraft.world.effect.MobEffectInstance;
+import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.ItemUtils;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.item.UseAnim;
 import net.minecraft.world.level.Level;
@@ -67,9 +72,16 @@ public class DrinkItem extends Item {
             if (!level.isClientSide) {
                 // Alcohol is stored on the product, while quality remains a separate value.
                 DrunkManager.addDrunk(player, data.alcohol() / 5);
+                if (QualityRules.nauseaTicks(data.stars()) > 0) {
+                    player.addEffect(new MobEffectInstance(MobEffects.CONFUSION, QualityRules.nauseaTicks(data.stars())));
+                }
+                if (QualityRules.poisonTicks(data.stars()) > 0) {
+                    player.addEffect(new MobEffectInstance(MobEffects.POISON, QualityRules.poisonTicks(data.stars())));
+                }
             }
             player.playSound(SoundEvents.PLAYER_BURP, 0.5f, level.random.nextFloat() * 0.1f + 0.9f);
-            stack.consume(1, player);
+            // Like a vanilla potion, the empty bottle comes back: production spends one for every drink.
+            return ItemUtils.createFilledResult(stack, player, new ItemStack(Items.GLASS_BOTTLE));
         }
         return stack;
     }

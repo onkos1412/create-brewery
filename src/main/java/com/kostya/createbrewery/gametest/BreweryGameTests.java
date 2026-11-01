@@ -4,6 +4,7 @@ import com.kostya.createbrewery.CreateBrewery;
 import com.kostya.createbrewery.DrinkData;
 import com.kostya.createbrewery.barrel.AgingRules;
 import com.kostya.createbrewery.block.BarrelBlockEntity;
+import com.kostya.createbrewery.block.BarrelMenu;
 import com.kostya.createbrewery.block.DistilleryBlockEntity;
 import com.kostya.createbrewery.block.KettleBlockEntity;
 import com.kostya.createbrewery.block.ModBlocks;
@@ -316,6 +317,78 @@ public class BreweryGameTests {
 
         helper.succeedWhen(() -> helper.assertTrue(distillery.getWortAmount() == 1000,
                 "wort at the far end: " + distillery.getWortAmount()));
+    }
+
+    /** Every way of taking a drink from the barrel costs an empty bottle. */
+    @GameTest(template = "empty")
+    public static void takingADrinkCostsABottle(GameTestHelper helper) {
+        helper.setBlock(BARREL, ModBlocks.BARREL.get());
+        BarrelBlockEntity barrel = helper.getBlockEntity(BARREL);
+        IItemHandler funnelView = items(helper, BARREL);
+        barrel.getOutput().setStackInSlot(0, new ItemStack(ModItems.DRINK_BOTTLE.get()));
+
+        helper.assertTrue(funnelView.extractItem(2, 1, false).isEmpty(), "funnel took a drink for free");
+        Player player = helper.makeMockPlayer(GameType.SURVIVAL);
+        BarrelMenu menu = new BarrelMenu(0, player.getInventory(), barrel);
+        helper.assertFalse(menu.getSlot(2).mayPickup(player), "GUI gave a drink for free");
+
+        helper.assertTrue(funnelView.insertItem(3, new ItemStack(Items.GLASS_BOTTLE, 2), false).isEmpty(),
+                "bottles refused");
+        helper.assertTrue(funnelView.insertItem(3, new ItemStack(Items.STONE), false).getCount() == 1,
+                "bottle slot took stone");
+        helper.assertTrue(menu.getSlot(2).mayPickup(player), "GUI refused a paid drink");
+        helper.assertFalse(funnelView.extractItem(2, 1, false).isEmpty(), "funnel refused a paid drink");
+        helper.assertTrue(barrel.getBottles().getStackInSlot(0).getCount() == 1, "bottle not spent by the funnel");
+
+        barrel.getOutput().setStackInSlot(0, new ItemStack(ModItems.DRINK_BOTTLE.get()));
+        menu.quickMoveStack(player, 2);
+        helper.assertTrue(barrel.getBottles().getStackInSlot(0).isEmpty(), "bottle not spent by shift-click");
+        helper.succeed();
+    }
+
+    /** Vodka taken out of the still by hand can still reach a bottle. */
+    @GameTest(template = "empty")
+    public static void vodkaPoursFromTheHand(GameTestHelper helper) {
+        Player player = helper.makeMockPlayer(GameType.SURVIVAL);
+        ItemStack vodka = new ItemStack(ModItems.DISTILLATE.get());
+        vodka.set(ModDataComponents.DRINK_DATA.get(), new DrinkData(4, 40, "vodka"));
+        player.setItemInHand(InteractionHand.MAIN_HAND, vodka);
+
+        vodka.getItem().use(helper.getLevel(), player, InteractionHand.MAIN_HAND);
+        helper.assertFalse(player.getMainHandItem().isEmpty(), "poured with no bottle to pour into");
+
+        player.getInventory().add(new ItemStack(Items.GLASS_BOTTLE));
+        vodka.getItem().use(helper.getLevel(), player, InteractionHand.MAIN_HAND);
+        DrinkData drink = data(findBottle(helper, player));
+        helper.assertTrue("vodka".equals(drink.stage()) && drink.stars() == 4, "poured " + drink);
+        helper.assertTrue(player.getInventory().countItem(Items.GLASS_BOTTLE) == 0, "bottle not spent");
+
+        ItemStack whiskey = new ItemStack(ModItems.DISTILLATE.get());
+        whiskey.set(ModDataComponents.DRINK_DATA.get(), new DrinkData(5, 40, "whiskey"));
+        player.setItemInHand(InteractionHand.MAIN_HAND, whiskey);
+        player.getInventory().add(new ItemStack(Items.GLASS_BOTTLE));
+        whiskey.getItem().use(helper.getLevel(), player, InteractionHand.MAIN_HAND);
+        helper.assertTrue(player.getMainHandItem().getCount() == 1, "whiskey skipped the barrel");
+        helper.succeed();
+    }
+
+    /** Bad drinks bite, good ones do not, and the empty bottle always comes back. */
+    @GameTest(template = "empty")
+    public static void drinkingAppliesQualityEffects(GameTestHelper helper) {
+        for (int stars : new int[] {1, 2, 3}) {
+            Player player = helper.makeMockPlayer(GameType.SURVIVAL);
+            ItemStack bottle = new ItemStack(ModItems.DRINK_BOTTLE.get());
+            bottle.set(ModDataComponents.DRINK_DATA.get(), new DrinkData(stars, 40, "whiskey"));
+            player.setItemInHand(InteractionHand.MAIN_HAND, bottle);
+
+            ItemStack left = bottle.getItem().finishUsingItem(bottle, helper.getLevel(), player);
+
+            helper.assertTrue(left.is(Items.GLASS_BOTTLE), "empty bottle lost, got " + left);
+            helper.assertTrue(DrunkManager.getDrunk(player) == 8, "drunk " + DrunkManager.getDrunk(player));
+            helper.assertTrue(player.hasEffect(MobEffects.CONFUSION) == (stars <= 2), stars + " stars nausea");
+            helper.assertTrue(player.hasEffect(MobEffects.POISON) == (stars == 1), stars + " stars poison");
+        }
+        helper.succeed();
     }
 
     /** A funnel fills the slot well past one batch; only water should limit the brewing. */

@@ -6,8 +6,8 @@
   "block.brewery.kettle": "Brewing Kettle",
   "block.brewery.spout": "Bottling Spout",
   "block.brewery.distillery": "Distillery",
-  "block.brewery.barrel": "Oak Aging Barrel",
-  "container.brewery.barrel": "Oak Aging Barrel",
+  "block.brewery.barrel": "Aging Barrel",
+  "container.brewery.barrel": "Aging Barrel",
   "gui.brewery.barrel_start": "Start",
   "gui.brewery.barrel_days": "Days: %s",
   "gui.brewery.barrel_ready": "Ready",
@@ -43,5 +43,6 @@
   "drink.brewery.cane_mash": "Cane Mash",
   "drink.brewery.rum": "Rum",
   "drink.brewery.aged_rum": "Aged Rum",
-  "tooltip.brewery.distillate_aging": "Aging: %s days, %s"
+  "tooltip.brewery.distillate_aging": "Aging: %s days, %s",
+  "tooltip.brewery.distillate_pour": "Use to pour into an empty bottle from your inventory"
 }

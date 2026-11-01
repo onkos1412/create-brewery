@@ -92,7 +92,7 @@ public class BarrelBlock extends BaseEntityBlock {
     @Override
     protected void onRemove(BlockState state, Level level, BlockPos pos, BlockState newState, boolean movedByPiston) {
         if (!state.is(newState.getBlock()) && level.getBlockEntity(pos) instanceof BarrelBlockEntity barrel) {
-            ModCapabilities.dropContents(level, pos, barrel.getInput(), barrel.getOutput());
+            ModCapabilities.dropContents(level, pos, barrel.getInput(), barrel.getOutput(), barrel.getBottles());
         }
         super.onRemove(state, level, pos, newState, movedByPiston);
     }

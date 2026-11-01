@@ -573,13 +573,16 @@ def write_gui():
 
     # Barrel: distillate + wood -> finished bottle.
     img, d = machine_sheet(3)
+    # The gap between the slots is short, so the arrow's tail tucks under the wood slot's frame.
+    arrow(d, 92, 36, rgb("#a8986f"))
     slot(d, 44, 35)
     ghost_bottle(img, 44, 35)
     slot(d, 80, 35)
     ghost_log(img, 80, 35)
     slot(d, 116, 35)
+    slot(d, 116, 15)
+    ghost_bottle(img, 116, 15)
     d.rectangle((64, 41, 76, 45), fill=rgb("#a8986f"))
-    arrow(d, 98, 36, rgb("#a8986f"))
     save(img, GUI, "barrel")
 
     # Parts sheet shared by the screens.

@@ -23,7 +23,7 @@ public class BarrelScreen extends AbstractContainerScreen<BarrelMenu> {
     @Override
     protected void renderBg(GuiGraphics graphics, float partialTick, int mouseX, int mouseY) {
         graphics.blit(TEXTURE, leftPos, topPos, 0, 0, imageWidth, imageHeight);
-        MachineWidgets.arrow(graphics, leftPos + 98, topPos + 36, menu.isReady() ? 100 : menu.getPercent(), 100);
+        MachineWidgets.arrow(graphics, leftPos + 97, topPos + 36, menu.isReady() ? 100 : menu.getPercent(), 100, 5);
         MachineWidgets.button(graphics, font, leftPos + BUTTON_X, topPos + BUTTON_Y,
                 Component.translatable("gui.brewery.barrel_start"), overButton(mouseX, mouseY));
         graphics.drawString(font, Component.translatable("gui.brewery.barrel_days", menu.getDays()),

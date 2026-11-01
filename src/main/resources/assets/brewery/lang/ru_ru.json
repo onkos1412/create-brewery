@@ -6,8 +6,8 @@
   "block.brewery.kettle": "Пивоваренный котёл",
   "block.brewery.spout": "Носик для розлива",
   "block.brewery.distillery": "Перегонный куб",
-  "block.brewery.barrel": "Дубовая бочка",
-  "container.brewery.barrel": "Дубовая бочка",
+  "block.brewery.barrel": "Бочка для выдержки",
+  "container.brewery.barrel": "Бочка для выдержки",
   "gui.brewery.barrel_start": "Начать",
   "gui.brewery.barrel_days": "Дни: %s",
   "gui.brewery.barrel_ready": "Готово",
@@ -43,5 +43,6 @@
   "drink.brewery.cane_mash": "Тростниковая брага",
   "drink.brewery.rum": "Ром",
   "drink.brewery.aged_rum": "Выдержанный ром",
-  "tooltip.brewery.distillate_aging": "Выдержка: %s дн., %s"
+  "tooltip.brewery.distillate_aging": "Выдержка: %s дн., %s",
+  "tooltip.brewery.distillate_pour": "ПКМ: разлить в пустую бутылку из инвентаря"
 }

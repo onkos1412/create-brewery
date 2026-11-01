@@ -11,6 +11,10 @@ import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.items.SlotItemHandler;
 
 public class BarrelMenu extends AbstractContainerMenu {
+    private static final int OUTPUT_SLOT = 2;
+    private static final int BOTTLE_SLOT = 3;
+    private static final int MACHINE_SLOTS = 4;
+
     private final BarrelBlockEntity barrel;
     private final ContainerData data = new Data();
 
@@ -30,7 +34,23 @@ public class BarrelMenu extends AbstractContainerMenu {
             public boolean mayPlace(ItemStack stack) {
                 return false;
             }
+
+            /** Taking the drink here costs an empty bottle, the same as at a funnel or the spout. */
+            @Override
+            public boolean mayPickup(Player player) {
+                return (barrel == null || barrel.hasBottle()) && super.mayPickup(player);
+            }
+
+            @Override
+            public void onTake(Player player, ItemStack stack) {
+                if (barrel != null) {
+                    barrel.spendBottle();
+                }
+                super.onTake(player, stack);
+            }
         });
+        addSlot(new SlotItemHandler(barrel == null ? new net.neoforged.neoforge.items.ItemStackHandler(1)
+                : barrel.getBottles(), 0, 116, 15));
         for (int row = 0; row < 3; row++) {
             for (int col = 0; col < 9; col++) {
                 addSlot(new Slot(inventory, col + row * 9 + 9, 8 + col * 18, 84 + row * 18));
@@ -82,11 +102,15 @@ public class BarrelMenu extends AbstractContainerMenu {
             return ItemStack.EMPTY;
         }
         ItemStack original = slot.getItem().copy();
-        if (index < 3) {
-            if (!moveItemStackTo(slot.getItem(), 3, slots.size(), true)) {
+        if (index < MACHINE_SLOTS) {
+            if (!moveItemStackTo(slot.getItem(), MACHINE_SLOTS, slots.size(), true)) {
                 return ItemStack.EMPTY;
             }
-        } else if (!moveItemStackTo(slot.getItem(), 0, 2, false)) {
+            if (index == OUTPUT_SLOT && barrel != null) {
+                barrel.spendBottle();
+            }
+        } else if (!moveItemStackTo(slot.getItem(), 0, OUTPUT_SLOT, false)
+                && !moveItemStackTo(slot.getItem(), BOTTLE_SLOT, MACHINE_SLOTS, false)) {
             return ItemStack.EMPTY;
         }
         return original;

@@ -43,9 +43,14 @@ final class MachineWidgets {
 
     /** Lights a 22x15 arrow from the left over the frame's dim one. */
     static void arrow(GuiGraphics graphics, int x, int y, int progress, int total) {
-        int width = Mth.clamp(progress, 0, total) * 22 / total;
+        arrow(graphics, x, y, progress, total, 0);
+    }
+
+    /** The same arrow without its first {@code skip} columns, for a tail hidden under a slot frame. */
+    static void arrow(GuiGraphics graphics, int x, int y, int progress, int total, int skip) {
+        int width = Mth.clamp(progress, 0, total) * (22 - skip) / total;
         if (width > 0) {
-            graphics.blit(PARTS, x, y, 0, 0, width, 15);
+            graphics.blit(PARTS, x, y, skip, 0, width, 15);
         }
     }
 

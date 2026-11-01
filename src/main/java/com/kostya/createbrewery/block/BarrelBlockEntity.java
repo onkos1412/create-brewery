@@ -12,6 +12,7 @@ import net.minecraft.core.HolderLookup;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.neoforged.neoforge.items.IItemHandler;
@@ -22,6 +23,7 @@ import org.jetbrains.annotations.Nullable;
 public class BarrelBlockEntity extends BlockEntity {
     private static final int WOOD_SLOT = 1;
     private static final int OUTPUT_SLOT = 2;
+    private static final int BOTTLE_SLOT = 3;
 
     private long startedAt = -1L;
     private String woodId = "";
@@ -61,22 +63,45 @@ public class BarrelBlockEntity extends BlockEntity {
         }
     };
 
-    /** Funnels may fill distillate (0) and wood (1) and take only the finished drink (2). */
+    /** Empty bottles waiting for the drink. The spout instead takes one from the player's hand. */
+    private final ItemStackHandler bottles = new ItemStackHandler(1) {
+        @Override
+        protected void onContentsChanged(int slot) {
+            setChanged();
+        }
+
+        @Override
+        public boolean isItemValid(int slot, ItemStack stack) {
+            return stack.is(Items.GLASS_BOTTLE);
+        }
+    };
+
+    /**
+     * Funnels may fill distillate (0), wood (1) and empty bottles (3), and take only the
+     * finished drink (2), which costs one of those bottles.
+     */
     private final IItemHandler automationItems = new IItemHandler() {
         @Override
         public int getSlots() {
-            return 3;
+            return 4;
         }
 
         @Override
         public ItemStack getStackInSlot(int slot) {
-            return slot == OUTPUT_SLOT ? output.getStackInSlot(0) : input.getStackInSlot(slot);
+            return switch (slot) {
+                case OUTPUT_SLOT -> output.getStackInSlot(0);
+                case BOTTLE_SLOT -> bottles.getStackInSlot(0);
+                default -> input.getStackInSlot(slot);
+            };
         }
 
         @Override
         public ItemStack insertItem(int slot, ItemStack stack, boolean simulate) {
             if (slot == OUTPUT_SLOT) {
                 return stack;
+            }
+            if (slot == BOTTLE_SLOT) {
+                return bottles.insertItem(0, stack, simulate);
             }
             ItemStack remainder = input.insertItem(slot, stack, simulate);
             if (!simulate && remainder.getCount() < stack.getCount()) {
@@ -88,19 +113,47 @@ public class BarrelBlockEntity extends BlockEntity {
 
         @Override
         public ItemStack extractItem(int slot, int amount, boolean simulate) {
-            return slot == OUTPUT_SLOT ? output.extractItem(0, amount, simulate) : ItemStack.EMPTY;
+            if (slot != OUTPUT_SLOT || !hasBottle()) {
+                return ItemStack.EMPTY;
+            }
+            ItemStack taken = output.extractItem(0, amount, simulate);
+            if (!simulate && !taken.isEmpty()) {
+                spendBottle();
+            }
+            return taken;
         }
 
         @Override
         public int getSlotLimit(int slot) {
-            return slot == OUTPUT_SLOT ? output.getSlotLimit(0) : input.getSlotLimit(slot);
+            return switch (slot) {
+                case OUTPUT_SLOT -> output.getSlotLimit(0);
+                case BOTTLE_SLOT -> bottles.getSlotLimit(0);
+                default -> input.getSlotLimit(slot);
+            };
         }
 
         @Override
         public boolean isItemValid(int slot, ItemStack stack) {
-            return slot != OUTPUT_SLOT && input.isItemValid(slot, stack);
+            return switch (slot) {
+                case OUTPUT_SLOT -> false;
+                case BOTTLE_SLOT -> bottles.isItemValid(0, stack);
+                default -> input.isItemValid(slot, stack);
+            };
         }
     };
+
+    public ItemStackHandler getBottles() {
+        return bottles;
+    }
+
+    public boolean hasBottle() {
+        return !bottles.getStackInSlot(0).isEmpty();
+    }
+
+    /** Pays for a drink taken without the spout. */
+    public void spendBottle() {
+        bottles.extractItem(0, 1, false);
+    }
 
     public BarrelBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlocks.BARREL_BLOCK_ENTITY.get(), pos, state);
@@ -212,6 +265,7 @@ public class BarrelBlockEntity extends BlockEntity {
         tag.putBoolean("AutoStart", autoStart);
         tag.put("Input", input.serializeNBT(registries));
         tag.put("Output", output.serializeNBT(registries));
+        tag.put("Bottles", bottles.serializeNBT(registries));
     }
 
     @Override
@@ -225,6 +279,9 @@ public class BarrelBlockEntity extends BlockEntity {
         }
         if (tag.contains("Output")) {
             output.deserializeNBT(registries, tag.getCompound("Output"));
+        }
+        if (tag.contains("Bottles")) {
+            bottles.deserializeNBT(registries, tag.getCompound("Bottles"));
         }
     }
 }
