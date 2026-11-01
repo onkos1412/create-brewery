@@ -25,6 +25,16 @@ class AgingRulesTest {
     }
 
     @Test
+    void aDrinkLeftInTheBarrelLosesAStarPerPeriod() {
+        long day = AgingRules.TICKS_PER_DAY;
+        assertEquals(5, AgingRules.overAgedStars(5, 0, 3));
+        assertEquals(5, AgingRules.overAgedStars(5, 3 * day - 1, 3));
+        assertEquals(4, AgingRules.overAgedStars(5, 3 * day, 3));
+        assertEquals(1, AgingRules.overAgedStars(5, 100 * day, 3));
+        assertEquals(1, AgingRules.overAgedStars(1, 3 * day, 3));
+    }
+
+    @Test
     void acceptsAnyWoodButNothingElse() {
         assertTrue(AgingRules.isAcceptedWood("minecraft:oak_log"));
         assertTrue(AgingRules.isAcceptedWood("minecraft:spruce_planks"));

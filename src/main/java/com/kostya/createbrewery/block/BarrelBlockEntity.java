@@ -27,6 +27,9 @@ public class BarrelBlockEntity extends BlockEntity {
     private static final int BOTTLE_SLOT = 3;
 
     private long startedAt = -1L;
+    private long finishedAt = -1L;
+    private int finishedStars = DrinkData.MAX_STARS;
+    private int finishedDays = 1;
     private String woodId = "";
     /** Set once automation feeds the barrel, so it keeps aging without the GUI button. */
     private boolean autoStart;
@@ -245,10 +248,30 @@ public class BarrelBlockEntity extends BlockEntity {
         return true;
     }
 
-    public void serverTick() {
-        if (level == null || level.isClientSide() || !output.getStackInSlot(0).isEmpty()) {
+    /** Takes stars off a finished drink nobody has collected. */
+    private void overAge() {
+        ItemStack drink = output.getStackInSlot(0);
+        DrinkData data = drink.get(ModDataComponents.DRINK_DATA.get());
+        if (finishedAt < 0 || data == null) {
             return;
         }
+        int stars = AgingRules.overAgedStars(finishedStars, Math.max(0L, level.getDayTime() - finishedAt), finishedDays);
+        if (stars != data.stars()) {
+            ItemStack worse = drink.copy();
+            worse.set(ModDataComponents.DRINK_DATA.get(), new DrinkData(stars, data.alcohol(), data.stage()));
+            output.setStackInSlot(0, worse);
+        }
+    }
+
+    public void serverTick() {
+        if (level == null || level.isClientSide()) {
+            return;
+        }
+        if (!output.getStackInSlot(0).isEmpty()) {
+            overAge();
+            return;
+        }
+        finishedAt = -1L;
         if (startedAt < 0 && (!autoStart || !startAging())) {
             return;
         }
@@ -271,6 +294,9 @@ public class BarrelBlockEntity extends BlockEntity {
                 young ? profile.distilledAlcohol() : result.alcohol(),
                 stage == null ? DrinkProfile.BEER.aged() : stage));
         output.setStackInSlot(0, aged);
+        finishedAt = level.getDayTime();
+        finishedStars = result.stars();
+        finishedDays = profile.agingDays();
         if (young) {
             // The bottle it came in is empty now: it waits with the others, or falls out if they are full.
             ItemStack spare = bottles.insertItem(0, new ItemStack(Items.GLASS_BOTTLE), false);
@@ -286,6 +312,9 @@ public class BarrelBlockEntity extends BlockEntity {
     protected void saveAdditional(CompoundTag tag, HolderLookup.Provider registries) {
         super.saveAdditional(tag, registries);
         tag.putLong("StartedAt", startedAt);
+        tag.putLong("FinishedAt", finishedAt);
+        tag.putInt("FinishedStars", finishedStars);
+        tag.putInt("FinishedDays", finishedDays);
         tag.putString("Wood", woodId);
         tag.putBoolean("AutoStart", autoStart);
         tag.put("Input", input.serializeNBT(registries));
@@ -297,6 +326,9 @@ public class BarrelBlockEntity extends BlockEntity {
     protected void loadAdditional(CompoundTag tag, HolderLookup.Provider registries) {
         super.loadAdditional(tag, registries);
         startedAt = tag.contains("StartedAt") ? tag.getLong("StartedAt") : -1L;
+        finishedAt = tag.contains("FinishedAt") ? tag.getLong("FinishedAt") : -1L;
+        finishedStars = tag.contains("FinishedStars") ? tag.getInt("FinishedStars") : DrinkData.MAX_STARS;
+        finishedDays = tag.contains("FinishedDays") ? tag.getInt("FinishedDays") : 1;
         woodId = tag.getString("Wood");
         autoStart = tag.getBoolean("AutoStart");
         if (tag.contains("Input")) {

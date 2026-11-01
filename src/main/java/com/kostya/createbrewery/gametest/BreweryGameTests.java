@@ -265,6 +265,66 @@ public class BreweryGameTests {
         });
     }
 
+    /** Collected on time a drink stays perfect; left two more aging periods it loses two stars. */
+    @GameTest(template = "empty", timeoutTicks = 300, batch = "aging_over")
+    public static void uncollectedDrinkOverAges(GameTestHelper helper) {
+        helper.setBlock(BARREL, ModBlocks.BARREL.get());
+        BarrelBlockEntity barrel = helper.getBlockEntity(BARREL);
+        ItemStack whiskey = new ItemStack(ModItems.DISTILLATE.get());
+        whiskey.set(ModDataComponents.DRINK_DATA.get(), new DrinkData(5, 40, "whiskey"));
+        barrel.getInput().setStackInSlot(0, whiskey);
+        barrel.getInput().setStackInSlot(1, new ItemStack(Items.OAK_LOG));
+        barrel.startAging();
+        long period = barrel.getRequiredTicks();
+
+        helper.startSequence()
+                .thenExecute(() -> helper.getLevel().setDayTime(helper.getLevel().getDayTime() + period))
+                .thenWaitUntil(() -> helper.assertFalse(barrel.getOutput().getStackInSlot(0).isEmpty(), "not finished"))
+                .thenExecuteAfter(2, () -> {
+                    helper.assertTrue(data(barrel.getOutput().getStackInSlot(0)).stars() == 5, "lost stars at once");
+                    helper.getLevel().setDayTime(helper.getLevel().getDayTime() + 2 * period);
+                })
+                .thenWaitUntil(() -> {
+                    int stars = data(barrel.getOutput().getStackInSlot(0)).stars();
+                    helper.assertTrue(stars == 3, "stars after over-aging: " + stars);
+                })
+                .thenSucceed();
+    }
+
+    /** Spec: contents survive a world restart. Each machine is saved and read back into a new block entity. */
+    @GameTest(template = "empty", timeoutTicks = 100)
+    public static void machineStateSurvivesSaving(GameTestHelper helper) {
+        var registries = helper.getLevel().registryAccess();
+        KettleBlockEntity kettle = placeKettle(helper, Items.APPLE);
+        helper.setBlock(KETTLE.below(), Blocks.AIR);
+        kettle.getInput().setStackInSlot(1, new ItemStack(Items.APPLE, 5));
+        helper.setBlock(BARREL, ModBlocks.BARREL.get());
+        BarrelBlockEntity barrel = helper.getBlockEntity(BARREL);
+        barrel.getBottles().setStackInSlot(0, new ItemStack(Items.GLASS_BOTTLE, 7));
+        barrel.getInput().setStackInSlot(1, new ItemStack(Items.BIRCH_LOG, 3));
+        helper.setBlock(DISTILLERY, ModBlocks.DISTILLERY.get());
+        DistilleryBlockEntity still = helper.getBlockEntity(DISTILLERY);
+        FluidStack wort = new FluidStack(ModFluids.WORT.get(), 600);
+        wort.set(ModDataComponents.DRINK_DATA.get(), new DrinkData(3, 0, "cider"));
+        still.getFluidHandler().fill(wort, IFluidHandler.FluidAction.EXECUTE);
+
+        KettleBlockEntity kettle2 = new KettleBlockEntity(kettle.getBlockPos(), kettle.getBlockState());
+        kettle2.loadWithComponents(kettle.saveWithFullMetadata(registries), registries);
+        helper.assertTrue(kettle2.getWaterAmount() == 1000, "water " + kettle2.getWaterAmount());
+        helper.assertTrue(kettle2.getInput().getStackInSlot(1).getCount() == 5, "kettle items lost");
+
+        BarrelBlockEntity barrel2 = new BarrelBlockEntity(barrel.getBlockPos(), barrel.getBlockState());
+        barrel2.loadWithComponents(barrel.saveWithFullMetadata(registries), registries);
+        helper.assertTrue(barrel2.getBottles().getStackInSlot(0).getCount() == 7, "bottles lost");
+        helper.assertTrue(barrel2.getInput().getStackInSlot(1).is(Items.BIRCH_LOG), "wood lost");
+
+        DistilleryBlockEntity still2 = new DistilleryBlockEntity(still.getBlockPos(), still.getBlockState());
+        still2.loadWithComponents(still.saveWithFullMetadata(registries), registries);
+        helper.assertTrue(still2.getWortAmount() == 600, "wort " + still2.getWortAmount());
+        helper.assertTrue(still2.getInputStars() == 3, "stars " + still2.getInputStars());
+        helper.succeed();
+    }
+
     /** Drinks that are already finished must not go into the barrel a second time. */
     @GameTest(template = "empty")
     public static void barrelRefusesFinishedBottles(GameTestHelper helper) {

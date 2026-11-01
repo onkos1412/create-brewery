@@ -28,6 +28,15 @@ public final class AgingRules {
         return isValidWood(woodId) ? 100 : 60;
     }
 
+    /**
+     * A finished drink left in the barrel keeps aging past its best: one star for every
+     * further full aging period, never below one star.
+     */
+    public static int overAgedStars(int stars, long ticksSinceFinished, int days) {
+        long periods = ticksSinceFinished / (days * TICKS_PER_DAY);
+        return (int) Math.max(1, stars - periods);
+    }
+
     /** Whether {@code woodId} is the planks or log of {@code wood}, such as {@code dark_oak}. */
     public static boolean isPreferredWood(String woodId, String wood) {
         return woodId.endsWith(":" + wood + "_planks") || woodId.endsWith(":" + wood + "_log");
