@@ -6,6 +6,7 @@ import javax.imageio.ImageIO;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class DistilleryGuiResourcesTest {
@@ -23,5 +24,6 @@ class DistilleryGuiResourcesTest {
                 "distillery GUI must not be a copy of the kettle GUI");
         assertTrue(screen.contains("gui.brewery.distillery_load"));
         assertTrue(screen.contains("gui.brewery.distillery_stats"));
+        assertFalse(screen.contains("getIdealRpm"), "the still must not show its ideal speed");
     }
 }

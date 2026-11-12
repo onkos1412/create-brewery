@@ -34,6 +34,8 @@ class MachineGuiLayoutTest {
         assertTrue(english.contains("\"gui.brewery.barrel_days\": \"%s d.\""));
         assertTrue(russian.contains("\"gui.brewery.barrel_days\": \"%s дн.\""));
         assertTrue(russian.contains("\"gui.brewery.distillery_load\": \"Загрузить\""));
+        assertTrue(english.contains("\"gui.brewery.distillery_stats\": \"%s RPM\""));
+        assertTrue(russian.contains("\"gui.brewery.distillery_stats\": \"%s об/мин\""));
     }
 
     @Test
@@ -47,5 +49,6 @@ class MachineGuiLayoutTest {
         assertTrue(screen.contains("inventoryLabelY = 74"));
         assertTrue(screen.contains("gui.brewery.distillery_status"));
         assertTrue(screen.contains("gui.brewery.distillery_stats"));
+        assertTrue(screen.contains("MAX_RPM = 256"));
     }
 }

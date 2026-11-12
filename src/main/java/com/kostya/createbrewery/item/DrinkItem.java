@@ -4,8 +4,6 @@ import com.kostya.createbrewery.DrinkData;
 import com.kostya.createbrewery.drunk.DrunkManager;
 import com.kostya.createbrewery.quality.QualityRules;
 import com.kostya.createbrewery.quality.StarLine;
-import com.kostya.createbrewery.recipe.BrewingRecipe;
-import com.kostya.createbrewery.recipe.DrinkProfile;
 import com.kostya.createbrewery.registry.ModDataComponents;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.component.DataComponentMap;
@@ -106,14 +104,6 @@ public class DrinkItem extends Item {
             tooltip.add(Component.translatable("drink.brewery." + data.stage()).withStyle(ChatFormatting.GRAY));
             tooltip.add(Component.translatable("tooltip.brewery.drink_data", StarLine.of(data.stars()))
                     .withStyle(ChatFormatting.GRAY));
-            if (context.level() != null) {
-                DrinkProfile drink = BrewingRecipe.profileOf(context.level(), data.stage());
-                if (drink.id().equals(data.stage()) && drink.agesInTheBottle()) {
-                    tooltip.add(Component.translatable("tooltip.brewery.distillate_aging", drink.agingDays(),
-                                    Component.translatable("block.minecraft." + drink.wood() + "_planks"))
-                            .withStyle(ChatFormatting.GRAY));
-                }
-            }
         }
     }
 }

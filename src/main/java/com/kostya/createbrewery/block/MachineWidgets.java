@@ -24,7 +24,6 @@ final class MachineWidgets {
     static final int IDLE = 0xFFB8C4B8;
 
     private static final int GAUGE_TRACK = 0xFF1C211E;
-    private static final int GAUGE_MARK = 0xFFFFFFFF;
 
     private MachineWidgets() {
     }
@@ -95,12 +94,11 @@ final class MachineWidgets {
         graphics.pose().popPose();
     }
 
-    /** A speed gauge whose middle mark is the ideal: the bar reaches it at exactly the right speed. */
-    static void speedGauge(GuiGraphics graphics, int x, int y, int width, int height, float rpm, int ideal, int color) {
+    /** A speed gauge from zero to {@code maxRpm}; it shows the speed, never the right one. */
+    static void speedGauge(GuiGraphics graphics, int x, int y, int width, int height, float rpm, int maxRpm, int color) {
         graphics.fill(x, y, x + width, y + height, GAUGE_TRACK);
-        int fill = Mth.clamp(Math.round(rpm * width / (2f * Math.max(1, ideal))), 0, width);
+        int fill = Mth.clamp(Math.round(rpm * width / Math.max(1, maxRpm)), 0, width);
         graphics.fill(x, y + 1, x + fill, y + height - 1, color);
-        graphics.fill(x + width / 2, y, x + width / 2 + 1, y + height, GAUGE_MARK);
     }
 
     static void flame(GuiGraphics graphics, int x, int y, boolean lit) {

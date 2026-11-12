@@ -75,7 +75,7 @@ public final class BreweryPonder implements PonderPlugin {
         scene.overlay().showControls(util.vector().topOf(kettle), Pointing.DOWN, 40)
                 .withItem(new ItemStack(Items.WHEAT));
         scene.idle(50);
-        say(scene, util, kettle, Direction.WEST, "Add ingredients in its menu or by funnel. The kettle takes one batch at a time");
+        say(scene, util, kettle, Direction.WEST, "The kettle brews everything inside it. Add more and the brew starts over");
 
         scene.world().cycleBlockProperty(kettle, KettleBlock.BREWING);
         say(scene, util, kettle, Direction.UP, "After a while the water has become wort, ready for the next machine");
@@ -84,7 +84,7 @@ public final class BreweryPonder implements PonderPlugin {
         scene.overlay().showControls(util.vector().centerOf(spout), Pointing.DOWN, 40)
                 .rightClick().withItem(new ItemStack(Items.GLASS_BOTTLE));
         scene.idle(50);
-        say(scene, util, spout, Direction.NORTH, "A spout on the kettle bottles it straight away: beer, cider or young wine");
+        say(scene, util, spout, Direction.NORTH, "A spout on the kettle bottles the wort straight away");
         scene.markAsFinished();
     }
 
@@ -112,7 +112,7 @@ public final class BreweryPonder implements PonderPlugin {
         show(scene, util, motor, Direction.SOUTH);
         create.world().setKineticSpeed(util.select().position(motor), 32);
         create.world().setKineticSpeed(util.select().position(still), 32);
-        say(scene, util, motor, Direction.NORTH, "Drive the shaft in its back. Each drink has its own ideal speed, shown in the menu");
+        say(scene, util, motor, Direction.NORTH, "Drive the shaft in its back. Each drink has its own speed: find it by the stars");
 
         scene.overlay().showText(TEXT_TICKS)
                 .text("Close to the ideal speed keeps the stars. Half of it costs most of them, and double spoils the batch")
@@ -125,7 +125,7 @@ public final class BreweryPonder implements PonderPlugin {
         scene.overlay().showControls(util.vector().topOf(still), Pointing.DOWN, 40)
                 .withItem(new ItemStack(ModItems.DISTILLATE.get()));
         scene.idle(50);
-        say(scene, util, still, Direction.SOUTH, "The distillate goes to a barrel. Vodka needs none: pour it with a spout or from your hand");
+        say(scene, util, still, Direction.SOUTH, "The distillate goes to a barrel, and some can be bottled at once with a spout or from your hand");
         scene.markAsFinished();
     }
 
@@ -139,7 +139,7 @@ public final class BreweryPonder implements PonderPlugin {
         scene.overlay().showControls(util.vector().topOf(barrel), Pointing.DOWN, 40)
                 .withItem(new ItemStack(ModItems.DISTILLATE.get()));
         scene.idle(50);
-        say(scene, util, barrel, Direction.WEST, "The barrel takes distillate, or a bottle of young wine or mead");
+        say(scene, util, barrel, Direction.WEST, "The barrel takes distillate, or a bottle of a young drink");
 
         scene.overlay().showControls(util.vector().topOf(barrel), Pointing.DOWN, 40)
                 .withItem(new ItemStack(Items.DARK_OAK_LOG));

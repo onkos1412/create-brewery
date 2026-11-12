@@ -2,8 +2,6 @@ package com.kostya.createbrewery.block;
 
 import com.kostya.createbrewery.distillery.DistilleryLogic;
 import com.kostya.createbrewery.distillery.DistillingRules;
-import com.kostya.createbrewery.DrinkData;
-import com.kostya.createbrewery.quality.QualityRules;
 import com.kostya.createbrewery.quality.StarLine;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
@@ -27,6 +25,7 @@ public class DistilleryScreen extends AbstractContainerScreen<DistilleryMenu> {
     private static final int GAUGE_Y = 58;
     private static final int GAUGE_WIDTH = 92;
     private static final int GAUGE_HEIGHT = 10;
+    private static final int MAX_RPM = 256;
 
     public DistilleryScreen(DistilleryMenu menu, Inventory inventory, Component title) {
         super(menu, inventory, title);
@@ -48,24 +47,13 @@ public class DistilleryScreen extends AbstractContainerScreen<DistilleryMenu> {
         String status = statusKey();
         MachineWidgets.text(graphics, font, Component.translatable(status), leftPos + DISPLAY_X, topPos + 20, DISPLAY_WIDTH,
                 status.endsWith("running") || status.endsWith("done") ? MachineWidgets.GOOD : MachineWidgets.BAD);
-        int speedColor = speedColor();
-        MachineWidgets.text(graphics, font, Component.translatable("gui.brewery.distillery_stats",
-                        menu.getRpm(), menu.getIdealRpm()), leftPos + DISPLAY_X, topPos + 31, DISPLAY_WIDTH, speedColor);
+        MachineWidgets.text(graphics, font, Component.translatable("gui.brewery.distillery_stats", menu.getRpm()),
+                leftPos + DISPLAY_X, topPos + 31, DISPLAY_WIDTH, MachineWidgets.IDLE);
         if (menu.getWort() > 0) {
             graphics.drawString(font, StarLine.of(menu.getWortStars()), leftPos + DISPLAY_X, topPos + 42, 0xFFFFFF, false);
         }
         MachineWidgets.speedGauge(graphics, leftPos + GAUGE_X, topPos + GAUGE_Y, GAUGE_WIDTH, GAUGE_HEIGHT,
-                menu.getRpm(), menu.getIdealRpm(), speedColor);
-    }
-
-    /** Green while the speed alone would still earn five stars, the same sum the still itself does. */
-    private int speedColor() {
-        if (menu.getRpm() < DistillingRules.MIN_RPM) {
-            return MachineWidgets.BAD;
-        }
-        int ideal = Math.max(1, menu.getIdealRpm());
-        int score = Math.round(100f * (1f - Math.min(1f, Math.abs(menu.getRpm() - ideal) / (float) ideal)));
-        return QualityRules.starsFromScore(score) == DrinkData.MAX_STARS ? MachineWidgets.GOOD : MachineWidgets.WARN;
+                menu.getRpm(), MAX_RPM, MachineWidgets.IDLE);
     }
 
     private String statusKey() {

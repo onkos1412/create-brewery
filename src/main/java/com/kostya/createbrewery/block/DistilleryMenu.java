@@ -77,10 +77,6 @@ public class DistilleryMenu extends AbstractContainerMenu {
                 com.kostya.createbrewery.DrinkData.MAX_STARS);
     }
 
-    public int getIdealRpm() {
-        return data.get(5);
-    }
-
     @Override
     public boolean stillValid(Player player) {
         return distillery == null || stillValid(
@@ -132,7 +128,6 @@ public class DistilleryMenu extends AbstractContainerMenu {
                 case 2 -> Math.round(distillery.getRpm());
                 case 3 -> distillery.getWortAmount();
                 case 4 -> distillery.getProfile().distillTicks();
-                case 5 -> distillery.getProfile().idealRpm();
                 case 6 -> distillery.getProfile().color() >>> 16;
                 case 7 -> distillery.getProfile().color() & 0xFFFF;
                 case 8 -> distillery.getInputStars();
