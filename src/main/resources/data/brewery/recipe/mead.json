@@ -25,6 +25,10 @@
     "aged": "mead",
     "agingDays": 2,
     "wood": "spruce",
-    "color": "#f0b52e"
+    "color": "#f0b52e",
+    "effects": {
+      "young_mead": [{"effect": "minecraft:regeneration", "seconds": 5}],
+      "mead": [{"effect": "minecraft:regeneration", "seconds": 10}]
+    }
   }
 }

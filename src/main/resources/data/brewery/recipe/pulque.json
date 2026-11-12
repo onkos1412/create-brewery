@@ -28,6 +28,10 @@
     "idealRpm": 72,
     "agingDays": 3,
     "wood": "acacia",
-    "color": "#d9d6b8"
+    "color": "#d9d6b8",
+    "effects": {
+      "tequila": [{"effect": "minecraft:speed", "seconds": 60}],
+      "aged_tequila": [{"effect": "minecraft:speed", "seconds": 120, "amplifier": 1}]
+    }
   }
 }

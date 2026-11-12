@@ -35,6 +35,17 @@ public final class QualityRules {
         return stars <= 1 ? 100 : 0;
     }
 
+    /** How much of its effects' duration a drink of this quality keeps: poor drinks give none. */
+    public static float effectDurationFactor(int stars) {
+        if (stars >= 5) {
+            return 1.0f;
+        }
+        if (stars == 4) {
+            return 0.75f;
+        }
+        return stars == 3 ? 0.5f : 0.0f;
+    }
+
     /** The weakest required stage determines the final quality. */
     public static int finalStars(List<Integer> scores) {
         if (scores.isEmpty()) {

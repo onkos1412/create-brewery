@@ -25,6 +25,9 @@
     "distilledAlcohol": 40,
     "distillTicks": 400,
     "idealRpm": 96,
-    "color": "#c9bd98"
+    "color": "#c9bd98",
+    "effects": {
+      "vodka": [{"effect": "minecraft:fire_resistance", "seconds": 90}]
+    }
   }
 }

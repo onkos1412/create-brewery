@@ -50,6 +50,15 @@ public record BrewingRecipe(
         return findProfile(level, drink -> drink.distilled().equals(stage));
     }
 
+    /**
+     * The profile of the recipe that makes the drink {@code stage}, whether bottled from the kettle, the still or the
+     * barrel. A stage no recipe makes gets {@link DrinkProfile#BEER}, which gives no effects.
+     */
+    public static DrinkProfile profileWithStage(Level level, String stage) {
+        return findProfile(level, drink -> drink.id().equals(stage) || drink.distilled().equals(stage)
+                || drink.aged().equals(stage));
+    }
+
     private static DrinkProfile findProfile(Level level, Predicate<DrinkProfile> test) {
         return level.getRecipeManager().getAllRecipesFor(ModRecipeTypes.BREWING.get()).stream()
                 .map(holder -> holder.value().drink())

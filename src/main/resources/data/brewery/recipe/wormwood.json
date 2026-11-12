@@ -25,6 +25,12 @@
     "distilledAlcohol": 65,
     "distillTicks": 300,
     "idealRpm": 112,
-    "color": "#7fa83a"
+    "color": "#7fa83a",
+    "effects": {
+      "absinthe": [
+        {"effect": "minecraft:night_vision", "seconds": 120},
+        {"effect": "minecraft:nausea", "seconds": 15}
+      ]
+    }
   }
 }

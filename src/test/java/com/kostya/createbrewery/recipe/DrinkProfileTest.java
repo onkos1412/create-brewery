@@ -2,6 +2,7 @@ package com.kostya.createbrewery.recipe;
 
 import com.google.gson.JsonParser;
 import com.mojang.serialization.JsonOps;
+import net.minecraft.resources.ResourceLocation;
 import org.junit.jupiter.api.Test;
 
 import java.nio.file.Files;
@@ -82,5 +83,30 @@ class DrinkProfileTest {
 
         assertFalse(kvass.canDistill());
         assertFalse(kvass.canAge());
+    }
+
+    @Test
+    void shippedRecipesCarryTheirEffects() throws Exception {
+        assertEquals(List.of(new DrinkEffect(ResourceLocation.parse("minecraft:speed"), 60, 0)),
+                read("pulque").effects().get("tequila"));
+        assertEquals(List.of(new DrinkEffect(ResourceLocation.parse("minecraft:speed"), 120, 1)),
+                read("pulque").effects().get("aged_tequila"));
+        assertEquals(2, read("wormwood").effects().get("absinthe").size());
+        assertEquals(2, read("glow").effects().get("firefly_liqueur").size());
+        assertTrue(read("beer").effects().isEmpty());
+    }
+
+    @Test
+    void effectsOfAnotherStageAreRejected() {
+        var json = JsonParser.parseString("{\"id\": \"kvass\", \"alcohol\": 5, "
+                + "\"effects\": {\"tequila\": [{\"effect\": \"minecraft:speed\", \"seconds\": 60}]}}");
+        assertTrue(DrinkProfile.CODEC.parse(JsonOps.INSTANCE, json).isError());
+    }
+
+    @Test
+    void effectsLastAtLeastASecond() {
+        var json = JsonParser.parseString("{\"id\": \"kvass\", \"alcohol\": 5, "
+                + "\"effects\": {\"kvass\": [{\"effect\": \"minecraft:speed\", \"seconds\": 0}]}}");
+        assertTrue(DrinkProfile.CODEC.parse(JsonOps.INSTANCE, json).isError());
     }
 }

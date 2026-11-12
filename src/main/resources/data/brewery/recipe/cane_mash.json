@@ -28,6 +28,9 @@
     "idealRpm": 48,
     "agingDays": 5,
     "wood": "dark_oak",
-    "color": "#8f5a2a"
+    "color": "#8f5a2a",
+    "effects": {
+      "aged_rum": [{"effect": "minecraft:water_breathing", "seconds": 120}]
+    }
   }
 }

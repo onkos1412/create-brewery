@@ -37,6 +37,15 @@ class QualityRulesTest {
     }
 
     @Test
+    void drinkEffectsFadeWithQuality() {
+        assertEquals(1.0f, QualityRules.effectDurationFactor(5));
+        assertEquals(0.75f, QualityRules.effectDurationFactor(4));
+        assertEquals(0.5f, QualityRules.effectDurationFactor(3));
+        assertEquals(0.0f, QualityRules.effectDurationFactor(2));
+        assertEquals(0.0f, QualityRules.effectDurationFactor(1));
+    }
+
+    @Test
     void finalQualityUsesTheWeakestRequiredStage() {
         assertEquals(4, QualityRules.finalStars(List.of(100, 80, 95)));
         assertEquals(5, QualityRules.finalStars(List.of(100, 100, 100)));

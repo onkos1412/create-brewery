@@ -28,6 +28,13 @@
     "idealRpm": 40,
     "agingDays": 3,
     "wood": "cherry",
-    "color": "#f0a830"
+    "color": "#f0a830",
+    "effects": {
+      "glow_spirit": [{"effect": "minecraft:glowing", "seconds": 60}],
+      "firefly_liqueur": [
+        {"effect": "minecraft:night_vision", "seconds": 180},
+        {"effect": "minecraft:glowing", "seconds": 60}
+      ]
+    }
   }
 }

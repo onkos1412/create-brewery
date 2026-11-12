@@ -31,6 +31,7 @@ import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.world.InteractionHand;
+import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.item.ItemEntity;
@@ -1136,6 +1137,36 @@ public class BreweryGameTests {
             helper.assertTrue(player.hasEffect(MobEffects.CONFUSION) == (stars <= 2), stars + " stars nausea");
             helper.assertTrue(player.hasEffect(MobEffects.POISON) == (stars == 1), stars + " stars poison");
         }
+        helper.succeed();
+    }
+
+    /** A drink gives its own effect, shorter for a poorer star count and none for a bad one. */
+    @GameTest(template = "empty")
+    public static void drinkingTequilaGivesSpeed(GameTestHelper helper) {
+        Player player = helper.makeMockPlayer(GameType.SURVIVAL);
+        ItemStack bottle = new ItemStack(ModItems.DRINK_BOTTLE.get());
+        bottle.set(ModDataComponents.DRINK_DATA.get(), new DrinkData(5, 40, "tequila"));
+        bottle.getItem().finishUsingItem(bottle, helper.getLevel(), player);
+        MobEffectInstance speed = player.getEffect(MobEffects.MOVEMENT_SPEED);
+        helper.assertTrue(speed != null && Math.abs(speed.getDuration() - 1200) <= 20,
+                "5 stars speed " + (speed == null ? "none" : speed.getDuration()));
+
+        Player poor = helper.makeMockPlayer(GameType.SURVIVAL);
+        ItemStack weak = new ItemStack(ModItems.DRINK_BOTTLE.get());
+        weak.set(ModDataComponents.DRINK_DATA.get(), new DrinkData(2, 40, "tequila"));
+        weak.getItem().finishUsingItem(weak, helper.getLevel(), poor);
+        helper.assertTrue(!poor.hasEffect(MobEffects.MOVEMENT_SPEED), "2 stars gave speed");
+        helper.succeed();
+    }
+
+    /** Muddy drinks never give the effect of any stage. */
+    @GameTest(template = "empty")
+    public static void muddyGivesNoEffects(GameTestHelper helper) {
+        Player player = helper.makeMockPlayer(GameType.SURVIVAL);
+        ItemStack bottle = new ItemStack(ModItems.DRINK_BOTTLE.get());
+        bottle.set(ModDataComponents.DRINK_DATA.get(), new DrinkData(5, 2, "muddy"));
+        bottle.getItem().finishUsingItem(bottle, helper.getLevel(), player);
+        helper.assertTrue(player.getActiveEffects().isEmpty(), "muddy gave " + player.getActiveEffects());
         helper.succeed();
     }
 

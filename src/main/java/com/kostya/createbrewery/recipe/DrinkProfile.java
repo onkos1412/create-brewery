@@ -4,6 +4,9 @@ import com.mojang.serialization.Codec;
 import com.mojang.serialization.DataResult;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 
+import java.util.List;
+import java.util.Map;
+
 /**
  * The road a recipe's wort can travel, read from the recipe's {@code drink} block.
  *
@@ -17,9 +20,11 @@ import com.mojang.serialization.codecs.RecordCodecBuilder;
  * @param agingDays        game days in the barrel
  * @param wood             the wood that ages it perfectly, such as {@code oak}
  * @param color            the wort's colour as 0xRRGGBB, written {@code "#c98a1e"} in a recipe
+ * @param effects          what drinking each stage gives, keyed by stage: this recipe's id, distilled or aged
  */
 public record DrinkProfile(String id, int alcohol, String distilled, int distilledAlcohol, String aged,
-                           int distillTicks, int idealRpm, int agingDays, String wood, int color) {
+                           int distillTicks, int idealRpm, int agingDays, String wood, int color,
+                           Map<String, List<DrinkEffect>> effects) {
 
     private static final int BEER_COLOR = 0xC98A1E;
 
@@ -33,13 +38,13 @@ public record DrinkProfile(String id, int alcohol, String distilled, int distill
 
     /** Recipes without a {@code drink} block, and wort saved before they had one, are beer. */
     public static final DrinkProfile BEER =
-            new DrinkProfile("beer", 20, "whiskey", 40, "aged_whiskey", 200, 32, 3, "oak", BEER_COLOR);
+            new DrinkProfile("beer", 20, "whiskey", 40, "aged_whiskey", 200, 32, 3, "oak", BEER_COLOR, Map.of());
 
     /** What a mix that matches no recipe closely enough becomes: weak, and a dead end for the still and the barrel. */
     public static final DrinkProfile MUDDY =
-            new DrinkProfile("muddy", 2, "", 40, "", 200, 32, 3, "oak", 0x5B4A32);
+            new DrinkProfile("muddy", 2, "", 40, "", 200, 32, 3, "oak", 0x5B4A32, Map.of());
 
-    public static final Codec<DrinkProfile> CODEC = RecordCodecBuilder.create(instance -> instance.group(
+    public static final Codec<DrinkProfile> CODEC = RecordCodecBuilder.<DrinkProfile>create(instance -> instance.group(
             Codec.STRING.fieldOf("id").forGetter(DrinkProfile::id),
             Codec.intRange(0, 100).fieldOf("alcohol").forGetter(DrinkProfile::alcohol),
             Codec.STRING.optionalFieldOf("distilled", "").forGetter(DrinkProfile::distilled),
@@ -50,8 +55,20 @@ public record DrinkProfile(String id, int alcohol, String distilled, int distill
             Codec.intRange(1, 256).optionalFieldOf("idealRpm", 32).forGetter(DrinkProfile::idealRpm),
             Codec.intRange(1, Integer.MAX_VALUE).optionalFieldOf("agingDays", 3).forGetter(DrinkProfile::agingDays),
             Codec.STRING.optionalFieldOf("wood", "oak").forGetter(DrinkProfile::wood),
-            COLOR_CODEC.optionalFieldOf("color", BEER_COLOR).forGetter(DrinkProfile::color)
-    ).apply(instance, DrinkProfile::new));
+            COLOR_CODEC.optionalFieldOf("color", BEER_COLOR).forGetter(DrinkProfile::color),
+            Codec.unboundedMap(Codec.STRING, DrinkEffect.CODEC.listOf())
+                    .optionalFieldOf("effects", Map.of()).forGetter(DrinkProfile::effects)
+    ).apply(instance, DrinkProfile::new)).validate(DrinkProfile::checkEffectStages);
+
+    /** An effect keyed by a stage this recipe never makes could never be drunk, so the recipe is refused. */
+    private static DataResult<DrinkProfile> checkEffectStages(DrinkProfile profile) {
+        for (String stage : profile.effects.keySet()) {
+            if (!stage.equals(profile.id) && !stage.equals(profile.distilled) && !stage.equals(profile.aged)) {
+                return DataResult.error(() -> "Effects given for " + stage + ", which " + profile.id + " never makes");
+            }
+        }
+        return DataResult.success(profile);
+    }
 
     public boolean canDistill() {
         return !distilled.isEmpty();

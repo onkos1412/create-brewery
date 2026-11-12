@@ -1,16 +1,23 @@
 package com.kostya.createbrewery.item;
 
+import com.kostya.createbrewery.CreateBrewery;
 import com.kostya.createbrewery.DrinkData;
 import com.kostya.createbrewery.drunk.DrunkManager;
+import com.kostya.createbrewery.recipe.BrewingRecipe;
+import com.kostya.createbrewery.recipe.DrinkEffect;
+import com.kostya.createbrewery.recipe.DrinkProfile;
 import com.kostya.createbrewery.quality.QualityRules;
 import com.kostya.createbrewery.quality.StarLine;
 import com.kostya.createbrewery.registry.ModDataComponents;
 import net.minecraft.ChatFormatting;
+import net.minecraft.core.Holder;
 import net.minecraft.core.component.DataComponentMap;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResultHolder;
+import net.minecraft.world.effect.MobEffect;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.LivingEntity;
@@ -24,6 +31,7 @@ import net.minecraft.world.item.UseAnim;
 import net.minecraft.world.level.Level;
 
 import java.util.List;
+import java.util.Optional;
 
 /**
  * A bottle of a finished drink. Drinking it raises the player's blood alcohol level.
@@ -79,12 +87,33 @@ public class DrinkItem extends Item {
                 if (!data.isSpoiled() && QualityRules.poisonTicks(data.stars()) > 0) {
                     player.addEffect(new MobEffectInstance(MobEffects.POISON, QualityRules.poisonTicks(data.stars())));
                 }
+                if (!data.isSpoiled() && !data.stage().equals(DrinkProfile.MUDDY.id())) {
+                    applyDrinkEffects(player, level, data);
+                }
             }
             player.playSound(SoundEvents.PLAYER_BURP, 0.5f, level.random.nextFloat() * 0.1f + 0.9f);
             // Like a vanilla potion, the empty bottle comes back: production spends one for every drink.
             return ItemUtils.createFilledResult(stack, player, new ItemStack(Items.GLASS_BOTTLE));
         }
         return stack;
+    }
+
+    /** The drink's own effects, as long as its quality earns: a five-star drink keeps the recipe's full duration. */
+    private static void applyDrinkEffects(Player player, Level level, DrinkData data) {
+        float factor = QualityRules.effectDurationFactor(data.stars());
+        for (DrinkEffect drinkEffect : BrewingRecipe.profileWithStage(level, data.stage()).effects()
+                .getOrDefault(data.stage(), List.of())) {
+            int ticks = Math.round(drinkEffect.seconds() * 20 * factor);
+            if (ticks <= 0) {
+                continue;
+            }
+            Optional<Holder.Reference<MobEffect>> effect = BuiltInRegistries.MOB_EFFECT.getHolder(drinkEffect.effect());
+            if (effect.isEmpty()) {
+                CreateBrewery.LOGGER.warn("Drink {} gives unknown effect {}", data.stage(), drinkEffect.effect());
+                continue;
+            }
+            player.addEffect(new MobEffectInstance(effect.get(), ticks, drinkEffect.amplifier()));
+        }
     }
 
     @Override

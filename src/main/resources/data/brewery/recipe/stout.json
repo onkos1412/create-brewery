@@ -28,6 +28,9 @@
     "aged": "stout",
     "agingDays": 2,
     "wood": "dark_oak",
-    "color": "#2e1a0e"
+    "color": "#2e1a0e",
+    "effects": {
+      "stout": [{"effect": "minecraft:resistance", "seconds": 60}]
+    }
   }
 }
