@@ -104,6 +104,19 @@ class DrinkProfileTest {
     }
 
     @Test
+    void effectsWithABlankStageKeyAreRejected() {
+        var json = JsonParser.parseString("{\"id\": \"kvass\", \"alcohol\": 5, "
+                + "\"effects\": {\"\": [{\"effect\": \"minecraft:speed\", \"seconds\": 60}]}}");
+        assertTrue(DrinkProfile.CODEC.parse(JsonOps.INSTANCE, json).isError());
+    }
+
+    @Test
+    void kvassGivesHaste() throws Exception {
+        assertEquals(List.of(new DrinkEffect(ResourceLocation.parse("minecraft:haste"), 60, 0)),
+                read("kvass").effects().get("kvass"));
+    }
+
+    @Test
     void effectsLastAtLeastASecond() {
         var json = JsonParser.parseString("{\"id\": \"kvass\", \"alcohol\": 5, "
                 + "\"effects\": {\"kvass\": [{\"effect\": \"minecraft:speed\", \"seconds\": 0}]}}");

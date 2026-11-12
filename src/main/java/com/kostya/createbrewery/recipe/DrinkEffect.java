@@ -7,8 +7,8 @@ import net.minecraft.resources.ResourceLocation;
 /**
  * One status effect a drink gives, read from a recipe's {@code effects} block.
  *
- * <p>The effect id is checked against the registry when the drink is drunk, not when the recipe
- * loads: the codec runs without registries in unit tests.
+ * <p>The effect id is checked against the registry by the recipe serializer, not here:
+ * this codec runs without registries in unit tests.
  *
  * @param effect    the mob effect, such as {@code minecraft:speed}
  * @param seconds   how long it lasts on a five-star drink

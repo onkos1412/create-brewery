@@ -1,6 +1,5 @@
 package com.kostya.createbrewery.item;
 
-import com.kostya.createbrewery.CreateBrewery;
 import com.kostya.createbrewery.DrinkData;
 import com.kostya.createbrewery.drunk.DrunkManager;
 import com.kostya.createbrewery.drunk.HangoverRules;
@@ -76,9 +75,13 @@ public class DrinkItem extends Item {
             DrinkData data = stack.getOrDefault(ModDataComponents.DRINK_DATA.get(), new DrinkData(DrinkData.MAX_STARS));
             if (!level.isClientSide) {
                 // Alcohol is stored on the product, while quality remains a separate value.
-                DrunkManager.addDrunk(player, data.alcohol() / 5);
-                DrunkManager.addHangoverDebt(player, HangoverRules.debtFor(data.alcohol(), data.stars(),
-                        data.isSpoiled() || data.stage().equals(DrinkProfile.MUDDY.id())));
+                int drunk = data.alcohol() / 5;
+                DrunkManager.addDrunk(player, drunk);
+                // A drink too weak to raise the drunk level builds no debt either.
+                if (drunk > 0) {
+                    DrunkManager.addHangoverDebt(player, HangoverRules.debtFor(data.alcohol(), data.stars(),
+                            data.isSpoiled() || data.stage().equals(DrinkProfile.MUDDY.id())));
+                }
                 if (data.isSpoiled()) {
                     player.addEffect(new MobEffectInstance(MobEffects.CONFUSION, 400));
                     player.addEffect(new MobEffectInstance(MobEffects.POISON, 300));
@@ -110,12 +113,10 @@ public class DrinkItem extends Item {
             if (ticks <= 0) {
                 continue;
             }
+            // The recipe codec already refuses unknown effects; an absent one here is simply skipped.
             Optional<Holder.Reference<MobEffect>> effect = BuiltInRegistries.MOB_EFFECT.getHolder(drinkEffect.effect());
-            if (effect.isEmpty()) {
-                CreateBrewery.LOGGER.warn("Drink {} gives unknown effect {}", data.stage(), drinkEffect.effect());
-                continue;
-            }
-            player.addEffect(new MobEffectInstance(effect.get(), ticks, drinkEffect.amplifier()));
+            effect.ifPresent(holder ->
+                    player.addEffect(new MobEffectInstance(holder, ticks, drinkEffect.amplifier())));
         }
     }
 

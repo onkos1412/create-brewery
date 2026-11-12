@@ -63,7 +63,11 @@ public record DrinkProfile(String id, int alcohol, String distilled, int distill
     /** An effect keyed by a stage this recipe never makes could never be drunk, so the recipe is refused. */
     private static DataResult<DrinkProfile> checkEffectStages(DrinkProfile profile) {
         for (String stage : profile.effects.keySet()) {
-            if (!stage.equals(profile.id) && !stage.equals(profile.distilled) && !stage.equals(profile.aged)) {
+            // A blank distilled or aged name means "no such stage", so it must not match a blank key.
+            boolean makesStage = stage.equals(profile.id)
+                    || (!profile.distilled.isBlank() && stage.equals(profile.distilled))
+                    || (!profile.aged.isBlank() && stage.equals(profile.aged));
+            if (!makesStage) {
                 return DataResult.error(() -> "Effects given for " + stage + ", which " + profile.id + " never makes");
             }
         }

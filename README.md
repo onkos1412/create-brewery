@@ -48,9 +48,12 @@
 "drink": {
   "id": "kvass", "alcohol": 3,
   "distilled": "kvass_spirit", "distilledAlcohol": 40, "distillTicks": 250, "idealRpm": 80,
-  "aged": "aged_kvass_spirit", "agingDays": 6, "wood": "mangrove"
+  "aged": "aged_kvass_spirit", "agingDays": 6, "wood": "mangrove",
+  "effects": {"kvass_spirit": [{"effect": "minecraft:speed", "seconds": 60}]}
 }
 ```
+
+В `effects` ключи — стадии рецепта, `seconds` — длительность на 5★ (необязательный `amplifier` задаёт уровень), на 4★ она равна ¾, на 3★ половине, ниже эффекта нет. Неизвестный эффект или стадия, которой нет в рецепте, не дают рецепту загрузиться.
 
 Название добавляется в перевод как `drink.brewery.<id>`.
 

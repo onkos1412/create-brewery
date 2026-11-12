@@ -2,8 +2,10 @@ package com.kostya.createbrewery.recipe;
 
 import com.kostya.createbrewery.CreateBrewery;
 import com.mojang.serialization.Codec;
+import com.mojang.serialization.DataResult;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.ByteBufCodecs;
@@ -55,7 +57,7 @@ public final class BrewingRecipeSerializer implements RecipeSerializer<BrewingRe
         ).apply(instance, IngredientCodec::new));
     }
 
-    public static final MapCodec<BrewingRecipe> CODEC = RecordCodecBuilder.mapCodec(instance -> instance.group(
+    public static final MapCodec<BrewingRecipe> CODEC = RecordCodecBuilder.<BrewingRecipe>mapCodec(instance -> instance.group(
             IngredientCodec.CODEC.codec().listOf().fieldOf("inputs")
                     .forGetter(recipe -> recipe.inputs().stream().map(IngredientCodec::new).toList()),
             FluidKeyCodec.CODEC.fieldOf("water")
@@ -72,7 +74,19 @@ public final class BrewingRecipeSerializer implements RecipeSerializer<BrewingRe
             FluidKeyCodec.toKey(result),
             ticks,
             heat,
-            drink)));
+            drink))).validate(BrewingRecipeSerializer::checkEffectsExist);
+
+    /** The drink codec runs without registries in unit tests, so unknown effect ids are refused here, in game. */
+    private static DataResult<BrewingRecipe> checkEffectsExist(BrewingRecipe recipe) {
+        for (List<DrinkEffect> effects : recipe.drink().effects().values()) {
+            for (DrinkEffect effect : effects) {
+                if (!BuiltInRegistries.MOB_EFFECT.containsKey(effect.effect())) {
+                    return DataResult.error(() -> "Unknown effect " + effect.effect() + " in " + recipe.drink().id());
+                }
+            }
+        }
+        return DataResult.success(recipe);
+    }
 
     private static String heatLevelToName(int level) {
         return switch (level) {

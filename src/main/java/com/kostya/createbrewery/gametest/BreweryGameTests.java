@@ -13,6 +13,7 @@ import com.kostya.createbrewery.block.ModBlocks;
 import com.kostya.createbrewery.drunk.DrunkLevel;
 import com.kostya.createbrewery.drunk.DrunkManager;
 import com.kostya.createbrewery.recipe.BrewingRecipe;
+import com.kostya.createbrewery.recipe.BrewingRecipeSerializer;
 import com.kostya.createbrewery.recipe.MixRules;
 import com.kostya.createbrewery.registry.ModDataComponents;
 import com.kostya.createbrewery.registry.ModFluids;
@@ -1367,6 +1368,36 @@ public class BreweryGameTests {
         helper.assertTrue(DrunkManager.getHangoverDebt(player) == 12, "two: " + DrunkManager.getHangoverDebt(player));
         DrunkManager.soberTick(player);
         helper.assertTrue(DrunkManager.getHangoverDebt(player) == 12, "debt lost while drunk");
+        helper.succeed();
+    }
+
+    /** Kvass is too weak to raise the drunk level, so even a cellar of poor bottles builds no debt. */
+    @GameTest(template = "empty")
+    public static void weakDrinksBuildNoHangoverDebt(GameTestHelper helper) {
+        Player player = helper.makeMockPlayer(GameType.SURVIVAL);
+        for (int i = 0; i < 8; i++) {
+            drink(helper, player, 1, 3, "kvass");
+        }
+        helper.assertTrue(DrunkManager.getDrunk(player) == 0, "drunk " + DrunkManager.getDrunk(player));
+        helper.assertTrue(DrunkManager.getHangoverDebt(player) == 0, "debt: " + DrunkManager.getHangoverDebt(player));
+        helper.succeed();
+    }
+
+    /** A recipe that names an effect the game does not have must fail to load. */
+    @GameTest(template = "empty")
+    public static void unknownDrinkEffectStopsTheRecipeLoading(GameTestHelper helper) {
+        String template = "{\"inputs\": [{\"item\": \"minecraft:bread\"}], "
+                + "\"water\": {\"fluid\": \"minecraft:water\", \"amount\": 1000}, "
+                + "\"result\": {\"fluid\": \"brewery:wort\", \"amount\": 1000}, "
+                + "\"brewTimeTicks\": 200, \"heatLevel\": \"heated\", "
+                + "\"drink\": {\"id\": \"kvass\", \"alcohol\": 3, "
+                + "\"effects\": {\"kvass\": [{\"effect\": \"%s\", \"seconds\": 60}]}}}";
+        var good = com.google.gson.JsonParser.parseString(template.formatted("minecraft:speed"));
+        var bad = com.google.gson.JsonParser.parseString(template.formatted("brewery:no_such_effect"));
+        helper.assertTrue(BrewingRecipeSerializer.CODEC.codec().parse(com.mojang.serialization.JsonOps.INSTANCE, good).result().isPresent(),
+                "a known effect was refused");
+        helper.assertTrue(BrewingRecipeSerializer.CODEC.codec().parse(com.mojang.serialization.JsonOps.INSTANCE, bad).isError(),
+                "an unknown effect was accepted");
         helper.succeed();
     }
 

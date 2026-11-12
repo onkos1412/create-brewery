@@ -23,7 +23,7 @@
     "alcohol": 3,
     "color": "#6b3a1a",
     "effects": {
-      "kvass": [{"effect": "minecraft:saturation", "seconds": 1, "amplifier": 1}]
+      "kvass": [{"effect": "minecraft:haste", "seconds": 60}]
     }
   }
 }
