@@ -39,12 +39,17 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.item.alchemy.PotionContents;
+import net.minecraft.world.item.alchemy.Potions;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.HopperBlock;
 import net.minecraft.world.level.block.entity.HopperBlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.material.Fluids;
+import net.neoforged.neoforge.common.NeoForge;
+import net.neoforged.neoforge.event.entity.living.LivingDeathEvent;
+import net.neoforged.neoforge.event.entity.living.LivingEntityUseItemEvent;
 import net.neoforged.neoforge.capabilities.Capabilities;
 import net.neoforged.neoforge.fluids.FluidStack;
 import net.neoforged.neoforge.fluids.capability.IFluidHandler;
@@ -1282,6 +1287,95 @@ public class BreweryGameTests {
             DrunkManager.knockoutTick(player);
         }
         helper.assertFalse(DrunkManager.isKnockedOut(player), "blackout never ended");
+        helper.succeed();
+    }
+
+    private static void drink(GameTestHelper helper, Player player, int stars, int alcohol, String stage) {
+        ItemStack bottle = new ItemStack(ModItems.DRINK_BOTTLE.get());
+        bottle.set(ModDataComponents.DRINK_DATA.get(), new DrinkData(stars, alcohol, stage));
+        bottle.getItem().finishUsingItem(bottle, helper.getLevel(), player);
+    }
+
+    private static void soberUp(Player player) {
+        for (int i = 0; i < DrunkLevel.MAX + 1; i++) {
+            DrunkManager.soberTick(player);
+        }
+    }
+
+    private static boolean hungOver(Player player) {
+        return player.hasEffect(MobEffects.DIG_SLOWDOWN) && player.hasEffect(MobEffects.HUNGER);
+    }
+
+    /** Three poor vodkas: nothing while drunk, then fatigue and hunger the moment the player sobers up. */
+    @GameTest(template = "empty")
+    public static void badDrinksLeaveAHangover(GameTestHelper helper) {
+        Player player = helper.makeMockPlayer(GameType.SURVIVAL);
+        for (int i = 0; i < 3; i++) {
+            drink(helper, player, 2, 40, "vodka");
+        }
+        player.removeAllEffects();
+        helper.assertFalse(hungOver(player), "hangover while still drunk");
+        soberUp(player);
+        helper.assertTrue(DrunkManager.getDrunk(player) == 0, "still drunk");
+        MobEffectInstance fatigue = player.getEffect(MobEffects.DIG_SLOWDOWN);
+        helper.assertTrue(fatigue != null && fatigue.getDuration() == 6000 && fatigue.getAmplifier() == 0,
+                "fatigue " + fatigue);
+        helper.assertTrue(player.hasEffect(MobEffects.HUNGER), "no hunger");
+        helper.assertTrue(DrunkManager.getHangoverDebt(player) == 0, "debt kept: " + DrunkManager.getHangoverDebt(player));
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
+    public static void goodDrinksLeaveNoHangover(GameTestHelper helper) {
+        Player player = helper.makeMockPlayer(GameType.SURVIVAL);
+        for (int i = 0; i < 3; i++) {
+            drink(helper, player, 5, 40, "vodka");
+        }
+        player.removeAllEffects();
+        soberUp(player);
+        helper.assertFalse(player.hasEffect(MobEffects.DIG_SLOWDOWN), "fatigue after good drinks");
+        helper.assertFalse(player.hasEffect(MobEffects.HUNGER), "hunger after good drinks");
+        helper.assertTrue(DrunkManager.getHangoverDebt(player) == 0, "debt kept: " + DrunkManager.getHangoverDebt(player));
+        helper.succeed();
+    }
+
+    /** A bottle of water ends a hangover but leaves unrelated effects alone. */
+    @GameTest(template = "empty")
+    public static void waterCuresHangover(GameTestHelper helper) {
+        ItemStack water = PotionContents.createItemStack(Items.POTION, Potions.WATER);
+        Player sick = helper.makeMockPlayer(GameType.SURVIVAL);
+        sick.addEffect(new MobEffectInstance(MobEffects.DIG_SLOWDOWN, 3000));
+        sick.addEffect(new MobEffectInstance(MobEffects.HUNGER, 3000));
+        NeoForge.EVENT_BUS.post(new LivingEntityUseItemEvent.Finish(sick, water, 0, water));
+        helper.assertFalse(hungOver(sick), "water did not cure the hangover");
+        helper.assertFalse(sick.hasEffect(MobEffects.DIG_SLOWDOWN), "fatigue stayed");
+        helper.assertFalse(sick.hasEffect(MobEffects.HUNGER), "hunger stayed");
+
+        Player other = helper.makeMockPlayer(GameType.SURVIVAL);
+        other.addEffect(new MobEffectInstance(MobEffects.DIG_SLOWDOWN, 3000));
+        NeoForge.EVENT_BUS.post(new LivingEntityUseItemEvent.Finish(other, water, 0, water));
+        helper.assertTrue(other.hasEffect(MobEffects.DIG_SLOWDOWN), "water stripped a foreign effect");
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
+    public static void hangoverDebtAccumulatesUntilSober(GameTestHelper helper) {
+        Player player = helper.makeMockPlayer(GameType.SURVIVAL);
+        drink(helper, player, 2, 40, "vodka");
+        helper.assertTrue(DrunkManager.getHangoverDebt(player) == 8, "one: " + DrunkManager.getHangoverDebt(player));
+        drink(helper, player, 2, 20, "vodka");
+        helper.assertTrue(DrunkManager.getHangoverDebt(player) == 12, "two: " + DrunkManager.getHangoverDebt(player));
+        DrunkManager.soberTick(player);
+        helper.assertTrue(DrunkManager.getHangoverDebt(player) == 12, "debt lost while drunk");
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
+    public static void deathClearsHangoverDebt(GameTestHelper helper) {
+        Player player = helper.makeMockPlayer(GameType.SURVIVAL);
+        drink(helper, player, 2, 40, "vodka");
+        NeoForge.EVENT_BUS.post(new LivingDeathEvent(player, player.damageSources().generic()));
+        helper.assertTrue(DrunkManager.getHangoverDebt(player) == 0, "debt survived death");
         helper.succeed();
     }
 

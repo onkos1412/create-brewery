@@ -36,6 +36,46 @@ public final class DrunkManager {
         if (level.isDrunk()) {
             level.tick();
             markDirty(player);
+            if (!level.isDrunk()) {
+                settleHangover(player);
+            }
+        }
+    }
+
+    public static int getHangoverDebt(Player player) {
+        return player.getData(ModAttachments.HANGOVER_DEBT.get());
+    }
+
+    /** Adds to the debt that comes due once the player is sober again. */
+    public static void addHangoverDebt(Player player, int amount) {
+        if (amount > 0) {
+            player.setData(ModAttachments.HANGOVER_DEBT.get(), getHangoverDebt(player) + amount);
+        }
+    }
+
+    /** Runs once, on the step into sobriety: a big enough debt becomes a hangover, then the debt is wiped. */
+    private static void settleHangover(Player player) {
+        int debt = getHangoverDebt(player);
+        player.setData(ModAttachments.HANGOVER_DEBT.get(), 0);
+        if (HangoverRules.hungOver(debt)) {
+            int ticks = HangoverRules.durationTicks(debt);
+            player.addEffect(new MobEffectInstance(MobEffects.DIG_SLOWDOWN, ticks));
+            player.addEffect(new MobEffectInstance(MobEffects.HUNGER, ticks));
+            player.displayClientMessage(Component.translatable("message.brewery.hangover"), true);
+        }
+    }
+
+    /**
+     * Water ends a hangover. A hangover is told apart from other sources by both of its effects
+     * being on at once with its amplifier, so a lone mining fatigue from a guardian or a hunger
+     * from a rotten bite is left alone.
+     */
+    public static void cureHangover(Player player) {
+        MobEffectInstance fatigue = player.getEffect(MobEffects.DIG_SLOWDOWN);
+        MobEffectInstance hunger = player.getEffect(MobEffects.HUNGER);
+        if (fatigue != null && hunger != null && fatigue.getAmplifier() == 0 && hunger.getAmplifier() == 0) {
+            player.removeEffect(MobEffects.DIG_SLOWDOWN);
+            player.removeEffect(MobEffects.HUNGER);
         }
     }
 
@@ -44,6 +84,7 @@ public final class DrunkManager {
         levelOf(player).reset();
         markDirty(player);
         player.setData(ModAttachments.KNOCKOUT_TICKS.get(), 0);
+        player.setData(ModAttachments.HANGOVER_DEBT.get(), 0);
     }
 
     public static boolean isKnockedOut(Player player) {

@@ -90,5 +90,6 @@
   "drink.brewery.absinthe": "Абсент",
   "drink.brewery.glow_mash": "Светящаяся брага",
   "drink.brewery.glow_spirit": "Светлячковый спирт",
-  "drink.brewery.firefly_liqueur": "Светлячковая настойка"
+  "drink.brewery.firefly_liqueur": "Светлячковая настойка",
+  "message.brewery.hangover": "Голова раскалывается…"
 }

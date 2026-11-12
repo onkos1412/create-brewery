@@ -35,6 +35,12 @@ public final class ModAttachments {
                     .sync(ByteBufCodecs.VAR_INT)
                     .build());
 
+    /** Hangover debt built up by drinking, settled when the player sobers up. Saved, not synced. */
+    public static final DeferredHolder<AttachmentType<?>, AttachmentType<Integer>> HANGOVER_DEBT =
+            ATTACHMENTS.register("hangover_debt", () -> AttachmentType.builder(() -> 0)
+                    .serialize(Codec.INT)
+                    .build());
+
     private ModAttachments() {
     }
 

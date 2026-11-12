@@ -2,12 +2,18 @@ package com.kostya.createbrewery.drunk;
 
 import com.kostya.createbrewery.CreateBrewery;
 import net.minecraft.network.chat.Component;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.world.item.alchemy.PotionContents;
+import net.minecraft.world.item.alchemy.Potions;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.ServerChatEvent;
 import net.neoforged.neoforge.event.entity.living.LivingDeathEvent;
+import net.neoforged.neoforge.event.entity.living.LivingEntityUseItemEvent;
 import net.neoforged.neoforge.event.entity.player.AttackEntityEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
 import net.neoforged.neoforge.event.tick.PlayerTickEvent;
@@ -71,6 +77,18 @@ public final class DrunkEvents {
     @SubscribeEvent
     public static void onAttack(AttackEntityEvent event) {
         event.setCanceled(DrunkManager.isKnockedOut(event.getEntity()));
+    }
+
+    /** A bottle of plain water clears a hangover. */
+    @SubscribeEvent
+    public static void onFinishDrinking(LivingEntityUseItemEvent.Finish event) {
+        if (event.getEntity() instanceof Player player && !player.level().isClientSide() && isWaterBottle(event.getItem())) {
+            DrunkManager.cureHangover(player);
+        }
+    }
+
+    private static boolean isWaterBottle(ItemStack stack) {
+        return stack.is(Items.POTION) && stack.getOrDefault(DataComponents.POTION_CONTENTS, PotionContents.EMPTY).is(Potions.WATER);
     }
 
     @SubscribeEvent

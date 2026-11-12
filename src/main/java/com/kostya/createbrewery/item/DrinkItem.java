@@ -3,6 +3,7 @@ package com.kostya.createbrewery.item;
 import com.kostya.createbrewery.CreateBrewery;
 import com.kostya.createbrewery.DrinkData;
 import com.kostya.createbrewery.drunk.DrunkManager;
+import com.kostya.createbrewery.drunk.HangoverRules;
 import com.kostya.createbrewery.recipe.BrewingRecipe;
 import com.kostya.createbrewery.recipe.DrinkEffect;
 import com.kostya.createbrewery.recipe.DrinkProfile;
@@ -76,6 +77,8 @@ public class DrinkItem extends Item {
             if (!level.isClientSide) {
                 // Alcohol is stored on the product, while quality remains a separate value.
                 DrunkManager.addDrunk(player, data.alcohol() / 5);
+                DrunkManager.addHangoverDebt(player, HangoverRules.debtFor(data.alcohol(), data.stars(),
+                        data.isSpoiled() || data.stage().equals(DrinkProfile.MUDDY.id())));
                 if (data.isSpoiled()) {
                     player.addEffect(new MobEffectInstance(MobEffects.CONFUSION, 400));
                     player.addEffect(new MobEffectInstance(MobEffects.POISON, 300));
