@@ -32,7 +32,7 @@ import org.jetbrains.annotations.Nullable;
  */
 public class KettleBlock extends BaseEntityBlock {
 
-    /** True while the kettle has a matching recipe and enough heat. */
+    /** True while the kettle is brewing anything, muddy brew included: a mix, heat, water and room for the wort. */
     public static final BooleanProperty BREWING = BooleanProperty.create("brewing");
     private static final VoxelShape SHAPE = Block.box(0, 0, 0, 16, 16, 16);
 

@@ -8,10 +8,12 @@ import com.kostya.createbrewery.block.BarrelBlockEntity;
 import com.kostya.createbrewery.block.BarrelMenu;
 import com.kostya.createbrewery.block.DistilleryBlockEntity;
 import com.kostya.createbrewery.block.KettleBlockEntity;
+import com.kostya.createbrewery.block.KettleLogic;
 import com.kostya.createbrewery.block.ModBlocks;
 import com.kostya.createbrewery.drunk.DrunkLevel;
 import com.kostya.createbrewery.drunk.DrunkManager;
 import com.kostya.createbrewery.recipe.BrewingRecipe;
+import com.kostya.createbrewery.recipe.MixRules;
 import com.kostya.createbrewery.registry.ModDataComponents;
 import com.kostya.createbrewery.registry.ModFluids;
 import com.kostya.createbrewery.registry.ModItems;
@@ -813,12 +815,54 @@ public class BreweryGameTests {
                 .thenExecuteAfter(250, () -> {
                     helper.assertTrue(kettle.getWortAmount() == 1000, "worts mixed: " + kettle.getWortAmount());
                     helper.assertTrue("beer".equals(kettle.getWortDrink()), "tank turned " + kettle.getWortDrink());
+                    helper.assertTrue(kettle.getBlockReason() == KettleLogic.BLOCKED_BY_WORT,
+                            "kettle waits for " + kettle.getBlockReason());
                 })
                 .thenExecute(() -> kettle.drainWort(1000))
                 .thenWaitUntil(() -> helper.assertTrue(kettle.getWortAmount() == 1000, "apples never brewed"))
                 .thenExecute(() -> helper.assertTrue("cider".equals(kettle.getWortDrink()),
                         "tank holds " + kettle.getWortDrink()))
                 .thenSucceed();
+    }
+
+    /** A mix over a fire with too little water waits for water and says so. */
+    @GameTest(template = "empty", timeoutTicks = 400)
+    public static void dryKettleWaitsForWater(GameTestHelper helper) {
+        helper.setBlock(KETTLE.below(), Blocks.CAMPFIRE);
+        helper.setBlock(KETTLE, ModBlocks.KETTLE.get());
+        KettleBlockEntity dry = helper.getBlockEntity(KETTLE);
+        items(helper, KETTLE).insertItem(0, new ItemStack(Items.WHEAT, 2), false);
+
+        helper.startSequence()
+                .thenExecuteAfter(20, () -> {
+                    helper.assertTrue(dry.getBrewProgressTicks() == 0, "brewing without water");
+                    helper.assertTrue(dry.getBlockReason() == KettleLogic.BLOCKED_BY_WATER,
+                            "kettle waits for " + dry.getBlockReason());
+                })
+                .thenExecute(() -> dry.fillWater(1000))
+                .thenWaitUntil(() -> helper.assertTrue(dry.getBrewProgressTicks() > 0, "water did not start the brew"))
+                .thenExecute(() -> helper.assertTrue(dry.getBlockReason() == KettleLogic.BLOCKED_NONE,
+                        "still waits for " + dry.getBlockReason()))
+                .thenSucceed();
+    }
+
+    /** Spec: without fire the kettle brews nothing at all, not even muddy brew. */
+    @GameTest(template = "empty", timeoutTicks = 400)
+    public static void noFireBrewsNothing(GameTestHelper helper) {
+        helper.setBlock(KETTLE.below(), Blocks.STONE);
+        helper.setBlock(KETTLE, ModBlocks.KETTLE.get());
+        KettleBlockEntity kettle = helper.getBlockEntity(KETTLE);
+        items(helper, KETTLE).insertItem(0, new ItemStack(Items.ROTTEN_FLESH, 2), false);
+        fluids(helper, KETTLE).fill(new FluidStack(Fluids.WATER, 1000), IFluidHandler.FluidAction.EXECUTE);
+
+        helper.runAfterDelay(300, () -> {
+            helper.assertTrue(kettle.getWortAmount() == 0, "brewed " + kettle.getWortAmount() + " mB without fire");
+            helper.assertTrue(kettle.getWaterAmount() == 1000, "water " + kettle.getWaterAmount());
+            ItemStack flesh = kettle.getInput().getStackInSlot(0);
+            helper.assertTrue(flesh.is(Items.ROTTEN_FLESH) && flesh.getCount() == 2, "slots touched: " + flesh);
+            helper.assertTrue(kettle.getBrewProgressTicks() == 0, "progress " + kettle.getBrewProgressTicks());
+            helper.succeed();
+        });
     }
 
     @GameTest(template = "empty", timeoutTicks = 1500, batch = "aging_calvados")
@@ -992,13 +1036,18 @@ public class BreweryGameTests {
         KettleBlockEntity kettle = placeHeatedKettle(helper);
         items(helper, KETTLE).insertItem(0, new ItemStack(Items.WHEAT), false);
 
-        helper.succeedWhen(() -> {
-            helper.assertTrue(kettle.getWortAmount() == 1000, "wort: " + kettle.getWortAmount());
-            helper.assertTrue("beer".equals(kettle.getWortDrink()), "brewed " + kettle.getWortDrink());
-            helper.assertTrue(kettle.getWortStars() == 4, "wort stars " + kettle.getWortStars());
-            helper.assertTrue(kettle.getInput().getStackInSlot(0).isEmpty(),
-                    "wheat left: " + kettle.getInput().getStackInSlot(0).getCount());
-        });
+        helper.startSequence()
+                .thenWaitUntil(() -> helper.assertTrue(kettle.getBrewProgressTicks() > 0, "never started"))
+                .thenExecute(() -> helper.assertTrue(kettle.getAroma() == MixRules.AROMA_FAMILIAR,
+                        "aroma " + kettle.getAroma()))
+                .thenWaitUntil(() -> helper.assertTrue(kettle.getWortAmount() == 1000, "wort: " + kettle.getWortAmount()))
+                .thenExecute(() -> {
+                    helper.assertTrue("beer".equals(kettle.getWortDrink()), "brewed " + kettle.getWortDrink());
+                    helper.assertTrue(kettle.getWortStars() == 4, "wort stars " + kettle.getWortStars());
+                    helper.assertTrue(kettle.getInput().getStackInSlot(0).isEmpty(),
+                            "wheat left: " + kettle.getInput().getStackInSlot(0).getCount());
+                })
+                .thenSucceed();
     }
 
     /** A funnel that overfills the kettle gets one weak brew out of everything, not a stock for later. */
@@ -1020,12 +1069,18 @@ public class BreweryGameTests {
     public static void strangeMixBrewsMuddy(GameTestHelper helper) {
         KettleBlockEntity kettle = placeKettle(helper, Items.ROTTEN_FLESH);
 
-        helper.succeedWhen(() -> {
-            helper.assertTrue(kettle.getWortAmount() == 1000, "wort: " + kettle.getWortAmount());
-            helper.assertTrue("muddy".equals(kettle.getWortDrink()), "brewed " + kettle.getWortDrink());
-            helper.assertTrue(kettle.getWortStars() == DrinkData.MIN_STARS, "wort stars " + kettle.getWortStars());
-            helper.assertTrue(kettle.getInput().getStackInSlot(0).isEmpty(), "rotten flesh left over");
-        });
+        helper.startSequence()
+                .thenWaitUntil(() -> helper.assertTrue(kettle.getBrewProgressTicks() > 0, "never started"))
+                .thenExecute(() -> helper.assertTrue(kettle.getAroma() == MixRules.AROMA_WEAK,
+                        "aroma " + kettle.getAroma()))
+                .thenWaitUntil(() -> helper.assertTrue(kettle.getWortAmount() == 1000, "wort: " + kettle.getWortAmount()))
+                .thenExecute(() -> {
+                    helper.assertTrue("muddy".equals(kettle.getWortDrink()), "brewed " + kettle.getWortDrink());
+                    helper.assertTrue(kettle.getWortStars() == DrinkData.MIN_STARS,
+                            "wort stars " + kettle.getWortStars());
+                    helper.assertTrue(kettle.getInput().getStackInSlot(0).isEmpty(), "rotten flesh left over");
+                })
+                .thenSucceed();
     }
 
     /** Changing the mix mid-brew starts the count again, so the late item is judged too. */

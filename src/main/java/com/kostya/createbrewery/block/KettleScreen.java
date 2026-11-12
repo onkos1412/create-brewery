@@ -8,6 +8,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.inventory.Slot;
 
 /**
  * Client screen for the kettle: ingredient slots, a brew progress bar, the heat source
@@ -70,13 +71,10 @@ public class KettleScreen extends AbstractContainerScreen<KettleMenu> {
         MachineWidgets.tank(graphics, leftPos + WORT_X, topPos + TANK_Y, TANK_HEIGHT,
                 menu.getWortAmount(), KettleBlockEntity.TANK_CAPACITY, MachineWidgets.shades(menu.getWortColor()));
 
-        // While brewing the display hints how close the mix is, never which drink it will be.
-        int aroma = Mth.clamp(menu.getAroma(), MixRules.AROMA_WEAK, MixRules.AROMA_EXCELLENT);
-        String status = !heated ? "gui.brewery.kettle_status_no_heat"
-                : menu.getBrewProgress() > 0 ? "gui.brewery.kettle_aroma_" + aroma
-                : "gui.brewery.kettle_status_idle";
+        String status = statusKey(heated);
         int statusColor = !heated ? MachineWidgets.BAD
-                : menu.getBrewProgress() > 0 ? MachineWidgets.GOOD : MachineWidgets.IDLE;
+                : menu.getBrewProgress() > 0 ? MachineWidgets.GOOD
+                : status.endsWith("idle") ? MachineWidgets.IDLE : MachineWidgets.WARN;
         int textWidth = DISPLAY_WIDTH;
         if (menu.getWortAmount() > 0) {
             Component stars = StarLine.of(menu.getWortStars());
@@ -86,6 +84,26 @@ public class KettleScreen extends AbstractContainerScreen<KettleMenu> {
         }
         MachineWidgets.text(graphics, font, Component.translatable(status), leftPos + DISPLAY_X, topPos + DISPLAY_Y,
                 textWidth, statusColor);
+    }
+
+    private String statusKey(boolean heated) {
+        if (!heated) {
+            return "gui.brewery.kettle_status_no_heat";
+        }
+        if (menu.getBrewProgress() > 0) {
+            // While brewing the display hints how close the mix is, never which drink it will be.
+            int aroma = Mth.clamp(menu.getAroma(), MixRules.AROMA_WEAK, MixRules.AROMA_EXCELLENT);
+            return "gui.brewery.kettle_aroma_" + aroma;
+        }
+        boolean hasMix = menu.slots.subList(0, KettleMenu.INPUT_SLOTS).stream().anyMatch(Slot::hasItem);
+        // A full kettle that is not brewing says why, so it does not look as if it wants more.
+        if (hasMix && menu.getBlockReason() == KettleLogic.BLOCKED_BY_WORT) {
+            return "gui.brewery.kettle_status_drain_wort";
+        }
+        if (hasMix && menu.getBlockReason() == KettleLogic.BLOCKED_BY_WATER) {
+            return "gui.brewery.kettle_status_needs_water";
+        }
+        return "gui.brewery.kettle_status_idle";
     }
 
     /** Hovering a gauge shows its exact value. */

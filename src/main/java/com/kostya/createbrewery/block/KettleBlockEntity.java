@@ -123,7 +123,15 @@ public class KettleBlockEntity extends BlockEntity {
     private int brewStars = DrinkData.MAX_STARS;
     /** The mix last tick, so a change to it restarts the brew; saved, so a reload does not. */
     private List<String> contents = List.of();
+    /**
+     * The recipe id (or muddy) the mix brewed by last tick, so another winner restarts the brew.
+     * Not saved: after a reload it is unknown, and an unknown winner keeps the progress.
+     */
+    @Nullable
+    private String winner;
     private int aroma;
+    /** Why the mix over the fire is not brewing, one of {@code KettleLogic.BLOCKED_*}. */
+    private int blockReason = KettleLogic.BLOCKED_NONE;
     private int heatLevel;
 
     public KettleBlockEntity(BlockPos pos, BlockState state) {
@@ -173,6 +181,11 @@ public class KettleBlockEntity extends BlockEntity {
     /** How close the brewing mix smells to a recipe, from {@link MixRules#AROMA_WEAK} up; 0 when not brewing. */
     public int getAroma() {
         return aroma;
+    }
+
+    /** What a mix over a fire is waiting for before it can brew, for the GUI. */
+    public int getBlockReason() {
+        return blockReason;
     }
 
     /** The wort's colour, whether or not there is any wort. */
@@ -294,14 +307,23 @@ public class KettleBlockEntity extends BlockEntity {
         }
 
         Brew brew = chooseBrew(mix);
+        // The progress belongs to one recipe: if another wins (say the fire changed), it starts over,
+        // and so does the worst heat, which is taken afresh on the first tick.
+        if (KettleLogic.brewRestarts(winner, brew.id())) {
+            brewProgressTicks = 0;
+        }
+        winner = brew.id();
         // The tank holds one wort at a time: a different drink waits until it has been drawn off.
         boolean sameWort = wortAmount == 0 || brew.drink().equals(wortDrink);
         boolean roomForMore = sameWort && wortAmount + Math.max(brew.amount(), WORT_PER_BREW) <= TANK_CAPACITY;
-        if (!roomForMore || waterAmount < brew.amount()) {
+        int blocked = KettleLogic.blockReason(!roomForMore, waterAmount >= brew.amount());
+        if (blocked != KettleLogic.BLOCKED_NONE) {
             stopBrewing();
+            blockReason = blocked;
             return;
         }
 
+        blockReason = KettleLogic.BLOCKED_NONE;
         brewProgressTicks++;
         brewTimeTicks = brew.ticks();
         aroma = brew.aroma();
@@ -329,6 +351,7 @@ public class KettleBlockEntity extends BlockEntity {
     private void stopBrewing() {
         brewProgressTicks = 0;
         aroma = 0;
+        blockReason = KettleLogic.BLOCKED_NONE;
         setBrewingState(false);
     }
 
@@ -340,16 +363,21 @@ public class KettleBlockEntity extends BlockEntity {
                         holder.value().idealHeatLevel()))
                 .toList();
         MixRules.Choice choice = MixRules.best(candidates, mix, heatLevel);
-        return new Brew(choice.index() < 0 ? null : recipes.get(choice.index()).value(), choice.score());
+        if (choice.index() < 0) {
+            return new Brew(DrinkProfile.MUDDY.id(), null, choice.score());
+        }
+        RecipeHolder<BrewingRecipe> holder = recipes.get(choice.index());
+        return new Brew(holder.id().toString(), holder.value(), choice.score());
     }
 
     /**
      * What the current mix brews into.
      *
+     * @param id     the winning recipe's id, or the muddy brew's
      * @param recipe the closest recipe, or {@code null} for muddy brew
      * @param score  how close the mix is to that recipe
      */
-    private record Brew(@Nullable BrewingRecipe recipe, int score) {
+    private record Brew(String id, @Nullable BrewingRecipe recipe, int score) {
         String drink() {
             return recipe == null ? DrinkProfile.MUDDY.id() : recipe.drink().id();
         }

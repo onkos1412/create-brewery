@@ -96,7 +96,7 @@ Create Brewery - an alcohol brewing addon for Create.
     ordering="NONE"
     side="BOTH"
 
-# JEI shows the recipes when it is installed; the mod works without it.
+# JEI may be installed alongside; the mod adds no recipe pages to it, since recipes are found by experimenting.
 [[dependencies.${mod_id}]]
     modId="jei"
     type="optional"

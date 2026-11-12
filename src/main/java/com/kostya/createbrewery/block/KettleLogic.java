@@ -18,6 +18,12 @@ public final class KettleLogic {
     public static final int HEAT_SUPERHEATED = BrewingRules.HEAT_SUPERHEATED;
     private static final int OVERHEATED_SCORE = 70;
 
+    /** Why a kettle with a mix and a fire is not brewing, for the GUI. */
+    public static final int BLOCKED_NONE = 0;
+    /** The tank holds wort the new brew cannot join: another drink, or no room left. */
+    public static final int BLOCKED_BY_WORT = 1;
+    public static final int BLOCKED_BY_WATER = 2;
+
     private KettleLogic() {
     }
 
@@ -29,5 +35,22 @@ public final class KettleLogic {
     /** The wort's stars: an inexact mix and a bad fire each cap them, and the weaker one wins. */
     public static int mixStars(int score, int heatStars) {
         return Math.min(QualityRules.starsFromScore(score), heatStars);
+    }
+
+    /**
+     * Whether the brew starts over because a different recipe (or muddy brew) now wins.
+     * {@code lastWinner} is {@code null} when it is unknown, as after a reload, and that
+     * keeps the progress.
+     */
+    public static boolean brewRestarts(String lastWinner, String winner) {
+        return lastWinner != null && !lastWinner.equals(winner);
+    }
+
+    /** What a brew that cannot go on waits for; the wort comes first, since water alone would not help. */
+    public static int blockReason(boolean wortInTheWay, boolean enoughWater) {
+        if (wortInTheWay) {
+            return BLOCKED_BY_WORT;
+        }
+        return enoughWater ? BLOCKED_NONE : BLOCKED_BY_WATER;
     }
 }

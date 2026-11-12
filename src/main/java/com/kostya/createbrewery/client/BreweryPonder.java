@@ -110,8 +110,9 @@ public final class BreweryPonder implements PonderPlugin {
         say(scene, util, pump, Direction.NORTH, "Pipe in wort from a kettle. A kettle right next to it also works, with the Load button");
 
         show(scene, util, motor, Direction.SOUTH);
-        create.world().setKineticSpeed(util.select().position(motor), 32);
-        create.world().setKineticSpeed(util.select().position(still), 32);
+        // No drink's real speed, so the scene gives nothing away.
+        create.world().setKineticSpeed(util.select().position(motor), 40);
+        create.world().setKineticSpeed(util.select().position(still), 40);
         say(scene, util, motor, Direction.NORTH, "Drive the shaft in its back. Each drink has its own speed: find it by the stars");
 
         scene.overlay().showText(TEXT_TICKS)
@@ -142,7 +143,7 @@ public final class BreweryPonder implements PonderPlugin {
         say(scene, util, barrel, Direction.WEST, "The barrel takes distillate, or a bottle of a young drink");
 
         scene.overlay().showControls(util.vector().topOf(barrel), Pointing.DOWN, 40)
-                .withItem(new ItemStack(Items.DARK_OAK_LOG));
+                .withItem(new ItemStack(Items.ACACIA_LOG));
         scene.idle(50);
         say(scene, util, barrel, Direction.NORTH, "Wood goes in too and is not used up. Each drink ages best in its own wood");
 

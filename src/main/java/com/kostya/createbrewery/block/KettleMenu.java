@@ -36,7 +36,8 @@ public class KettleMenu extends AbstractContainerMenu {
     public static final int DATA_COLOR_LOW = 6;
     public static final int DATA_STARS = 7;
     public static final int DATA_AROMA = 8;
-    public static final int DATA_COUNT = 9;
+    public static final int DATA_BLOCKED = 9;
+    public static final int DATA_COUNT = 10;
 
     private static final int SLOT_SIZE = 18;
 
@@ -84,6 +85,7 @@ public class KettleMenu extends AbstractContainerMenu {
         bound.colorLow = () -> kettle.getWortColor() & 0xFFFF;
         bound.stars = kettle::getWortStars;
         bound.aroma = kettle::getAroma;
+        bound.blocked = kettle::getBlockReason;
     }
 
     private static KettleBlockEntity findKettle(Inventory inventory, net.minecraft.core.BlockPos pos) {
@@ -140,6 +142,11 @@ public class KettleMenu extends AbstractContainerMenu {
     /** How close the brewing mix smells to a recipe; 0 when nothing is brewing. */
     public int getAroma() {
         return data.get(DATA_AROMA);
+    }
+
+    /** What the mix over the fire waits for, one of {@code KettleLogic.BLOCKED_*}. */
+    public int getBlockReason() {
+        return data.get(DATA_BLOCKED);
     }
 
     /** Whether the kettle holds enough wort for one bottle. */
@@ -208,6 +215,7 @@ public class KettleMenu extends AbstractContainerMenu {
         private IntSupplier colorLow = () -> 0;
         private IntSupplier stars = () -> 0;
         private IntSupplier aroma = () -> 0;
+        private IntSupplier blocked = () -> 0;
         private final int[] synced = new int[DATA_COUNT];
 
         @Override
@@ -222,6 +230,7 @@ public class KettleMenu extends AbstractContainerMenu {
                 case DATA_COLOR_LOW -> colorLow.getAsInt();
                 case DATA_STARS -> stars.getAsInt();
                 case DATA_AROMA -> aroma.getAsInt();
+                case DATA_BLOCKED -> blocked.getAsInt();
                 default -> 0;
             };
         }
@@ -241,6 +250,7 @@ public class KettleMenu extends AbstractContainerMenu {
                 case DATA_COLOR_LOW -> colorLow = () -> synced[DATA_COLOR_LOW];
                 case DATA_STARS -> stars = () -> synced[DATA_STARS];
                 case DATA_AROMA -> aroma = () -> synced[DATA_AROMA];
+                case DATA_BLOCKED -> blocked = () -> synced[DATA_BLOCKED];
                 default -> {
                 }
             }
