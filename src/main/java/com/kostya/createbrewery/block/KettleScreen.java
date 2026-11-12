@@ -1,6 +1,7 @@
 package com.kostya.createbrewery.block;
 
 import com.kostya.createbrewery.quality.StarLine;
+import com.kostya.createbrewery.recipe.MixRules;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.network.chat.Component;
@@ -69,8 +70,10 @@ public class KettleScreen extends AbstractContainerScreen<KettleMenu> {
         MachineWidgets.tank(graphics, leftPos + WORT_X, topPos + TANK_Y, TANK_HEIGHT,
                 menu.getWortAmount(), KettleBlockEntity.TANK_CAPACITY, MachineWidgets.shades(menu.getWortColor()));
 
+        // While brewing the display hints how close the mix is, never which drink it will be.
+        int aroma = Mth.clamp(menu.getAroma(), MixRules.AROMA_WEAK, MixRules.AROMA_EXCELLENT);
         String status = !heated ? "gui.brewery.kettle_status_no_heat"
-                : menu.getBrewProgress() > 0 ? "gui.brewery.kettle_status_brewing"
+                : menu.getBrewProgress() > 0 ? "gui.brewery.kettle_aroma_" + aroma
                 : "gui.brewery.kettle_status_idle";
         int statusColor = !heated ? MachineWidgets.BAD
                 : menu.getBrewProgress() > 0 ? MachineWidgets.GOOD : MachineWidgets.IDLE;

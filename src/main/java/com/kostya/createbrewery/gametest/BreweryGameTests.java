@@ -576,7 +576,6 @@ public class BreweryGameTests {
     public static void machineStateSurvivesSaving(GameTestHelper helper) {
         var registries = helper.getLevel().registryAccess();
         KettleBlockEntity kettle = placeKettle(helper, Items.APPLE);
-        helper.setBlock(KETTLE.below(), Blocks.AIR);
         kettle.getInput().setStackInSlot(1, new ItemStack(Items.APPLE, 5));
         helper.setBlock(BARREL, ModBlocks.BARREL.get());
         BarrelBlockEntity barrel = helper.getBlockEntity(BARREL);
@@ -588,21 +587,30 @@ public class BreweryGameTests {
         wort.set(ModDataComponents.DRINK_DATA.get(), new DrinkData(3, 0, "cider"));
         still.getFluidHandler().fill(wort, IFluidHandler.FluidAction.EXECUTE);
 
-        KettleBlockEntity kettle2 = new KettleBlockEntity(kettle.getBlockPos(), kettle.getBlockState());
-        kettle2.loadWithComponents(kettle.saveWithFullMetadata(registries), registries);
-        helper.assertTrue(kettle2.getWaterAmount() == 1000, "water " + kettle2.getWaterAmount());
-        helper.assertTrue(kettle2.getInput().getStackInSlot(1).getCount() == 5, "kettle items lost");
+        // Saved part-way through a brew, which must carry on rather than start over.
+        helper.runAfterDelay(20, () -> {
+            KettleBlockEntity kettle2 = new KettleBlockEntity(kettle.getBlockPos(), kettle.getBlockState());
+            kettle2.loadWithComponents(kettle.saveWithFullMetadata(registries), registries);
+            helper.assertTrue(kettle2.getWaterAmount() == 1000, "water " + kettle2.getWaterAmount());
+            helper.assertTrue(kettle2.getInput().getStackInSlot(1).getCount() == 5, "kettle items lost");
+            int progress = kettle.getBrewProgressTicks();
+            helper.assertTrue(progress > 0, "kettle never started brewing");
+            kettle2.setLevel(helper.getLevel());
+            kettle2.serverTick();
+            helper.assertTrue(kettle2.getBrewProgressTicks() == progress + 1,
+                    "brew progress after loading: " + kettle2.getBrewProgressTicks() + ", before: " + progress);
 
-        BarrelBlockEntity barrel2 = new BarrelBlockEntity(barrel.getBlockPos(), barrel.getBlockState());
-        barrel2.loadWithComponents(barrel.saveWithFullMetadata(registries), registries);
-        helper.assertTrue(barrel2.getBottles().getStackInSlot(0).getCount() == 7, "bottles lost");
-        helper.assertTrue(barrel2.getInput().getStackInSlot(1).is(Items.BIRCH_LOG), "wood lost");
+            BarrelBlockEntity barrel2 = new BarrelBlockEntity(barrel.getBlockPos(), barrel.getBlockState());
+            barrel2.loadWithComponents(barrel.saveWithFullMetadata(registries), registries);
+            helper.assertTrue(barrel2.getBottles().getStackInSlot(0).getCount() == 7, "bottles lost");
+            helper.assertTrue(barrel2.getInput().getStackInSlot(1).is(Items.BIRCH_LOG), "wood lost");
 
-        DistilleryBlockEntity still2 = new DistilleryBlockEntity(still.getBlockPos(), still.getBlockState());
-        still2.loadWithComponents(still.saveWithFullMetadata(registries), registries);
-        helper.assertTrue(still2.getWortAmount() == 600, "wort " + still2.getWortAmount());
-        helper.assertTrue(still2.getInputStars() == 3, "stars " + still2.getInputStars());
-        helper.succeed();
+            DistilleryBlockEntity still2 = new DistilleryBlockEntity(still.getBlockPos(), still.getBlockState());
+            still2.loadWithComponents(still.saveWithFullMetadata(registries), registries);
+            helper.assertTrue(still2.getWortAmount() == 600, "wort " + still2.getWortAmount());
+            helper.assertTrue(still2.getInputStars() == 3, "stars " + still2.getInputStars());
+            helper.succeed();
+        });
     }
 
     /** The whole wine line with no player: kettle, spout, a real hopper, barrel, bottle back. */
@@ -978,17 +986,86 @@ public class BreweryGameTests {
         helper.succeed();
     }
 
-    /** A funnel fills the slot well past one batch; only water should limit the brewing. */
+    /** One wheat too many still brews beer, a star poorer, and the extra wheat goes in with the rest. */
     @GameTest(template = "empty", timeoutTicks = 400)
-    public static void surplusWheatBrewsOneBatchAtATime(GameTestHelper helper) {
+    public static void extraWheatCostsAStar(GameTestHelper helper) {
         KettleBlockEntity kettle = placeHeatedKettle(helper);
-        items(helper, KETTLE).insertItem(0, new ItemStack(Items.WHEAT, 14), false);
+        items(helper, KETTLE).insertItem(0, new ItemStack(Items.WHEAT), false);
 
         helper.succeedWhen(() -> {
             helper.assertTrue(kettle.getWortAmount() == 1000, "wort: " + kettle.getWortAmount());
-            int wheat = kettle.getInput().getStackInSlot(0).getCount();
-            helper.assertTrue(wheat == 14, "wheat left: " + wheat);
+            helper.assertTrue("beer".equals(kettle.getWortDrink()), "brewed " + kettle.getWortDrink());
+            helper.assertTrue(kettle.getWortStars() == 4, "wort stars " + kettle.getWortStars());
+            helper.assertTrue(kettle.getInput().getStackInSlot(0).isEmpty(),
+                    "wheat left: " + kettle.getInput().getStackInSlot(0).getCount());
         });
+    }
+
+    /** A funnel that overfills the kettle gets one weak brew out of everything, not a stock for later. */
+    @GameTest(template = "empty", timeoutTicks = 400)
+    public static void wholeContentsAreEaten(GameTestHelper helper) {
+        KettleBlockEntity kettle = placeHeatedKettle(helper);
+        items(helper, KETTLE).insertItem(0, new ItemStack(Items.WHEAT, 12), false);
+
+        helper.succeedWhen(() -> {
+            helper.assertTrue(kettle.getWortAmount() == 1000, "wort: " + kettle.getWortAmount());
+            helper.assertTrue("beer".equals(kettle.getWortDrink()), "brewed " + kettle.getWortDrink());
+            int wheat = kettle.getInput().getStackInSlot(0).getCount();
+            helper.assertTrue(wheat == 0, "wheat left: " + wheat);
+        });
+    }
+
+    /** A mix like no recipe still brews, into the one-star muddy brew. */
+    @GameTest(template = "empty", timeoutTicks = 400)
+    public static void strangeMixBrewsMuddy(GameTestHelper helper) {
+        KettleBlockEntity kettle = placeKettle(helper, Items.ROTTEN_FLESH);
+
+        helper.succeedWhen(() -> {
+            helper.assertTrue(kettle.getWortAmount() == 1000, "wort: " + kettle.getWortAmount());
+            helper.assertTrue("muddy".equals(kettle.getWortDrink()), "brewed " + kettle.getWortDrink());
+            helper.assertTrue(kettle.getWortStars() == DrinkData.MIN_STARS, "wort stars " + kettle.getWortStars());
+            helper.assertTrue(kettle.getInput().getStackInSlot(0).isEmpty(), "rotten flesh left over");
+        });
+    }
+
+    /** Changing the mix mid-brew starts the count again, so the late item is judged too. */
+    @GameTest(template = "empty", timeoutTicks = 600)
+    public static void addingAnItemRestartsTheBrew(GameTestHelper helper) {
+        KettleBlockEntity kettle = placeHeatedKettle(helper);
+
+        helper.startSequence()
+                .thenExecuteAfter(150, () -> items(helper, KETTLE).insertItem(0, new ItemStack(Items.WHEAT), false))
+                .thenExecuteAfter(60, () -> {
+                    helper.assertTrue(kettle.getWortAmount() == 0, "finished the old brew: " + kettle.getWortAmount());
+                    int progress = kettle.getBrewProgressTicks();
+                    helper.assertTrue(progress > 0 && progress <= 60, "progress did not restart: " + progress);
+                })
+                .thenWaitUntil(() -> helper.assertTrue(kettle.getWortAmount() == 1000, "never brewed"))
+                .thenExecute(() -> helper.assertTrue(kettle.getWortStars() == 4, "wort stars " + kettle.getWortStars()))
+                .thenSucceed();
+    }
+
+    /** Muddy brew is a dead end: the still will not take it, nor the barrel its bottle. */
+    @GameTest(template = "empty", timeoutTicks = 400)
+    public static void muddyBrewGoesNowhere(GameTestHelper helper) {
+        KettleBlockEntity kettle = placeKettle(helper, Items.ROTTEN_FLESH);
+        helper.setBlock(DISTILLERY, ModBlocks.DISTILLERY.get());
+        helper.setBlock(BARREL, ModBlocks.BARREL.get());
+
+        helper.startSequence()
+                .thenWaitUntil(() -> helper.assertTrue(kettle.getWortAmount() == 1000, "kettle brewed no wort"))
+                .thenExecute(() -> {
+                    FluidStack muddy = fluids(helper, KETTLE).drain(1000, IFluidHandler.FluidAction.SIMULATE);
+                    helper.assertTrue("muddy".equals(muddy.get(ModDataComponents.DRINK_DATA.get()).stage()),
+                            "kettle holds " + kettle.getWortDrink());
+                    int filled = fluids(helper, DISTILLERY).fill(muddy, IFluidHandler.FluidAction.EXECUTE);
+                    helper.assertTrue(filled == 0, "still took " + filled + " mB of muddy brew");
+                    ItemStack bottle = kettle.bottleWort();
+                    helper.assertTrue("muddy".equals(data(bottle).stage()), "bottled " + data(bottle).stage());
+                    helper.assertTrue(items(helper, BARREL).insertItem(0, bottle, true).getCount() == 1,
+                            "barrel took muddy brew");
+                })
+                .thenSucceed();
     }
 
     /** Overdosing blacks the player out for a fixed time, then leaves them drunk but awake. */

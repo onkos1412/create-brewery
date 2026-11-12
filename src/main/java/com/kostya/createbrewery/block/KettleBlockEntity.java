@@ -3,6 +3,7 @@ package com.kostya.createbrewery.block;
 import com.kostya.createbrewery.DrinkData;
 import com.kostya.createbrewery.recipe.BrewingRecipe;
 import com.kostya.createbrewery.recipe.DrinkProfile;
+import com.kostya.createbrewery.recipe.MixRules;
 import com.kostya.createbrewery.recipe.ModRecipeTypes;
 import com.kostya.createbrewery.registry.ModDataComponents;
 import com.kostya.createbrewery.registry.ModFluids;
@@ -11,6 +12,9 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.StringTag;
+import net.minecraft.nbt.Tag;
 import net.minecraft.network.Connection;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.game.ClientGamePacketListener;
@@ -34,9 +38,10 @@ import java.util.List;
  * The kettle's server-side state: water, wort, the waiting ingredients and brewing
  * progress.
  *
- * <p>Every server tick it reads the heat source beneath the kettle, finds a matching
- * {@link BrewingRecipe}, advances progress and, once the brew time has elapsed, turns
- * the water into wort.
+ * <p>Every server tick it reads the heat source beneath the kettle, finds the
+ * {@link BrewingRecipe} the whole mix in the slots resembles most, advances progress and,
+ * once the brew time has elapsed, eats the mix and turns the water into that recipe's
+ * wort, or into muddy brew when the mix resembles nothing.
  */
 public class KettleBlockEntity extends BlockEntity {
 
@@ -48,10 +53,9 @@ public class KettleBlockEntity extends BlockEntity {
     /** The bare inside of the kettle, once its liquid has been tinted down to it. */
     public static final int EMPTY_COLOR = 0x2A1610;
 
-    /** How much extra room is needed to start a brew with this recipe. */
-    private static int brewRoom(KettleLogic.RecipeView recipe) {
-        return Math.max(recipe.wortAmount(), WORT_PER_BREW);
-    }
+    /** Muddy brew has no recipe, so it takes the usual water and time. */
+    private static final int MUDDY_AMOUNT = 1000;
+    private static final int MUDDY_BREW_TICKS = 200;
 
     private final ItemStackHandler input = new ItemStackHandler(4) {
         @Override
@@ -117,6 +121,9 @@ public class KettleBlockEntity extends BlockEntity {
     private int brewProgressTicks;
     private int brewTimeTicks = 200;
     private int brewStars = DrinkData.MAX_STARS;
+    /** The mix last tick, so a change to it restarts the brew; saved, so a reload does not. */
+    private List<String> contents = List.of();
+    private int aroma;
     private int heatLevel;
 
     public KettleBlockEntity(BlockPos pos, BlockState state) {
@@ -161,6 +168,11 @@ public class KettleBlockEntity extends BlockEntity {
     /** How long the current brew takes, for the GUI. */
     public int getBrewTimeTicks() {
         return brewTimeTicks;
+    }
+
+    /** How close the brewing mix smells to a recipe, from {@link MixRules#AROMA_WEAK} up; 0 when not brewing. */
+    public int getAroma() {
+        return aroma;
     }
 
     /** The wort's colour, whether or not there is any wort. */
@@ -269,55 +281,100 @@ public class KettleBlockEntity extends BlockEntity {
         }
 
         heatLevel = readHeatLevel(level, worldPosition.below());
-        RecipeHolder<BrewingRecipe> recipe = findRecipe(heatLevel);
-
-        if (recipe == null) {
+        // A different mix is a different brew: the count starts again so the change is judged too.
+        List<String> mix = inputIds();
+        if (!mix.equals(contents)) {
+            contents = mix;
             brewProgressTicks = 0;
-            setBrewingState(false);
-            return;
-        }
-
-        KettleLogic.RecipeView view = toView(recipe.value());
-        List<String> itemIds = inputIds();
-
-        // Everything is computed against this tick's snapshot, so the state cannot
-        // drift between the progress check and the actual brew.
-        // The tank holds one wort at a time: a different drink waits until it has been drawn off.
-        boolean sameWort = wortAmount == 0 || recipe.value().drink().id().equals(wortDrink);
-        boolean roomForMore = sameWort && wortAmount + brewRoom(view) <= TANK_CAPACITY;
-        int nextProgress = KettleLogic.advanceProgress(view, heatLevel, itemIds, waterAmount, brewProgressTicks);
-
-        if (roomForMore && nextProgress > brewProgressTicks) {
-            brewProgressTicks = nextProgress;
-            brewTimeTicks = recipe.value().brewTimeTicks();
-            // The worst heat of the whole brew counts, not just the heat on its last tick.
-            int heatStars = KettleLogic.brewStars(heatLevel, view.idealHeatLevel());
-            brewStars = brewProgressTicks == 1 ? heatStars : Math.min(brewStars, heatStars);
-            setBrewingState(true);
             setChanged();
-        } else {
-            brewProgressTicks = 0;
-            setBrewingState(roomForMore && waterAmount >= view.wortAmount());
         }
-
-        if (brewProgressTicks < recipe.value().brewTimeTicks()) {
+        if (heatLevel <= KettleLogic.HEAT_NONE || mix.isEmpty()) {
+            stopBrewing();
             return;
         }
 
-        KettleLogic.Result result = KettleLogic.tryBrew(view, heatLevel, itemIds, waterAmount, brewProgressTicks);
-        if (!result.brewed()) {
+        Brew brew = chooseBrew(mix);
+        // The tank holds one wort at a time: a different drink waits until it has been drawn off.
+        boolean sameWort = wortAmount == 0 || brew.drink().equals(wortDrink);
+        boolean roomForMore = sameWort && wortAmount + Math.max(brew.amount(), WORT_PER_BREW) <= TANK_CAPACITY;
+        if (!roomForMore || waterAmount < brew.amount()) {
+            stopBrewing();
             return;
         }
 
-        // Batches share one tank, so the weakest one decides the quality of the lot.
-        wortStars = wortAmount > 0 ? Math.min(wortStars, brewStars) : brewStars;
-        wortDrink = recipe.value().drink().id();
-        waterAmount -= view.wortAmount();
-        wortAmount += result.wortAmount();
-        result.consumed().forEach(this::consumeOne);
-        brewProgressTicks = 0;
-        setBrewingState(false);
+        brewProgressTicks++;
+        brewTimeTicks = brew.ticks();
+        aroma = brew.aroma();
+        // The worst heat of the whole brew counts, not just the heat on its last tick.
+        brewStars = brewProgressTicks == 1 ? brew.heatStars(heatLevel) : Math.min(brewStars, brew.heatStars(heatLevel));
+        setBrewingState(true);
         setChanged();
+        if (brewProgressTicks < brew.ticks()) {
+            return;
+        }
+
+        int stars = brew.stars(brewStars);
+        // Batches share one tank, so the weakest one decides the quality of the lot.
+        wortStars = wortAmount > 0 ? Math.min(wortStars, stars) : stars;
+        wortDrink = brew.drink();
+        waterAmount -= brew.amount();
+        wortAmount += brew.amount();
+        for (int slot = 0; slot < input.getSlots(); slot++) {
+            input.setStackInSlot(slot, ItemStack.EMPTY);
+        }
+        contents = List.of();
+        stopBrewing();
+    }
+
+    private void stopBrewing() {
+        brewProgressTicks = 0;
+        aroma = 0;
+        setBrewingState(false);
+    }
+
+    /** Brews the mix by the recipe it resembles most, or into muddy brew when it resembles none. */
+    private Brew chooseBrew(List<String> mix) {
+        List<RecipeHolder<BrewingRecipe>> recipes = level.getRecipeManager().getAllRecipesFor(ModRecipeTypes.BREWING.get());
+        List<MixRules.Candidate> candidates = recipes.stream()
+                .map(holder -> new MixRules.Candidate(holder.id().toString(), holder.value().inputs(),
+                        holder.value().idealHeatLevel()))
+                .toList();
+        MixRules.Choice choice = MixRules.best(candidates, mix, heatLevel);
+        return new Brew(choice.index() < 0 ? null : recipes.get(choice.index()).value(), choice.score());
+    }
+
+    /**
+     * What the current mix brews into.
+     *
+     * @param recipe the closest recipe, or {@code null} for muddy brew
+     * @param score  how close the mix is to that recipe
+     */
+    private record Brew(@Nullable BrewingRecipe recipe, int score) {
+        String drink() {
+            return recipe == null ? DrinkProfile.MUDDY.id() : recipe.drink().id();
+        }
+
+        /** Water used up by one brew, which is also the wort it makes. */
+        int amount() {
+            return recipe == null ? MUDDY_AMOUNT : recipe.getWort().getAmount();
+        }
+
+        int ticks() {
+            return recipe == null ? MUDDY_BREW_TICKS : recipe.brewTimeTicks();
+        }
+
+        int aroma() {
+            return recipe == null ? MixRules.AROMA_WEAK : MixRules.aroma(score);
+        }
+
+        int heatStars(int heat) {
+            return recipe == null ? DrinkData.MIN_STARS : KettleLogic.brewStars(heat, recipe.idealHeatLevel());
+        }
+
+        /** Muddy brew is always the worst; anything else is as good as its mix and its fire allow. */
+        int stars(int worstHeatStars) {
+            return recipe == null ? DrinkData.MIN_STARS : KettleLogic.mixStars(score, worstHeatStars);
+        }
     }
 
     private void setBrewingState(boolean brewing) {
@@ -327,54 +384,20 @@ public class KettleBlockEntity extends BlockEntity {
         }
     }
 
-    private void consumeOne(String itemId) {
-        for (int slot = 0; slot < input.getSlots(); slot++) {
-            ItemStack stack = input.getStackInSlot(slot);
-            if (stack.isEmpty() || !BuiltInRegistries.ITEM.getKey(stack.getItem()).toString().equals(itemId)) {
-                continue;
-            }
-            // Shrink a copy: ItemStackHandler hands out the live stack, so mutating it in
-            // place and then calling setStackInSlot would leave one object in two slots.
-            ItemStack leftover = stack.copy();
-            leftover.shrink(1);
-            input.setStackInSlot(slot, leftover);
-            return;
-        }
-    }
-
+    /** Every item in the slots, one entry each and sorted, so the same mix always reads the same. */
     private List<String> inputIds() {
         return inputContents().stream()
                 .flatMap(stack -> java.util.stream.Stream.generate(() -> BuiltInRegistries.ITEM.getKey(stack.getItem()).toString())
                         .limit(stack.getCount()))
+                .sorted()
                 .toList();
     }
 
-    /** Items from the input slots expanded to one entry per item, as the rules expect. */
     private List<ItemStack> inputContents() {
         return List.of(input.getStackInSlot(0), input.getStackInSlot(1),
                 input.getStackInSlot(2), input.getStackInSlot(3)).stream()
                 .filter(stack -> !stack.isEmpty())
                 .toList();
-    }
-
-    @Nullable
-    private RecipeHolder<BrewingRecipe> findRecipe(int heat) {
-        if (heat <= KettleLogic.HEAT_NONE || level == null) {
-            return null;
-        }
-        List<String> ids = inputIds();
-        var recipes = level.getRecipeManager().getAllRecipesFor(ModRecipeTypes.BREWING.get());
-        for (RecipeHolder<BrewingRecipe> holder : recipes) {
-            if (holder.value().matches(ids, heat)) {
-                return holder;
-            }
-        }
-        return null;
-    }
-
-    private static KettleLogic.RecipeView toView(BrewingRecipe recipe) {
-        return new KettleLogic.RecipeView(recipe.inputs(), recipe.getWort().getFluid(),
-                recipe.getWort().getAmount(), recipe.brewTimeTicks(), recipe.idealHeatLevel());
     }
 
     // ---- persistence ---------------------------------------------------------------
@@ -389,6 +412,9 @@ public class KettleBlockEntity extends BlockEntity {
         tag.putString("WortDrink", wortDrink);
         tag.putInt("BrewProgress", brewProgressTicks);
         tag.putInt("BrewStars", brewStars);
+        ListTag mix = new ListTag();
+        contents.forEach(id -> mix.add(StringTag.valueOf(id)));
+        tag.put("Contents", mix);
     }
 
     @Override
@@ -403,5 +429,7 @@ public class KettleBlockEntity extends BlockEntity {
         wortDrink = tag.contains("WortDrink") ? tag.getString("WortDrink") : DrinkProfile.BEER.id();
         brewProgressTicks = tag.getInt("BrewProgress");
         brewStars = tag.contains("BrewStars") ? tag.getInt("BrewStars") : DrinkData.MAX_STARS;
+        ListTag mix = tag.getList("Contents", Tag.TAG_STRING);
+        contents = java.util.stream.IntStream.range(0, mix.size()).mapToObj(mix::getString).toList();
     }
 }
