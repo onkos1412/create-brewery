@@ -79,5 +79,16 @@
   "gui.brewery.barrel_slot_batch": "Distillate",
   "gui.brewery.barrel_slot_drink": "Finished drink",
   "gui.brewery.barrel_slot_locked": "Place another barrel beside this one",
-  "drink.brewery.muddy": "Muddy brew"
+  "drink.brewery.muddy": "Muddy brew",
+  "drink.brewery.kvass": "Kvass",
+  "drink.brewery.young_stout": "Young stout",
+  "drink.brewery.stout": "Stout",
+  "drink.brewery.pulque": "Pulque",
+  "drink.brewery.tequila": "Tequila",
+  "drink.brewery.aged_tequila": "Aged tequila",
+  "drink.brewery.wormwood_mash": "Wormwood mash",
+  "drink.brewery.absinthe": "Absinthe",
+  "drink.brewery.glow_mash": "Glow mash",
+  "drink.brewery.glow_spirit": "Glow spirit",
+  "drink.brewery.firefly_liqueur": "Firefly liqueur"
 }

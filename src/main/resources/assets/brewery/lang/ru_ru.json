@@ -79,5 +79,16 @@
   "gui.brewery.barrel_slot_batch": "Дистиллят",
   "gui.brewery.barrel_slot_drink": "Готовый напиток",
   "gui.brewery.barrel_slot_locked": "Поставьте рядом ещё бочку",
-  "drink.brewery.muddy": "Мутное варево"
+  "drink.brewery.muddy": "Мутное варево",
+  "drink.brewery.kvass": "Квас",
+  "drink.brewery.young_stout": "Молодой стаут",
+  "drink.brewery.stout": "Стаут",
+  "drink.brewery.pulque": "Пульке",
+  "drink.brewery.tequila": "Текила",
+  "drink.brewery.aged_tequila": "Выдержанная текила",
+  "drink.brewery.wormwood_mash": "Полынная брага",
+  "drink.brewery.absinthe": "Абсент",
+  "drink.brewery.glow_mash": "Светящаяся брага",
+  "drink.brewery.glow_spirit": "Светлячковый спирт",
+  "drink.brewery.firefly_liqueur": "Светлячковая настойка"
 }

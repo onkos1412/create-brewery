@@ -1,0 +1,30 @@
+{
+  "type": "brewery:brewing",
+  "inputs": [
+    {
+      "item": "minecraft:fern"
+    },
+    {
+      "item": "minecraft:sugar"
+    }
+  ],
+  "water": {
+    "fluid": "minecraft:water",
+    "amount": 1000
+  },
+  "result": {
+    "fluid": "brewery:wort",
+    "amount": 1000
+  },
+  "brewTimeTicks": 200,
+  "heatLevel": "superheated",
+  "drink": {
+    "id": "wormwood_mash",
+    "alcohol": 10,
+    "distilled": "absinthe",
+    "distilledAlcohol": 65,
+    "distillTicks": 300,
+    "idealRpm": 112,
+    "color": "#7fa83a"
+  }
+}

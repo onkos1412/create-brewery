@@ -57,6 +57,36 @@
         "brewery:drink": 9
       },
       "model": "brewery:item/spoiled_bottle"
+    },
+    {
+      "predicate": {
+        "brewery:drink": 10
+      },
+      "model": "brewery:item/kvass_bottle"
+    },
+    {
+      "predicate": {
+        "brewery:drink": 11
+      },
+      "model": "brewery:item/stout_bottle"
+    },
+    {
+      "predicate": {
+        "brewery:drink": 12
+      },
+      "model": "brewery:item/tequila_bottle"
+    },
+    {
+      "predicate": {
+        "brewery:drink": 13
+      },
+      "model": "brewery:item/absinthe_bottle"
+    },
+    {
+      "predicate": {
+        "brewery:drink": 14
+      },
+      "model": "brewery:item/firefly_bottle"
     }
   ]
 }

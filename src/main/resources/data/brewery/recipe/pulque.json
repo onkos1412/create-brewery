@@ -1,0 +1,33 @@
+{
+  "type": "brewery:brewing",
+  "inputs": [
+    {
+      "item": "minecraft:cactus"
+    },
+    {
+      "item": "minecraft:cactus"
+    }
+  ],
+  "water": {
+    "fluid": "minecraft:water",
+    "amount": 1000
+  },
+  "result": {
+    "fluid": "brewery:wort",
+    "amount": 1000
+  },
+  "brewTimeTicks": 200,
+  "heatLevel": "heated",
+  "drink": {
+    "id": "pulque",
+    "alcohol": 8,
+    "distilled": "tequila",
+    "distilledAlcohol": 40,
+    "aged": "aged_tequila",
+    "distillTicks": 300,
+    "idealRpm": 72,
+    "agingDays": 3,
+    "wood": "acacia",
+    "color": "#d9d6b8"
+  }
+}

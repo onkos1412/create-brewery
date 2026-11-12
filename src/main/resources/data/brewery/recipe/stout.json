@@ -1,0 +1,33 @@
+{
+  "type": "brewery:brewing",
+  "inputs": [
+    {
+      "item": "minecraft:wheat"
+    },
+    {
+      "item": "minecraft:wheat"
+    },
+    {
+      "item": "minecraft:cocoa_beans"
+    }
+  ],
+  "water": {
+    "fluid": "minecraft:water",
+    "amount": 1000
+  },
+  "result": {
+    "fluid": "brewery:wort",
+    "amount": 1000
+  },
+  "brewTimeTicks": 200,
+  "heatLevel": "heated",
+  "drink": {
+    "id": "young_stout",
+    "alcohol": 8,
+    "distilledAlcohol": 12,
+    "aged": "stout",
+    "agingDays": 2,
+    "wood": "dark_oak",
+    "color": "#2e1a0e"
+  }
+}

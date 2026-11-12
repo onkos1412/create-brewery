@@ -40,7 +40,13 @@ public final class ModClientSetup {
             Map.entry("rum", 6f), Map.entry("aged_rum", 6f),
             Map.entry("young_wine", 7f), Map.entry("wine", 7f),
             Map.entry("young_mead", 8f), Map.entry("mead", 8f),
-            Map.entry(DrinkData.SPOILED_STAGE, 9f), Map.entry("muddy", 9f));
+            Map.entry(DrinkData.SPOILED_STAGE, 9f), Map.entry("muddy", 9f),
+            Map.entry("kvass", 10f),
+            Map.entry("young_stout", 11f), Map.entry("stout", 11f),
+            Map.entry("pulque", 3f), Map.entry("wormwood_mash", 3f), Map.entry("glow_mash", 3f),
+            Map.entry("tequila", 12f), Map.entry("aged_tequila", 12f),
+            Map.entry("absinthe", 13f),
+            Map.entry("glow_spirit", 14f), Map.entry("firefly_liqueur", 14f));
 
     private ModClientSetup() {
     }

@@ -1,0 +1,33 @@
+{
+  "type": "brewery:brewing",
+  "inputs": [
+    {
+      "item": "minecraft:glow_berries"
+    },
+    {
+      "item": "minecraft:glow_berries"
+    }
+  ],
+  "water": {
+    "fluid": "minecraft:water",
+    "amount": 1000
+  },
+  "result": {
+    "fluid": "brewery:wort",
+    "amount": 1000
+  },
+  "brewTimeTicks": 200,
+  "heatLevel": "heated",
+  "drink": {
+    "id": "glow_mash",
+    "alcohol": 10,
+    "distilled": "glow_spirit",
+    "distilledAlcohol": 35,
+    "aged": "firefly_liqueur",
+    "distillTicks": 300,
+    "idealRpm": 40,
+    "agingDays": 3,
+    "wood": "cherry",
+    "color": "#f0a830"
+  }
+}

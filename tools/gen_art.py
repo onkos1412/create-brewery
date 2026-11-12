@@ -136,6 +136,11 @@ def write_item_textures():
     save(bottle("#7a4a5a", ["#9c2440", "#7a1a30", "#5a1022"], ("#f0e8d8", "#7a1a30"), False), ITEM, "wine_bottle")
     save(bottle("#d8b870", ["#f2c84a", "#d8a830", "#b08820"], ("#3a2a14", "#f2c84a"), False), ITEM, "mead_bottle")
     save(bottle("#6a7040", ["#7a8a30", "#5c6a20", "#3f4a14"], None, False), ITEM, "spoiled_bottle")
+    save(bottle("#7a4a2a", ["#8a4a20", "#6b3a1a", "#4c2810"], ("#e8dcc0", "#6b3a1a"), False), ITEM, "kvass_bottle")
+    save(bottle("#2a2018", ["#3e2514", "#2e1a0e", "#1c0f06"], ("#e8dcc0", "#2e1a0e"), False), ITEM, "stout_bottle")
+    save(bottle("#d8c88a", ["#ecd88a", "#d4b865", "#a88f45"], ("#2a4a26", "#efcf6a"), True), ITEM, "tequila_bottle")
+    save(bottle("#a8c878", ["#9fd05a", "#7fa83a", "#5a8024"], ("#1d2a1a", "#d8e8a0"), True), ITEM, "absinthe_bottle")
+    save(bottle("#c9a050", ["#f6c040", "#f0a830", "#c07c1c"], ("#2a1a3a", "#f6e070"), True), ITEM, "firefly_bottle")
     save(bottle("#dfe9e6", ["#f3e7c0", "#e6d49a", "#cbb676"], None, True), ITEM, "distillate")
 
 
@@ -367,7 +372,8 @@ def write_models():
     dump(items / "distillate.json", {"parent": "minecraft:item/generated",
                                      "textures": {"layer0": "brewery:item/distillate"}})
     # The base model is beer; the `brewery:drink` property picks the others (see ModClientSetup).
-    art = ["whiskey", "cider", "mash", "calvados", "vodka", "rum", "wine", "mead", "spoiled"]
+    art = ["whiskey", "cider", "mash", "calvados", "vodka", "rum", "wine", "mead", "spoiled",
+           "kvass", "stout", "tequila", "absinthe", "firefly"]
     for name in art:
         dump(items / f"{name}_bottle.json", {"parent": "minecraft:item/generated",
                                              "textures": {"layer0": f"brewery:item/{name}_bottle"}})

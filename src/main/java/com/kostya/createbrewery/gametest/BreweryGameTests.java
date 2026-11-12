@@ -22,6 +22,8 @@ import com.simibubi.create.content.kinetics.base.DirectionalKineticBlock;
 import com.simibubi.create.content.kinetics.base.KineticBlockEntity;
 import com.simibubi.create.content.kinetics.base.RotatedPillarKineticBlock;
 import com.simibubi.create.content.logistics.funnel.FunnelBlock;
+import com.simibubi.create.content.processing.burner.BlazeBurnerBlock;
+import com.simibubi.create.content.processing.burner.BlazeBurnerBlockEntity;
 import com.simibubi.create.foundation.blockEntity.behaviour.BlockEntityBehaviour;
 import com.simibubi.create.foundation.blockEntity.behaviour.scrollValue.ScrollValueBehaviour;
 import net.minecraft.core.BlockPos;
@@ -916,6 +918,113 @@ public class BreweryGameTests {
                 .thenSucceed();
     }
 
+    @GameTest(template = "empty", timeoutTicks = 400)
+    public static void breadBrewsKvass(GameTestHelper helper) {
+        KettleBlockEntity kettle = placeMixKettle(helper, Blocks.CAMPFIRE.defaultBlockState(), Items.BREAD, Items.BREAD);
+        helper.setBlock(KETTLE.east(), ModBlocks.SPOUT.get());
+
+        helper.startSequence()
+                .thenWaitUntil(() -> helper.assertTrue(kettle.getWortAmount() >= 1000, "kettle brewed no wort"))
+                .thenExecute(() -> {
+                    helper.assertTrue("kvass".equals(kettle.getWortDrink()), "bread brewed " + kettle.getWortDrink());
+                    helper.assertTrue(kettle.getWortStars() == DrinkData.MAX_STARS, "kvass stars " + kettle.getWortStars());
+                    Player player = helper.makeMockPlayer(GameType.SURVIVAL);
+                    player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(Items.GLASS_BOTTLE));
+                    helper.useBlock(KETTLE.east(), player);
+                    DrinkData drink = data(findBottle(helper, player));
+                    helper.assertTrue("kvass".equals(drink.stage()), "bread bottle: " + drink.stage());
+                    helper.assertTrue(drink.alcohol() == 3, "kvass strength " + drink.alcohol());
+                })
+                .thenSucceed();
+    }
+
+    @GameTest(template = "empty", timeoutTicks = 400)
+    public static void wheatAndCocoaBrewStout(GameTestHelper helper) {
+        KettleBlockEntity kettle = placeMixKettle(helper, Blocks.CAMPFIRE.defaultBlockState(),
+                Items.WHEAT, Items.WHEAT, Items.COCOA_BEANS);
+
+        helper.startSequence()
+                .thenWaitUntil(() -> helper.assertTrue(kettle.getWortAmount() >= 1000, "kettle brewed no wort"))
+                .thenExecute(() -> {
+                    helper.assertTrue("young_stout".equals(kettle.getWortDrink()), "brewed " + kettle.getWortDrink());
+                    helper.assertTrue(kettle.getWortStars() == DrinkData.MAX_STARS, "stout stars " + kettle.getWortStars());
+                })
+                .thenSucceed();
+    }
+
+    /** Wormwood needs more than a campfire: too cold it turns muddy, over a seething Blaze Burner it brews. */
+    @GameTest(template = "empty", timeoutTicks = 900)
+    public static void wormwoodNeedsSuperheat(GameTestHelper helper) {
+        KettleBlockEntity kettle = placeMixKettle(helper, Blocks.CAMPFIRE.defaultBlockState(), Items.FERN, Items.SUGAR);
+
+        helper.startSequence()
+                .thenWaitUntil(() -> helper.assertTrue(kettle.getWortAmount() >= 1000, "campfire brewed no wort"))
+                .thenExecute(() -> {
+                    helper.assertTrue("muddy".equals(kettle.getWortDrink()), "campfire brewed " + kettle.getWortDrink());
+                    kettle.drainWort(1000);
+                    setFire(helper, superheater());
+                    items(helper, KETTLE).insertItem(0, new ItemStack(Items.FERN), false);
+                    items(helper, KETTLE).insertItem(1, new ItemStack(Items.SUGAR), false);
+                    fluids(helper, KETTLE).fill(new FluidStack(Fluids.WATER, 1000), IFluidHandler.FluidAction.EXECUTE);
+                })
+                .thenWaitUntil(() -> helper.assertTrue(kettle.getWortAmount() >= 1000, "burner brewed no wort"))
+                .thenExecute(() -> {
+                    helper.assertTrue("wormwood_mash".equals(kettle.getWortDrink()), "burner brewed " + kettle.getWortDrink());
+                    helper.assertTrue(kettle.getWortStars() == DrinkData.MAX_STARS, "mash stars " + kettle.getWortStars());
+                })
+                .thenSucceed();
+    }
+
+    @GameTest(template = "empty", timeoutTicks = 800)
+    public static void wormwoodDistillsToAbsinthe(GameTestHelper helper) {
+        KettleBlockEntity kettle = placeMixKettle(helper, superheater(), Items.FERN, Items.SUGAR);
+        helper.setBlock(DISTILLERY.below(), Blocks.CAMPFIRE);
+        helper.setBlock(DISTILLERY, ModBlocks.DISTILLERY.get());
+        driveStill(helper, DISTILLERY, 112);
+        DistilleryBlockEntity distillery = helper.getBlockEntity(DISTILLERY);
+        helper.setBlock(DISTILLERY.east(), ModBlocks.SPOUT.get());
+        helper.setBlock(BARREL, ModBlocks.BARREL.get());
+
+        helper.startSequence()
+                .thenWaitUntil(() -> helper.assertTrue(kettle.getWortAmount() >= 1000, "kettle brewed no wort"))
+                .thenExecute(() -> fluids(helper, DISTILLERY).fill(
+                        fluids(helper, KETTLE).drain(1000, IFluidHandler.FluidAction.EXECUTE),
+                        IFluidHandler.FluidAction.EXECUTE))
+                .thenWaitUntil(() -> helper.assertFalse(distillery.getOutput().getStackInSlot(0).isEmpty(),
+                        "no distillate; rpm=" + distillery.getRpm()))
+                .thenExecute(() -> {
+                    ItemStack distillate = distillery.getOutput().getStackInSlot(0);
+                    helper.assertTrue(items(helper, BARREL).insertItem(0, distillate.copy(), true).getCount() == 1,
+                            "barrel accepted absinthe");
+
+                    Player player = helper.makeMockPlayer(GameType.SURVIVAL);
+                    player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(Items.GLASS_BOTTLE));
+                    helper.useBlock(DISTILLERY.east(), player);
+                    DrinkData drink = data(findBottle(helper, player));
+                    helper.assertTrue("absinthe".equals(drink.stage()), "still bottle: " + drink.stage());
+                    helper.assertTrue(distillery.getOutput().getStackInSlot(0).isEmpty(), "absinthe was not poured");
+                })
+                .thenSucceed();
+    }
+
+    @GameTest(template = "empty", timeoutTicks = 1500, batch = "aging_tequila")
+    public static void pulqueAgesIntoTequilaInAcacia(GameTestHelper helper) {
+        agedRoad(helper, Items.CACTUS, 72, Items.ACACIA_PLANKS, "aged_tequila", DrinkData.MAX_STARS);
+    }
+
+    @GameTest(template = "empty", timeoutTicks = 400)
+    public static void glowBerriesBrewGlowMash(GameTestHelper helper) {
+        KettleBlockEntity kettle = placeKettle(helper, Items.GLOW_BERRIES);
+
+        helper.startSequence()
+                .thenWaitUntil(() -> helper.assertTrue(kettle.getWortAmount() >= 1000, "kettle brewed no wort"))
+                .thenExecute(() -> {
+                    helper.assertTrue("glow_mash".equals(kettle.getWortDrink()), "brewed " + kettle.getWortDrink());
+                    helper.assertTrue(kettle.getWortStars() == DrinkData.MAX_STARS, "mash stars " + kettle.getWortStars());
+                })
+                .thenSucceed();
+    }
+
     /** A real funnel takes items dropped on it into the kettle and the barrel. */
     @GameTest(template = "empty", timeoutTicks = 300)
     public static void createFunnelsFillMachines(GameTestHelper helper) {
@@ -1211,6 +1320,36 @@ private static KettleBlockEntity placeHeatedKettle(GameTestHelper helper) {
         helper.setBlock(KETTLE.below(), Blocks.CAMPFIRE);
         helper.setBlock(KETTLE, ModBlocks.KETTLE.get());
         items(helper, KETTLE).insertItem(0, new ItemStack(ingredient, 2), false);
+        fluids(helper, KETTLE).fill(new FluidStack(Fluids.WATER, 1000), IFluidHandler.FluidAction.EXECUTE);
+        return helper.getBlockEntity(KETTLE);
+    }
+
+    private static BlockState superheater() {
+        return AllBlocks.BLAZE_BURNER.get().defaultBlockState()
+                .setValue(BlazeBurnerBlock.HEAT_LEVEL, BlazeBurnerBlock.HeatLevel.SEETHING);
+    }
+
+    /** A creative burner keeps its seething blockstate: a fuelled one would cool off on its own tick. */
+    private static void setFire(GameTestHelper helper, BlockState fire) {
+        helper.setBlock(KETTLE.below(), fire);
+        if (helper.getBlockEntity(KETTLE.below()) instanceof BlazeBurnerBlockEntity burner) {
+            burner.isCreative = true;
+        }
+    }
+
+    /** A kettle with water over the given fire; the items fill the input slots, one kind to a slot. */
+    private static KettleBlockEntity placeMixKettle(GameTestHelper helper, BlockState fire, Item... mix) {
+        setFire(helper, fire);
+        helper.setBlock(KETTLE, ModBlocks.KETTLE.get());
+        int slot = -1;
+        Item last = null;
+        for (Item item : mix) {
+            if (item != last) {
+                slot++;
+                last = item;
+            }
+            items(helper, KETTLE).insertItem(slot, new ItemStack(item), false);
+        }
         fluids(helper, KETTLE).fill(new FluidStack(Fluids.WATER, 1000), IFluidHandler.FluidAction.EXECUTE);
         return helper.getBlockEntity(KETTLE);
     }

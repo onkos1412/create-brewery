@@ -48,7 +48,7 @@
 "drink": {
   "id": "kvass", "alcohol": 3,
   "distilled": "kvass_spirit", "distilledAlcohol": 40, "distillTicks": 250, "idealRpm": 80,
-  "aged": "aged_kvass_spirit", "agingDays": 6, "wood": "acacia"
+  "aged": "aged_kvass_spirit", "agingDays": 6, "wood": "mangrove"
 }
 ```
 
