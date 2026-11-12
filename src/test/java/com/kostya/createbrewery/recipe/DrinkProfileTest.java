@@ -69,6 +69,13 @@ class DrinkProfileTest {
     }
 
     @Test
+    void muddyCannotGoFurther() {
+        assertFalse(DrinkProfile.MUDDY.canDistill());
+        assertFalse(DrinkProfile.MUDDY.canAge());
+        assertEquals(0x5B4A32, DrinkProfile.MUDDY.color());
+    }
+
+    @Test
     void omittedStagesMeanTheRoadEnds() {
         var json = JsonParser.parseString("{\"id\": \"kvass\", \"alcohol\": 5}");
         DrinkProfile kvass = DrinkProfile.CODEC.parse(JsonOps.INSTANCE, json).getOrThrow();

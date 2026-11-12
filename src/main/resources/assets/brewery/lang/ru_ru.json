@@ -80,5 +80,6 @@
   "gui.brewery.barrel_slot_bottles": "Пустые бутылки",
   "gui.brewery.barrel_slot_batch": "Дистиллят",
   "gui.brewery.barrel_slot_drink": "Готовый напиток",
-  "gui.brewery.barrel_slot_locked": "Поставьте рядом ещё бочку"
+  "gui.brewery.barrel_slot_locked": "Поставьте рядом ещё бочку",
+  "drink.brewery.muddy": "Мутное варево"
 }

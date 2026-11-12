@@ -39,6 +39,9 @@ public record BrewingRecipe(
 
     /** The profile of the wort called {@code id}. */
     public static DrinkProfile profileOf(Level level, String id) {
+        if (id.equals(DrinkProfile.MUDDY.id())) {
+            return DrinkProfile.MUDDY;
+        }
         return findProfile(level, drink -> drink.id().equals(id));
     }
 

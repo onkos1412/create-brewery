@@ -80,5 +80,6 @@
   "gui.brewery.barrel_slot_bottles": "Empty bottles",
   "gui.brewery.barrel_slot_batch": "Distillate",
   "gui.brewery.barrel_slot_drink": "Finished drink",
-  "gui.brewery.barrel_slot_locked": "Place another barrel beside this one"
+  "gui.brewery.barrel_slot_locked": "Place another barrel beside this one",
+  "drink.brewery.muddy": "Muddy brew"
 }

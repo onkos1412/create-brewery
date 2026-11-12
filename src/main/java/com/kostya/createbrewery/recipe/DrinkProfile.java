@@ -35,6 +35,10 @@ public record DrinkProfile(String id, int alcohol, String distilled, int distill
     public static final DrinkProfile BEER =
             new DrinkProfile("beer", 20, "whiskey", 40, "aged_whiskey", 200, 32, 3, "oak", BEER_COLOR);
 
+    /** What a mix that matches no recipe closely enough becomes: weak, and a dead end for the still and the barrel. */
+    public static final DrinkProfile MUDDY =
+            new DrinkProfile("muddy", 2, "", 40, "", 200, 32, 3, "oak", 0x5B4A32);
+
     public static final Codec<DrinkProfile> CODEC = RecordCodecBuilder.create(instance -> instance.group(
             Codec.STRING.fieldOf("id").forGetter(DrinkProfile::id),
             Codec.intRange(0, 100).fieldOf("alcohol").forGetter(DrinkProfile::alcohol),
