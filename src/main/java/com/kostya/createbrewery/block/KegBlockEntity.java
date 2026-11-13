@@ -99,8 +99,13 @@ public class KegBlockEntity extends BlockEntity implements IHaveGoggleInformatio
         return side == Direction.DOWN ? output : input;
     }
 
+    /** Whether a bottle would be taken by hand: the same drink, with room left. */
+    public boolean accepts(ItemStack bottle) {
+        return canTake(bottle, false);
+    }
+
     private boolean canTake(ItemStack bottle, boolean keepEmpty) {
-        if (!bottle.is(ModItems.DRINK_BOTTLE.get())) {
+        if (!bottle.is(ModItems.DRINK_BOTTLE.get()) || !bottle.has(ModDataComponents.DRINK_DATA.get())) {
             return false;
         }
         return KegRules.accepts(portions, sameDrink(bottle), keepEmpty ? empties : 0);
@@ -179,6 +184,9 @@ public class KegBlockEntity extends BlockEntity implements IHaveGoggleInformatio
         empties = Math.max(0, Math.min(KegRules.EMPTIES, tag.getInt("Empties")));
         if (drink.isEmpty()) {
             portions = 0;
+        }
+        if (portions == 0) {
+            drink = ItemStack.EMPTY;
         }
     }
 

@@ -2442,9 +2442,9 @@ public class BreweryGameTests {
     }
 
     /** Uses what the player holds on the keg, as a right-click does. */
-    private static void useOnKeg(GameTestHelper helper, Player player, BlockPos pos) {
+    private static net.minecraft.world.ItemInteractionResult useOnKeg(GameTestHelper helper, Player player, BlockPos pos) {
         BlockPos abs = helper.absolutePos(pos);
-        helper.getLevel().getBlockState(abs).useItemOn(player.getMainHandItem(), helper.getLevel(), player,
+        return helper.getLevel().getBlockState(abs).useItemOn(player.getMainHandItem(), helper.getLevel(), player,
                 InteractionHand.MAIN_HAND, new BlockHitResult(Vec3.atCenterOf(abs), Direction.NORTH, abs, false));
     }
 
@@ -2590,6 +2590,43 @@ public class BreweryGameTests {
         helper.assertFalse(full.isEmpty(), "no mug of drink");
         helper.assertTrue(whiskey.equals(full.get(ModDataComponents.DRINK_DATA.get())), "data " + data(full));
         helper.assertTrue(kostya.equals(full.get(ModDataComponents.BREWER.get())), "signature lost");
+        helper.succeed();
+    }
+
+    /** A bottle the keg refuses stays in hand and the click falls through, so it can still be drunk. */
+    @GameTest(template = "empty")
+    public static void refusedBottleIsNotConsumed(GameTestHelper helper) {
+        KegBlockEntity keg = placeKeg(helper, KEG);
+        keg.pourIn(drinkBottle(1, new DrinkData(4, 20, "beer"), null), false);
+        ServerPlayer player = freshPlayer(helper);
+        player.setItemInHand(InteractionHand.MAIN_HAND, drinkBottle(1, new DrinkData(3, 20, "beer"), null));
+        net.minecraft.world.ItemInteractionResult result = useOnKeg(helper, player, KEG);
+        helper.assertTrue(result == net.minecraft.world.ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION,
+                "result " + result);
+        helper.assertTrue(keg.getPortions() == 1, "portions " + keg.getPortions());
+        helper.assertTrue(player.getMainHandItem().is(ModItems.DRINK_BOTTLE.get()) && player.getMainHandItem().getCount() == 1,
+                "hand " + player.getMainHandItem());
+        helper.succeed();
+    }
+
+    /** A creative player pouring a mug that matches one already carried still gets the new mug. */
+    @GameTest(template = "empty")
+    public static void creativeMugPourGivesMug(GameTestHelper helper) {
+        KegBlockEntity keg = placeKeg(helper, KEG);
+        DrinkData beer = new DrinkData(4, 20, "beer");
+        for (int i = 0; i < 3; i++) {
+            keg.pourIn(drinkBottle(1, beer, null), false);
+        }
+        ServerPlayer player = freshPlayer(helper);
+        player.setGameMode(GameType.CREATIVE);
+        ItemStack carried = new ItemStack(ModItems.DRINK_MUG.get());
+        carried.set(ModDataComponents.DRINK_DATA.get(), beer);
+        player.getInventory().setItem(5, carried);
+        player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(ModItems.MUG.get()));
+        useOnKeg(helper, player, KEG);
+        helper.assertTrue(keg.getPortions() == 2, "portions " + keg.getPortions());
+        helper.assertTrue(countInInventory(player, ModItems.DRINK_MUG.get()) == 2,
+                "mugs " + countInInventory(player, ModItems.DRINK_MUG.get()));
         helper.succeed();
     }
 
