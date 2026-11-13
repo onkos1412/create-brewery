@@ -8,6 +8,8 @@ import com.kostya.createbrewery.block.BarrelBlock;
 import com.kostya.createbrewery.block.BarrelBlockEntity;
 import com.kostya.createbrewery.block.BarrelMenu;
 import com.kostya.createbrewery.block.DistilleryBlockEntity;
+import com.kostya.createbrewery.block.KegBlock;
+import com.kostya.createbrewery.block.KegBlockEntity;
 import com.kostya.createbrewery.block.KettleBlockEntity;
 import com.kostya.createbrewery.block.KettleLogic;
 import com.kostya.createbrewery.block.ModBlocks;
@@ -24,6 +26,7 @@ import com.kostya.createbrewery.journal.BreweryJournalData;
 import com.kostya.createbrewery.journal.DrinkJournal;
 import com.kostya.createbrewery.journal.KettleRecord;
 import com.kostya.createbrewery.journal.StillRecord;
+import com.kostya.createbrewery.keg.KegRules;
 import com.kostya.createbrewery.network.OpenBrewerBookPayload;
 import com.kostya.createbrewery.recipe.BrewingRecipe;
 import com.kostya.createbrewery.recipe.BrewingRecipeSerializer;
@@ -78,6 +81,8 @@ import net.minecraft.world.level.block.entity.HopperBlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.LegacyRandomSource;
 import net.minecraft.world.level.material.Fluids;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.common.ModConfigSpec;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.entity.living.LivingDeathEvent;
@@ -2416,6 +2421,187 @@ public class BreweryGameTests {
         }
         fluids(helper, KETTLE).fill(new FluidStack(Fluids.WATER, 1000), IFluidHandler.FluidAction.EXECUTE);
         return helper.getBlockEntity(KETTLE);
+    }
+
+    // ---- keg ----------------------------------------------------------------------
+
+    private static final BlockPos KEG = new BlockPos(1, 2, 1);
+
+    private static KegBlockEntity placeKeg(GameTestHelper helper, BlockPos pos) {
+        helper.setBlock(pos, ModBlocks.KEG.get());
+        return helper.getBlockEntity(pos);
+    }
+
+    private static ItemStack drinkBottle(int count, DrinkData data, BrewerMark mark) {
+        ItemStack bottle = new ItemStack(ModItems.DRINK_BOTTLE.get(), count);
+        bottle.set(ModDataComponents.DRINK_DATA.get(), data);
+        if (mark != null) {
+            bottle.set(ModDataComponents.BREWER.get(), mark);
+        }
+        return bottle;
+    }
+
+    /** Uses what the player holds on the keg, as a right-click does. */
+    private static void useOnKeg(GameTestHelper helper, Player player, BlockPos pos) {
+        BlockPos abs = helper.absolutePos(pos);
+        helper.getLevel().getBlockState(abs).useItemOn(player.getMainHandItem(), helper.getLevel(), player,
+                InteractionHand.MAIN_HAND, new BlockHitResult(Vec3.atCenterOf(abs), Direction.NORTH, abs, false));
+    }
+
+    private static int countInInventory(Player player, Item item) {
+        int count = 0;
+        for (ItemStack stack : player.getInventory().items) {
+            if (stack.is(item)) {
+                count += stack.getCount();
+            }
+        }
+        return count;
+    }
+
+    /** Three bottles poured by hand make three portions, and their glass comes back. */
+    @GameTest(template = "empty")
+    public static void kegTakesBottlesByHand(GameTestHelper helper) {
+        KegBlockEntity keg = placeKeg(helper, KEG);
+        ServerPlayer player = freshPlayer(helper);
+        player.setItemInHand(InteractionHand.MAIN_HAND, drinkBottle(3, new DrinkData(4, 20, "beer"), null));
+        for (int i = 0; i < 3; i++) {
+            useOnKeg(helper, player, KEG);
+        }
+        helper.assertTrue(keg.getPortions() == 3, "portions " + keg.getPortions());
+        helper.assertTrue(keg.getEmpties() == 0, "hand filling kept glass in the keg");
+        helper.assertTrue(countInInventory(player, ModItems.DRINK_BOTTLE.get()) == 0, "bottles not spent");
+        helper.assertTrue(countInInventory(player, Items.GLASS_BOTTLE) == 3,
+                "glass bottles back " + countInInventory(player, Items.GLASS_BOTTLE));
+        helper.assertTrue(helper.getBlockState(KEG).getValue(KegBlock.LEVEL) == KegRules.windowLevel(3),
+                "window shows " + helper.getBlockState(KEG).getValue(KegBlock.LEVEL));
+        helper.assertTrue(data(keg.getDrink()).equals(new DrinkData(4, 20, "beer")), "keg holds " + data(keg.getDrink()));
+        helper.succeed();
+    }
+
+    /** Stars and signatures never blend: only the very same drink goes into a filled keg. */
+    @GameTest(template = "empty")
+    public static void kegRefusesDifferentStarsOrSignature(GameTestHelper helper) {
+        KegBlockEntity keg = placeKeg(helper, KEG);
+        BrewerMark kostya = new BrewerMark("Kostya", 7);
+        helper.assertTrue(keg.pourIn(drinkBottle(1, new DrinkData(4, 20, "beer"), kostya), false), "empty keg refused beer");
+        helper.assertFalse(keg.pourIn(drinkBottle(1, new DrinkData(3, 20, "beer"), kostya), false), "took fewer stars");
+        helper.assertFalse(keg.pourIn(drinkBottle(1, new DrinkData(4, 20, "beer"), null), false), "took an unsigned beer");
+        helper.assertFalse(keg.pourIn(drinkBottle(1, new DrinkData(4, 20, "beer"), new BrewerMark("Other", 7)), false),
+                "took another brewer's beer");
+        helper.assertFalse(keg.pourIn(drinkBottle(1, new DrinkData(4, 20, "cider"), kostya), false), "took cider");
+        helper.assertTrue(keg.getItemHandler(Direction.UP)
+                .insertItem(0, drinkBottle(1, new DrinkData(3, 20, "beer"), kostya), false).getCount() == 1,
+                "automation slipped in fewer stars");
+        helper.assertTrue(keg.pourIn(drinkBottle(1, new DrinkData(4, 20, "beer"), kostya), false), "refused the same beer");
+        helper.assertTrue(keg.getPortions() == 2, "portions " + keg.getPortions());
+        helper.succeed();
+    }
+
+    /** A distillate is not a drink yet: neither hand nor funnel puts one in the keg. */
+    @GameTest(template = "empty")
+    public static void kegRefusesDistillate(GameTestHelper helper) {
+        KegBlockEntity keg = placeKeg(helper, KEG);
+        ItemStack distillate = new ItemStack(ModItems.DISTILLATE.get());
+        distillate.set(ModDataComponents.DRINK_DATA.get(), new DrinkData(5, 40, "whiskey"));
+        helper.assertFalse(keg.pourIn(distillate, false), "keg took a distillate");
+        helper.assertTrue(keg.getItemHandler(Direction.NORTH).insertItem(0, distillate.copy(), false).getCount() == 1,
+                "funnel put a distillate in");
+        ServerPlayer player = freshPlayer(helper);
+        player.setItemInHand(InteractionHand.MAIN_HAND, distillate.copy());
+        useOnKeg(helper, player, KEG);
+        helper.assertTrue(player.getMainHandItem().is(ModItems.DISTILLATE.get()), "distillate taken from the hand");
+        helper.assertTrue(keg.getPortions() == 0, "portions " + keg.getPortions());
+        helper.succeed();
+    }
+
+    /** A funnel's bottle leaves its glass inside, to be taken from below; a full glass store stops filling. */
+    @GameTest(template = "empty")
+    public static void kegFunnelInsertStoresEmpties(GameTestHelper helper) {
+        KegBlockEntity keg = placeKeg(helper, KEG);
+        BlockPos abs = helper.absolutePos(KEG);
+        IItemHandler side = helper.getLevel().getCapability(Capabilities.ItemHandler.BLOCK, abs, Direction.NORTH);
+        IItemHandler below = helper.getLevel().getCapability(Capabilities.ItemHandler.BLOCK, abs, Direction.DOWN);
+        helper.assertTrue(side != null && below != null, "keg has no item handler");
+        DrinkData beer = new DrinkData(5, 20, "beer");
+
+        helper.assertTrue(side.insertItem(0, drinkBottle(1, beer, null), false).isEmpty(), "funnel bottle refused");
+        helper.assertTrue(keg.getPortions() == 1 && keg.getEmpties() == 1,
+                "portions " + keg.getPortions() + " empties " + keg.getEmpties());
+        helper.assertTrue(below.insertItem(0, drinkBottle(1, beer, null), false).getCount() == 1, "bottom took a drink");
+        helper.assertTrue(side.extractItem(0, 1, false).isEmpty(), "side gave something out");
+        ItemStack glass = below.extractItem(0, 1, false);
+        helper.assertTrue(glass.is(Items.GLASS_BOTTLE) && glass.getCount() == 1, "below gave " + glass);
+        helper.assertTrue(keg.getEmpties() == 0, "empties " + keg.getEmpties());
+
+        ItemStack rest = side.insertItem(0, drinkBottle(10, beer, null), false);
+        helper.assertTrue(rest.getCount() == 3 && keg.getPortions() == KegRules.CAPACITY,
+                "left " + rest.getCount() + " portions " + keg.getPortions());
+        keg.pourOut();
+        helper.assertTrue(keg.getEmpties() == KegRules.EMPTIES - 1, "empties " + keg.getEmpties());
+        helper.assertTrue(side.insertItem(0, drinkBottle(1, beer, null), false).isEmpty(), "room left refused");
+        keg.pourOut();
+        helper.assertTrue(side.insertItem(0, drinkBottle(1, beer, null), false).getCount() == 1,
+                "took a bottle with the glass store full");
+        helper.succeed();
+    }
+
+    /** The drink, its portions and the kept glass survive a save and load. */
+    @GameTest(template = "empty")
+    public static void kegSurvivesSaveLoad(GameTestHelper helper) {
+        KegBlockEntity keg = placeKeg(helper, KEG);
+        BrewerMark kostya = new BrewerMark("Kostya", 7, Optional.of(UUID.randomUUID()));
+        DrinkData whiskey = new DrinkData(4, 40, "aged_whiskey");
+        keg.pourIn(drinkBottle(1, whiskey, kostya), false);
+        keg.getItemHandler(Direction.EAST).insertItem(0, drinkBottle(2, whiskey, kostya), false);
+
+        var registries = helper.getLevel().registryAccess();
+        KegBlockEntity copy = placeKeg(helper, KEG.east(2));
+        copy.loadWithComponents(keg.saveWithFullMetadata(registries), registries);
+        helper.assertTrue(copy.getPortions() == 3 && copy.getEmpties() == 2,
+                "portions " + copy.getPortions() + " empties " + copy.getEmpties());
+        ItemStack drink = copy.getDrink();
+        helper.assertTrue(drink.getCount() == 1 && data(drink).equals(whiskey), "drink " + data(drink));
+        helper.assertTrue(kostya.equals(drink.get(ModDataComponents.BREWER.get())), "signature lost");
+        helper.assertTrue(copy.pourIn(drinkBottle(1, whiskey, kostya), false), "loaded keg refused its own drink");
+        helper.succeed();
+    }
+
+    /** A broken keg spills its portions as bottles and the glass it kept. */
+    @GameTest(template = "empty")
+    public static void brokenKegDropsPortionsAndEmpties(GameTestHelper helper) {
+        KegBlockEntity keg = placeKeg(helper, KEG);
+        DrinkData mead = new DrinkData(3, 20, "mead");
+        keg.pourIn(drinkBottle(1, mead, null), false);
+        keg.getItemHandler(Direction.UP).insertItem(0, drinkBottle(2, mead, null), false);
+        helper.setBlock(KEG, Blocks.AIR);
+
+        List<ItemEntity> dropped = helper.getLevel().getEntitiesOfClass(ItemEntity.class,
+                new net.minecraft.world.phys.AABB(helper.absolutePos(KEG)).inflate(2));
+        int drinks = 0;
+        int glass = 0;
+        for (ItemEntity item : dropped) {
+            if (item.getItem().is(ModItems.DRINK_BOTTLE.get()) && data(item.getItem()).equals(mead)) {
+                drinks += item.getItem().getCount();
+            } else if (item.getItem().is(Items.GLASS_BOTTLE)) {
+                glass += item.getItem().getCount();
+            }
+        }
+        helper.assertTrue(drinks == 3 && glass == 2, "dropped " + drinks + " drinks and " + glass + " glass");
+        helper.succeed();
+    }
+
+    /** A creative player's bottle stays in the hand, as with vanilla bottles. */
+    @GameTest(template = "empty")
+    public static void creativePourKeepsBottle(GameTestHelper helper) {
+        KegBlockEntity keg = placeKeg(helper, KEG);
+        ServerPlayer player = freshPlayer(helper);
+        player.getAbilities().instabuild = true;
+        player.setItemInHand(InteractionHand.MAIN_HAND, drinkBottle(1, new DrinkData(5, 25, "wine"), null));
+        useOnKeg(helper, player, KEG);
+        helper.assertTrue(keg.getPortions() == 1, "portions " + keg.getPortions());
+        ItemStack held = player.getMainHandItem();
+        helper.assertTrue(held.is(ModItems.DRINK_BOTTLE.get()) && held.getCount() == 1, "hand holds " + held);
+        helper.succeed();
     }
 
     private static IFluidHandler fluids(GameTestHelper helper, BlockPos pos) {

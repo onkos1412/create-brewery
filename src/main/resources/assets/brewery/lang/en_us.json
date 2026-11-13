@@ -135,5 +135,8 @@
   "gui.brewery.book.illegible": "The handwriting is illegible…",
   "gui.brewery.book.heat.0": "No heat",
   "gui.brewery.book.heat.1": "Heated",
-  "gui.brewery.book.heat.2": "Superheated"
+  "gui.brewery.book.heat.2": "Superheated",
+  "block.brewery.keg": "Keg",
+  "gui.brewery.keg.portions": "%s/%s",
+  "gui.brewery.keg.empty": "Empty"
 }

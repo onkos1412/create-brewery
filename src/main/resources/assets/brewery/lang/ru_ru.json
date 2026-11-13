@@ -135,5 +135,8 @@
   "gui.brewery.book.illegible": "Почерк неразборчив…",
   "gui.brewery.book.heat.0": "Без нагрева",
   "gui.brewery.book.heat.1": "Нагрев",
-  "gui.brewery.book.heat.2": "Сильный нагрев"
+  "gui.brewery.book.heat.2": "Сильный нагрев",
+  "block.brewery.keg": "Бочонок",
+  "gui.brewery.keg.portions": "%s/%s",
+  "gui.brewery.keg.empty": "Пусто"
 }

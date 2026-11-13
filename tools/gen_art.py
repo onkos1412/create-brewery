@@ -75,6 +75,26 @@ def write_block_textures():
     for name, ramp, seed in (("kettle_boil", grey, 5), ("kettle_still", calm, 6), ("wort_still", calm, 7), ("wort_flow", grey, 8)):
         save(surface(8, ramp, seed), BLOCK, name)
         (BLOCK / f"{name}.png.mcmeta").write_text(animation, encoding="utf-8")
+    write_keg_textures()
+
+
+def write_keg_textures():
+    """The keg's sight glass: dark glass with a glint, and the amber drink standing behind it."""
+    glass = tex()
+    for y in range(16):
+        for x in range(16):
+            glass.putpixel((x, y), rgb("#1c1a18" if (x + y) % 5 else "#26231f"))
+    for i in range(4):
+        glass.putpixel((2 + i, 9 - 2 * i), rgb("#6d7a80"))
+        glass.putpixel((3 + i, 9 - 2 * i), rgb("#4a5458"))
+    save(glass, BLOCK, "keg_window")
+    amber = ["#7a3f0e", "#94521a", "#ad6824", "#c47f30"]
+    rng = random.Random(11)
+    drink = tex()
+    for y in range(16):
+        for x in range(16):
+            drink.putpixel((x, y), rgb(amber[min(3, (y % 4 == 0) + rng.randrange(3))]))
+    save(drink, BLOCK, "keg_liquid")
 
 
 def bottle(glass, liquid, label, shoulders):
@@ -321,6 +341,38 @@ def barrel_elements(open_front=False, open_back=False):
     return parts
 
 
+KEG_WINDOW_BOTTOM = 6
+KEG_WINDOW_STEP = 1.25
+
+
+def keg_elements(level):
+    """A small oak keg lying on a stand, iron-hooped, a brass tap in its head and a sight glass on each side
+    showing the drink at `level` of four steps."""
+    tap = "north south east west up down"
+    elements = [
+        box([2, 0, 3], [14, 3, 5], "stand"),
+        box([2, 0, 11], [14, 3, 13], "stand"),
+        box([3, 3, 2], [13, 13, 14], "staves", "east west", **along_z("staves"),
+            north=("head", [3, 3, 13, 13]), south=("head", [3, 3, 13, 13])),
+        box([2.5, 2.5, 3.5], [13.5, 13.5, 4.5], "hoop"),
+        box([2.5, 2.5, 11.5], [13.5, 13.5, 12.5], "hoop"),
+        box([7, 6, 0.5], [9, 8, 2], "brass", tap),
+        box([7.5, 4.5, 0.5], [8.5, 6, 1.5], "brass", tap),
+        box([7.5, 8, 1], [8.5, 9.5, 1.5], "brass", tap),
+    ]
+    top = KEG_WINDOW_BOTTOM + KEG_WINDOW_STEP * level
+    for side, wall, out in (("east", 13, 1), ("west", 3, -1)):
+        def span(a, b):
+            return sorted([wall + out * a, wall + out * b])
+
+        frame, glass, drink = span(0, 0.25), span(0.25, 0.3), span(0.3, 0.35)
+        elements.append(box([frame[0], 5, 5.5], [frame[1], 12, 10.5], "brass", f"{side} up down north south"))
+        elements.append(box([glass[0], KEG_WINDOW_BOTTOM, 6.5], [glass[1], 11, 9.5], "window", side))
+        if level > 0:
+            elements.append(box([drink[0], KEG_WINDOW_BOTTOM, 6.5], [drink[1], top, 9.5], "liquid", side))
+    return elements
+
+
 def raised(elements):
     """Elements moved up a block, for an item showing two blocks. Their uvs are pinned first,
     since uvs worked out from a position above the block would run off the texture."""
@@ -386,6 +438,14 @@ def write_models():
             name = "barrel" + ("_open_front" if front else "") + ("_open_back" if back else "")
             dump(MODELS / f"{name}.json", model("minecraft:block/spruce_planks", barrel_textures,
                                                 barrel_elements(front, back)))
+    keg_textures = {
+        "stand": "minecraft:block/spruce_planks", "staves": "minecraft:block/oak_planks",
+        "head": "minecraft:block/stripped_oak_log_top", "hoop": "minecraft:block/iron_block",
+        "brass": create("brass_block"), "window": "brewery:block/keg_window", "liquid": "brewery:block/keg_liquid",
+    }
+    for level in range(5):
+        name = "keg" if level == 0 else f"keg_level_{level}"
+        dump(MODELS / f"{name}.json", model("minecraft:block/oak_planks", keg_textures, keg_elements(level)))
     dump(MODELS / "spout.json", model(create("copper_casing"), {
         "casing": create("copper_casing"), "tank": create("fluid_tank"), "top": create("fluid_tank_top"),
         "brass": create("brass_block"),
@@ -403,6 +463,12 @@ def write_models():
                 key = f"facing={facing},open_back={str(back).lower()},open_front={str(front).lower()}"
                 variants[key] = {"model": f"brewery:block/{name}", "y": y}
     dump(STATES / "barrel.json", {"variants": variants})
+    keg_variants = {}
+    for facing, y in (("north", 0), ("east", 90), ("south", 180), ("west", 270)):
+        for level in range(5):
+            name = "keg" if level == 0 else f"keg_level_{level}"
+            keg_variants[f"facing={facing},level={level}"] = {"model": f"brewery:block/{name}", "y": y}
+    dump(STATES / "keg.json", {"variants": keg_variants})
     for name in ("distillery", "distillery_top"):
         dump(STATES / f"{name}.json", {"variants": {
             "facing=north": {"model": f"brewery:block/{name}"},
@@ -413,6 +479,7 @@ def write_models():
 
     items = ROOT / "models/item"
     dump(items / "barrel.json", {"parent": "brewery:block/barrel"})
+    dump(items / "keg.json", {"parent": "brewery:block/keg"})
     # The item shows the whole two-block still, scaled down to fit a slot.
     dump(items / "distillery.json", {
         **model(create("fluid_tank"), still_textures, distillery_elements() + raised(distillery_top_elements())),

@@ -42,6 +42,8 @@ public final class ModCapabilities {
                 (barrel, side) -> barrel.getAutomationItems());
         event.registerBlockEntity(Capabilities.ItemHandler.BLOCK, ModBlocks.SPOUT_BLOCK_ENTITY.get(),
                 (spout, side) -> spout.getItems());
+        event.registerBlockEntity(Capabilities.ItemHandler.BLOCK, ModBlocks.KEG_BLOCK_ENTITY.get(),
+                KegBlockEntity::getItemHandler);
         event.registerItem(Capabilities.FluidHandler.ITEM, (stack, context) -> new WortBottling.BottleHandler(stack),
                 Items.GLASS_BOTTLE);
     }

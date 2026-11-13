@@ -1,0 +1,84 @@
+{
+  "variants": {
+    "facing=north,level=0": {
+      "model": "brewery:block/keg",
+      "y": 0
+    },
+    "facing=north,level=1": {
+      "model": "brewery:block/keg_level_1",
+      "y": 0
+    },
+    "facing=north,level=2": {
+      "model": "brewery:block/keg_level_2",
+      "y": 0
+    },
+    "facing=north,level=3": {
+      "model": "brewery:block/keg_level_3",
+      "y": 0
+    },
+    "facing=north,level=4": {
+      "model": "brewery:block/keg_level_4",
+      "y": 0
+    },
+    "facing=east,level=0": {
+      "model": "brewery:block/keg",
+      "y": 90
+    },
+    "facing=east,level=1": {
+      "model": "brewery:block/keg_level_1",
+      "y": 90
+    },
+    "facing=east,level=2": {
+      "model": "brewery:block/keg_level_2",
+      "y": 90
+    },
+    "facing=east,level=3": {
+      "model": "brewery:block/keg_level_3",
+      "y": 90
+    },
+    "facing=east,level=4": {
+      "model": "brewery:block/keg_level_4",
+      "y": 90
+    },
+    "facing=south,level=0": {
+      "model": "brewery:block/keg",
+      "y": 180
+    },
+    "facing=south,level=1": {
+      "model": "brewery:block/keg_level_1",
+      "y": 180
+    },
+    "facing=south,level=2": {
+      "model": "brewery:block/keg_level_2",
+      "y": 180
+    },
+    "facing=south,level=3": {
+      "model": "brewery:block/keg_level_3",
+      "y": 180
+    },
+    "facing=south,level=4": {
+      "model": "brewery:block/keg_level_4",
+      "y": 180
+    },
+    "facing=west,level=0": {
+      "model": "brewery:block/keg",
+      "y": 270
+    },
+    "facing=west,level=1": {
+      "model": "brewery:block/keg_level_1",
+      "y": 270
+    },
+    "facing=west,level=2": {
+      "model": "brewery:block/keg_level_2",
+      "y": 270
+    },
+    "facing=west,level=3": {
+      "model": "brewery:block/keg_level_3",
+      "y": 270
+    },
+    "facing=west,level=4": {
+      "model": "brewery:block/keg_level_4",
+      "y": 270
+    }
+  }
+}

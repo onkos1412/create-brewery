@@ -87,6 +87,18 @@ public final class ModBlocks {
             BLOCK_ENTITIES.register("barrel",
                     () -> BlockEntityType.Builder.of(BarrelBlockEntity::new, BARREL.get()).build(null));
 
+    /** A small keg on the bar: eight portions of one drink, poured into mugs. */
+    public static final DeferredBlock<KegBlock> KEG = BLOCKS.registerBlock("keg",
+            KegBlock::new,
+            BlockBehaviour.Properties.of().mapColor(MapColor.WOOD).strength(2.0f, 3.0f).noOcclusion());
+
+    public static final DeferredHolder<Item, BlockItem> KEG_ITEM = BLOCK_ITEMS.register("keg",
+            () -> new BlockItem(KEG.get(), new Item.Properties()));
+
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<KegBlockEntity>> KEG_BLOCK_ENTITY =
+            BLOCK_ENTITIES.register("keg",
+                    () -> BlockEntityType.Builder.of(KegBlockEntity::new, KEG.get()).build(null));
+
     private ModBlocks() {
     }
 
