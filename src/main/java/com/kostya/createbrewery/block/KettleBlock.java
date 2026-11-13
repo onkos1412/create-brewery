@@ -73,7 +73,7 @@ public class KettleBlock extends BaseEntityBlock {
     public void setPlacedBy(Level level, BlockPos pos, BlockState state, @Nullable LivingEntity placer,
                             ItemStack stack) {
         super.setPlacedBy(level, pos, state, placer, stack);
-        if (placer instanceof Player player && level.getBlockEntity(pos) instanceof KettleBlockEntity kettle) {
+        if (placer instanceof Player player && !(player instanceof net.neoforged.neoforge.common.util.FakePlayer) && level.getBlockEntity(pos) instanceof KettleBlockEntity kettle) {
             kettle.setOwner(player.getUUID(), player.getGameProfile().getName());
         }
     }

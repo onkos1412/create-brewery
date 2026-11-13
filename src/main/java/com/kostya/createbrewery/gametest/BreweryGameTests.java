@@ -2044,6 +2044,41 @@ public class BreweryGameTests {
         helper.succeed();
     }
 
+    /** Create's deployer and other fake players place kettles without owning them. */
+    @GameTest(template = "empty")
+    public static void fakePlayerPlacingKettleIsNotOwner(GameTestHelper helper) {
+        helper.setBlock(KETTLE, ModBlocks.KETTLE.get());
+        KettleBlockEntity kettle = helper.getBlockEntity(KETTLE);
+        var fake = net.neoforged.neoforge.common.util.FakePlayerFactory.getMinecraft(helper.getLevel());
+        ModBlocks.KETTLE.get().setPlacedBy(helper.getLevel(), helper.absolutePos(KETTLE),
+                kettle.getBlockState(), fake, new ItemStack(ModBlocks.KETTLE.get()));
+        helper.assertTrue(kettle.getOwnerId() == null, "fake player owns the kettle: " + kettle.getOwnerId());
+        helper.succeed();
+    }
+
+    /** A spoiled batch is still the brewer's: the mark rides on the spoiled distillate. */
+    @GameTest(template = "empty", timeoutTicks = 400)
+    public static void spoiledDistillateKeepsMark(GameTestHelper helper) {
+        BrewerMark kostya = new BrewerMark("Kostya", 7);
+        helper.setBlock(DISTILLERY.below(), Blocks.CAMPFIRE);
+        helper.setBlock(DISTILLERY, ModBlocks.DISTILLERY.get());
+        driveStill(helper, DISTILLERY, 256);
+        fluids(helper, DISTILLERY).fill(KettleBlockEntity.wortStack(1000, 5, "potato_mash", kostya),
+                IFluidHandler.FluidAction.EXECUTE);
+        DistilleryBlockEntity still = helper.getBlockEntity(DISTILLERY);
+
+        helper.startSequence()
+                .thenWaitUntil(() -> helper.assertFalse(still.getOutput().getStackInSlot(0).isEmpty(),
+                        "no output; rpm=" + still.getRpm()))
+                .thenExecute(() -> {
+                    ItemStack spoiled = still.getOutput().getStackInSlot(0);
+                    helper.assertTrue(data(spoiled).isSpoiled(), "made " + data(spoiled).stage());
+                    helper.assertTrue(kostya.equals(spoiled.get(ModDataComponents.BREWER.get())),
+                            "spoiled mark " + spoiled.get(ModDataComponents.BREWER.get()));
+                })
+                .thenSucceed();
+    }
+
     /** Owner and wort mark are saved; a save from before marks existed loads with neither. */
     @GameTest(template = "empty", timeoutTicks = 400)
     public static void kettleOwnerSurvivesSaveLoad(GameTestHelper helper) {

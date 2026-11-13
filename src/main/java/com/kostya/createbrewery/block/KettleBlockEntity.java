@@ -510,7 +510,8 @@ public class KettleBlockEntity extends BlockEntity {
                 ? BrewerMark.CODEC.parse(NbtOps.INSTANCE, tag.get("WortBrewer")).result().orElse(null)
                 : null;
         ownerId = tag.hasUUID("OwnerId") ? tag.getUUID("OwnerId") : null;
-        ownerName = ownerId == null ? null : tag.getString("OwnerName");
+        String savedName = tag.getString("OwnerName");
+        ownerName = ownerId == null || savedName.isBlank() ? null : savedName;
         brewProgressTicks = tag.getInt("BrewProgress");
         brewStars = tag.contains("BrewStars") ? tag.getInt("BrewStars") : DrinkData.MAX_STARS;
         ListTag mix = tag.getList("Contents", Tag.TAG_STRING);
