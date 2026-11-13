@@ -1,9 +1,11 @@
 package com.kostya.createbrewery.drunk;
 
 import net.minecraft.network.chat.Component;
+import net.minecraft.util.RandomSource;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.phys.Vec3;
 
 /**
  * Read/write access to a player's drunk level, hiding the attachment plumbing.
@@ -109,6 +111,27 @@ public final class DrunkManager {
         player.addEffect(new MobEffectInstance(MobEffects.BLINDNESS, KNOCKOUT_TICKS + 20));
         player.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, KNOCKOUT_TICKS, 6));
         player.displayClientMessage(Component.translatable("message.brewery.passed_out"), true);
+    }
+
+    /**
+     * Once a second: a drunk player on the move may be shoved sideways. Standing still, sneaking,
+     * flying, riding and being knocked out are left alone.
+     */
+    public static void staggerTick(Player player, RandomSource random) {
+        int level = getDrunk(player);
+        if (level <= StaggerRules.FROM || isKnockedOut(player)
+                || player.isShiftKeyDown() || player.getAbilities().flying
+                || player.isFallFlying() || player.isPassenger()) {
+            return;
+        }
+        Vec3 motion = player.getDeltaMovement();
+        if (motion.horizontalDistanceSqr() < 0.01 * 0.01 || !StaggerRules.shouldStagger(level, random.nextFloat())) {
+            return;
+        }
+        double angle = random.nextFloat() * 2 * Math.PI;
+        double strength = StaggerRules.strength(level);
+        player.setDeltaMovement(motion.add(Math.cos(angle) * strength, 0, Math.sin(angle) * strength));
+        player.hurtMarked = true;
     }
 
     public static boolean isDrunk(Player player) {

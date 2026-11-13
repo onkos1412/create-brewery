@@ -31,6 +31,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
+import net.minecraft.util.RandomSource;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
@@ -43,6 +44,7 @@ import net.minecraft.world.item.Items;
 import net.minecraft.world.item.alchemy.PotionContents;
 import net.minecraft.world.item.alchemy.Potions;
 import net.minecraft.world.level.GameType;
+import net.minecraft.world.level.levelgen.LegacyRandomSource;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.HopperBlock;
 import net.minecraft.world.level.block.entity.HopperBlockEntity;
@@ -1289,6 +1291,50 @@ public class BreweryGameTests {
         }
         helper.assertFalse(DrunkManager.isKnockedOut(player), "blackout never ended");
         helper.succeed();
+    }
+
+    /** A drunk player on the move is shoved sideways by a stagger. */
+    @GameTest(template = "empty")
+    public static void drunkWalkerIsPushed(GameTestHelper helper) {
+        Player player = helper.makeMockPlayer(GameType.SURVIVAL);
+        DrunkManager.addDrunk(player, 90);
+        player.setDeltaMovement(0.2, 0, 0);
+        DrunkManager.staggerTick(player, fixedRoll(0.0f));
+        helper.assertTrue(Math.abs(player.getDeltaMovement().x - 0.2) > 0.05,
+                "walker was not pushed: " + player.getDeltaMovement());
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
+    public static void standingStillIsNotPushed(GameTestHelper helper) {
+        Player player = helper.makeMockPlayer(GameType.SURVIVAL);
+        DrunkManager.addDrunk(player, 90);
+        player.setDeltaMovement(0, 0, 0);
+        DrunkManager.staggerTick(player, fixedRoll(0.0f));
+        helper.assertTrue(player.getDeltaMovement().horizontalDistanceSqr() == 0,
+                "standing player was pushed: " + player.getDeltaMovement());
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
+    public static void sneakingIsNotPushed(GameTestHelper helper) {
+        Player player = helper.makeMockPlayer(GameType.SURVIVAL);
+        DrunkManager.addDrunk(player, 90);
+        player.setShiftKeyDown(true);
+        player.setDeltaMovement(0.2, 0, 0);
+        DrunkManager.staggerTick(player, fixedRoll(0.0f));
+        helper.assertTrue(player.getDeltaMovement().x == 0.2, "sneaking player was pushed: " + player.getDeltaMovement());
+        helper.succeed();
+    }
+
+    /** A random source whose every float is {@code value}, so the stagger roll and angle are known. */
+    private static RandomSource fixedRoll(float value) {
+        return new LegacyRandomSource(0L) {
+            @Override
+            public float nextFloat() {
+                return value;
+            }
+        };
     }
 
     private static void drink(GameTestHelper helper, Player player, int stars, int alcohol, String stage) {
