@@ -12,6 +12,8 @@ import com.kostya.createbrewery.block.KettleLogic;
 import com.kostya.createbrewery.block.ModBlocks;
 import com.kostya.createbrewery.drunk.DrunkLevel;
 import com.kostya.createbrewery.drunk.DrunkManager;
+import com.kostya.createbrewery.drunk.ModAttachments;
+import com.kostya.createbrewery.drunk.VomitRules;
 import com.kostya.createbrewery.recipe.BrewingRecipe;
 import com.kostya.createbrewery.recipe.BrewingRecipeSerializer;
 import com.kostya.createbrewery.recipe.MixRules;
@@ -1330,6 +1332,51 @@ public class BreweryGameTests {
         walk(player);
         DrunkManager.staggerTick(player, fixedRoll(0.0f));
         helper.assertTrue(player.getDeltaMovement().x == 0.2, "sneaking player was pushed: " + player.getDeltaMovement());
+        helper.succeed();
+    }
+
+    /** A heavily drunk player whose roll comes up throws up: food and drunkenness drop, nausea starts. */
+    @GameTest(template = "empty")
+    public static void heavyDrinkerThrowsUp(GameTestHelper helper) {
+        Player player = helper.makeMockPlayer(GameType.SURVIVAL);
+        DrunkManager.addDrunk(player, 85);
+        player.getFoodData().setFoodLevel(20);
+        DrunkManager.vomitTick(player, fixedRoll(0.0f));
+        helper.assertTrue(player.getFoodData().getFoodLevel() == 16, "food: " + player.getFoodData().getFoodLevel());
+        helper.assertTrue(DrunkManager.getDrunk(player) == 70, "drunk: " + DrunkManager.getDrunk(player));
+        helper.assertTrue(player.hasEffect(MobEffects.CONFUSION), "no nausea");
+        helper.succeed();
+    }
+
+    /** Right after throwing up a player is safe for thirty seconds, then can do it again. */
+    @GameTest(template = "empty")
+    public static void vomitingHasACooldown(GameTestHelper helper) {
+        Player player = helper.makeMockPlayer(GameType.SURVIVAL);
+        DrunkManager.addDrunk(player, 100);
+        player.getFoodData().setFoodLevel(20);
+        DrunkManager.vomitTick(player, fixedRoll(0.0f));
+        helper.assertTrue(player.getFoodData().getFoodLevel() == 16, "first bout: " + player.getFoodData().getFoodLevel());
+        DrunkManager.addDrunk(player, 100);
+        DrunkManager.vomitTick(player, fixedRoll(0.0f));
+        helper.assertTrue(player.getFoodData().getFoodLevel() == 16, "vomited during the cooldown");
+        for (int second = 0; second < VomitRules.COOLDOWN_TICKS / 20; second++) {
+            DrunkManager.vomitTick(player, fixedRoll(0.99f));
+        }
+        DrunkManager.addDrunk(player, 100);
+        DrunkManager.vomitTick(player, fixedRoll(0.0f));
+        helper.assertTrue(player.getFoodData().getFoodLevel() == 12, "no second bout: " + player.getFoodData().getFoodLevel());
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
+    public static void knockedOutPlayerDoesNotVomit(GameTestHelper helper) {
+        Player player = helper.makeMockPlayer(GameType.SURVIVAL);
+        DrunkManager.addDrunk(player, 100);
+        player.getFoodData().setFoodLevel(20);
+        player.setData(ModAttachments.KNOCKOUT_TICKS.get(), 100);
+        DrunkManager.vomitTick(player, fixedRoll(0.0f));
+        helper.assertTrue(player.getFoodData().getFoodLevel() == 20, "knocked-out player vomited");
+        helper.assertTrue(DrunkManager.getDrunk(player) == 100, "drunk changed: " + DrunkManager.getDrunk(player));
         helper.succeed();
     }
 

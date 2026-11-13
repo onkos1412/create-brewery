@@ -48,6 +48,10 @@ public final class ModAttachments {
     public static final DeferredHolder<AttachmentType<?>, AttachmentType<Optional<Vec3>>> STAGGER_LAST_POS =
             ATTACHMENTS.register("stagger_last_pos", () -> AttachmentType.builder(() -> Optional.<Vec3>empty()).build());
 
+    /** Ticks left before the player can throw up again. Neither saved nor synced. */
+    public static final DeferredHolder<AttachmentType<?>, AttachmentType<Integer>> VOMIT_COOLDOWN =
+            ATTACHMENTS.register("vomit_cooldown", () -> AttachmentType.builder(() -> 0).build());
+
     private ModAttachments() {
     }
 

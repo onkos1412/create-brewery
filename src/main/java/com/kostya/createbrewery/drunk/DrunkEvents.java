@@ -41,6 +41,7 @@ public final class DrunkEvents {
         if (player.tickCount % SOBER_INTERVAL_TICKS == 0) {
             DrunkManager.soberTick(player);
             DrunkManager.staggerTick(player, player.getRandom());
+            DrunkManager.vomitTick(player, player.getRandom());
         }
         DrunkManager.knockoutTick(player);
     }

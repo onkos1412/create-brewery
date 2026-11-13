@@ -1,10 +1,18 @@
 package com.kostya.createbrewery.drunk;
 
+import net.minecraft.core.particles.ItemParticleOption;
+import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.food.FoodData;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.phys.Vec3;
 
 import java.util.Optional;
@@ -89,6 +97,7 @@ public final class DrunkManager {
         markDirty(player);
         player.setData(ModAttachments.KNOCKOUT_TICKS.get(), 0);
         player.setData(ModAttachments.HANGOVER_DEBT.get(), 0);
+        player.setData(ModAttachments.VOMIT_COOLDOWN.get(), 0);
     }
 
     public static boolean isKnockedOut(Player player) {
@@ -143,6 +152,32 @@ public final class DrunkManager {
         Vec3 motion = player.getDeltaMovement();
         player.setDeltaMovement(motion.add(Math.cos(angle) * strength, 0, Math.sin(angle) * strength));
         player.hurtMarked = true;
+    }
+
+    /**
+     * Once a second: the cooldown runs down by a second's worth of ticks (20), then a heavy drinker may
+     * throw up. A knocked-out player never does.
+     */
+    public static void vomitTick(Player player, RandomSource random) {
+        int cooldown = Math.max(0, player.getData(ModAttachments.VOMIT_COOLDOWN.get()) - DrunkEvents.SOBER_INTERVAL_TICKS);
+        player.setData(ModAttachments.VOMIT_COOLDOWN.get(), cooldown);
+        if (isKnockedOut(player)
+                || !VomitRules.shouldVomit(getDrunk(player), getHangoverDebt(player), cooldown, random.nextFloat())) {
+            return;
+        }
+        player.setData(ModAttachments.VOMIT_COOLDOWN.get(), VomitRules.COOLDOWN_TICKS);
+        FoodData food = player.getFoodData();
+        food.setFoodLevel(Math.max(0, food.getFoodLevel() - VomitRules.FOOD_LOST));
+        player.addEffect(new MobEffectInstance(MobEffects.CONFUSION, 100));
+        levelOf(player).set(Math.max(0, getDrunk(player) - VomitRules.SOBERS_BY));
+        markDirty(player);
+        if (player.level() instanceof ServerLevel level) {
+            Vec3 mouth = player.getEyePosition().add(player.getLookAngle().scale(0.4)).add(0, -0.2, 0);
+            level.sendParticles(new ItemParticleOption(ParticleTypes.ITEM, new ItemStack(Items.COCOA_BEANS)),
+                    mouth.x, mouth.y, mouth.z, 12, 0.15, 0.1, 0.15, 0.05);
+            level.playSound(null, player.blockPosition(), SoundEvents.PLAYER_BURP, SoundSource.PLAYERS, 1.0f, 0.6f);
+        }
+        player.displayClientMessage(Component.translatable("message.brewery.vomited"), true);
     }
 
     public static boolean isDrunk(Player player) {

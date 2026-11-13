@@ -91,5 +91,6 @@
   "drink.brewery.glow_mash": "Glow mash",
   "drink.brewery.glow_spirit": "Glow spirit",
   "drink.brewery.firefly_liqueur": "Firefly liqueur",
-  "message.brewery.hangover": "Your head is pounding…"
+  "message.brewery.hangover": "Your head is pounding…",
+  "message.brewery.vomited": "You threw up"
 }
