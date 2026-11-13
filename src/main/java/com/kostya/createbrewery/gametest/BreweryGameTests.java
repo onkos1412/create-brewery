@@ -50,6 +50,7 @@ import net.minecraft.network.Connection;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.ListTag;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.PacketFlow;
 import net.minecraft.resources.ResourceLocation;
@@ -2156,6 +2157,23 @@ public class BreweryGameTests {
                     helper.assertTrue(book.isEmpty(), "muddy brew recorded: " + book);
                 })
                 .thenSucceed();
+    }
+
+    /** One undecodable entry is skipped; the other players' journals survive the load. */
+    @GameTest(template = "empty")
+    public static void journalSkipsCorruptEntry(GameTestHelper helper) {
+        BreweryJournalData source = new BreweryJournalData();
+        UUID good = UUID.randomUUID();
+        source.recordKettle(good, "beer", new KettleRecord(KettleRecord.mixOf(List.of("minecraft:wheat")), 1, 3));
+        CompoundTag saved = source.save(new CompoundTag(), helper.getLevel().registryAccess());
+        CompoundTag garbage = new CompoundTag();
+        garbage.putString("player", "not-a-uuid");
+        ((ListTag) saved.get("players")).add(garbage);
+
+        BreweryJournalData loaded = BreweryJournalData.load(saved, helper.getLevel().registryAccess());
+        helper.assertTrue(loaded.journalOf(good).equals(source.journalOf(good)),
+                "valid journal lost: " + loaded.journalOf(good));
+        helper.succeed();
     }
 
     /** A kettle nobody owns credits no one: the whole book is unchanged. Alone in its batch so nothing else writes. */

@@ -6,6 +6,7 @@ import io.netty.buffer.ByteBuf;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
@@ -13,7 +14,7 @@ import java.util.TreeMap;
 /** Best kettle result: what went in (item id to count), the heat and the stars earned. */
 public record KettleRecord(Map<String, Integer> mix, int heat, int stars) {
     public KettleRecord {
-        mix = new TreeMap<>(mix);
+        mix = Collections.unmodifiableSortedMap(new TreeMap<>(mix));
     }
 
     public static final Codec<KettleRecord> CODEC = RecordCodecBuilder.create(instance -> instance.group(

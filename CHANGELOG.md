@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Brewer's signature: drinks show who brewed them and on which day.
+- Brewer's book: a personal, owner-only diary of your best results for every drink.
+- Note: drinks signed before and after this update don't stack together.
+
 ## 0.1.0 — first release
 
 For Minecraft 1.21.1, NeoForge 21.1, Create 6.0.10.

@@ -1,19 +1,21 @@
 package com.kostya.createbrewery.journal;
 
+import com.mojang.logging.LogUtils;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.UUIDUtil;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.NbtOps;
 import net.minecraft.nbt.Tag;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.level.saveddata.SavedData;
 
-import java.util.ArrayList;
+import org.slf4j.Logger;
+
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.function.UnaryOperator;
@@ -29,7 +31,7 @@ public class BreweryJournalData extends SavedData {
         ).apply(instance, Entry::new));
     }
 
-    private static final Codec<List<Entry>> LIST_CODEC = Entry.CODEC.listOf();
+    private static final Logger LOGGER = LogUtils.getLogger();
 
     public static final SavedData.Factory<BreweryJournalData> FACTORY =
             new SavedData.Factory<>(BreweryJournalData::new, BreweryJournalData::load, null);
@@ -68,22 +70,21 @@ public class BreweryJournalData extends SavedData {
 
     public static BreweryJournalData load(CompoundTag tag, HolderLookup.Provider registries) {
         BreweryJournalData data = new BreweryJournalData();
-        Tag list = tag.get("players");
-        if (list != null) {
-            LIST_CODEC.parse(NbtOps.INSTANCE, list).result().ifPresent(entries -> {
-                for (Entry e : entries) {
-                    data.journals.put(e.player(), new HashMap<>(e.drinks()));
-                }
-            });
+        if (tag.get("players") instanceof ListTag list) {
+            for (Tag element : list) {
+                Entry.CODEC.parse(NbtOps.INSTANCE, element).resultOrPartial(LOGGER::error)
+                        .ifPresent(e -> data.journals.put(e.player(), new HashMap<>(e.drinks())));
+            }
         }
         return data;
     }
 
     @Override
     public CompoundTag save(CompoundTag tag, HolderLookup.Provider registries) {
-        List<Entry> entries = new ArrayList<>();
-        journals.forEach((player, drinks) -> entries.add(new Entry(player, Map.copyOf(drinks))));
-        LIST_CODEC.encodeStart(NbtOps.INSTANCE, entries).result().ifPresent(t -> tag.put("players", t));
+        ListTag list = new ListTag();
+        journals.forEach((player, drinks) -> Entry.CODEC.encodeStart(NbtOps.INSTANCE, new Entry(player, Map.copyOf(drinks)))
+                .resultOrPartial(LOGGER::error).ifPresent(list::add));
+        tag.put("players", list);
         return tag;
     }
 }

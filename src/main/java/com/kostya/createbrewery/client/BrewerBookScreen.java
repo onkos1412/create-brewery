@@ -205,17 +205,24 @@ public class BrewerBookScreen extends Screen {
         Optional<KettleRecord> kettle = journal.kettle();
         header(graphics, LEFT_X, SECTION_Y, "gui.brewery.book.kettle", kettle.map(KettleRecord::stars));
         if (kettle.isPresent()) {
-            int index = 0;
+            int cursor = 0;
+            int row = 0;
             for (Map.Entry<String, Integer> entry : new TreeMap<>(kettle.get().mix()).entrySet()) {
-                int x = left + LEFT_X + (index % ICONS_PER_ROW) * ICON;
-                int y = top + SECTION_Y + 12 + (index / ICONS_PER_ROW) * ICON;
+                Component count = Component.literal("×" + entry.getValue());
+                int cell = 16 + 2 + font.width(count) + 5;
+                if (cursor > 0 && cursor + cell - 5 > PAGE_WIDTH) {
+                    cursor = 0;
+                    row++;
+                }
+                int x = left + LEFT_X + cursor;
+                int y = top + SECTION_Y + 12 + row * ICON;
                 ItemStack stack = stack(entry.getKey());
                 graphics.renderItem(stack, x, y);
-                graphics.renderItemDecorations(font, stack, x, y, String.valueOf(entry.getValue()));
+                graphics.drawString(font, count, x + 18, y + 4, INK, false);
                 hover(stack, x, y, mouseX, mouseY);
-                index++;
+                cursor += cell;
             }
-            int rows = Math.max(1, (index + ICONS_PER_ROW - 1) / ICONS_PER_ROW);
+            int rows = row + 1;
             int heat = Mth.clamp(kettle.get().heat(), 0, 2);
             fitted(graphics, Component.translatable("gui.brewery.book.heat." + heat),
                     LEFT_X, SECTION_Y + 14 + rows * ICON, PAGE_WIDTH, INK);
