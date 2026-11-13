@@ -20,7 +20,7 @@ public final class DrunkLevel {
     public static final float MIN_DISTORTION = 0.35f;
     /** From this level the player's chat starts to slur. */
     public static final int SLUR_FROM = 25;
-    /** At this level the player passes out. */
+    /** The default pass-out threshold; the live value comes from BreweryConfig. */
     public static final int PASS_OUT_AT = 90;
     /** What is left after passing out: still drunk, but not out again straight away. */
     public static final int AFTER_PASS_OUT = 60;

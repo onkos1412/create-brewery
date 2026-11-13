@@ -1,5 +1,6 @@
 package com.kostya.createbrewery.config;
 
+import com.kostya.createbrewery.drunk.DrunkLevel;
 import net.neoforged.neoforge.common.ModConfigSpec;
 
 /**
@@ -14,7 +15,7 @@ public final class BreweryConfig {
     public static final boolean DEFAULT_STAGGER = true;
     public static final boolean DEFAULT_VOMIT = true;
     public static final boolean DEFAULT_HANGOVER = true;
-    public static final int DEFAULT_PASS_OUT_AT = 90;
+    public static final int DEFAULT_PASS_OUT_AT = DrunkLevel.PASS_OUT_AT;
     public static final int DEFAULT_SECONDS_PER_SOBER_STEP = 1;
     public static final double DEFAULT_EFFECT_MULTIPLIER = 1.0;
 
@@ -29,7 +30,7 @@ public final class BreweryConfig {
 
     static {
         ModConfigSpec.Builder builder = new ModConfigSpec.Builder();
-        builder.comment("Drunk mechanics").push("drunk");
+        builder.comment("Drunk mechanics").translation("brewery.configuration.drunk").push("drunk");
         STAGGER = builder
                 .comment("Drunk players are shoved sideways while walking")
                 .translation("brewery.configuration.stagger")
@@ -52,7 +53,7 @@ public final class BreweryConfig {
                 .translation("brewery.configuration.secondsPerSoberStep")
                 .defineInRange("secondsPerSoberStep", DEFAULT_SECONDS_PER_SOBER_STEP, 1, 60);
         builder.pop();
-        builder.comment("Drinks").push("drinks");
+        builder.comment("Drinks").translation("brewery.configuration.drinks").push("drinks");
         EFFECT_MULTIPLIER = builder
                 .comment("Multiplier for the duration of the effects drinks give (0 turns them off)")
                 .translation("brewery.configuration.effectMultiplier")

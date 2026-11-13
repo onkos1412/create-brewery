@@ -1563,11 +1563,12 @@ public class BreweryGameTests {
         if (!BreweryConfig.SPEC.isLoaded()) {
             throw new AssertionError("server config is not loaded");
         }
+        T previous = value.get();
         value.set(override);
         try {
             body.run();
         } finally {
-            value.set(value.getDefault());
+            value.set(previous);
         }
     }
 
@@ -1608,11 +1609,15 @@ public class BreweryGameTests {
             }
             helper.assertTrue(DrunkManager.getHangoverDebt(player) == 0,
                     "debt built up: " + DrunkManager.getHangoverDebt(player));
-            // A debt that is already there (set before the switch) must not settle either.
-            DrunkManager.addHangoverDebt(player, 100_000);
+            // A debt that already existed before the switch (set directly, as addHangoverDebt is gated) must not
+            // settle into a hangover either, and is wiped when the player sobers up.
+            player.setData(ModAttachments.HANGOVER_DEBT.get(), 100_000);
+            DrunkManager.addDrunk(player, 10);
             player.removeAllEffects();
             soberUp(player);
             helper.assertFalse(hungOver(player), "hangover with hangover off");
+            helper.assertTrue(DrunkManager.getHangoverDebt(player) == 0,
+                    "debt not wiped: " + DrunkManager.getHangoverDebt(player));
         });
         helper.succeed();
     }

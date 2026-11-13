@@ -153,11 +153,11 @@ public final class DrunkManager {
      * check after joining only records a position.
      */
     public static void staggerTick(Player player, RandomSource random) {
+        Optional<Vec3> last = player.getData(ModAttachments.STAGGER_LAST_POS.get());
+        player.setData(ModAttachments.STAGGER_LAST_POS.get(), Optional.of(player.position()));
         if (!BreweryConfig.stagger()) {
             return;
         }
-        Optional<Vec3> last = player.getData(ModAttachments.STAGGER_LAST_POS.get());
-        player.setData(ModAttachments.STAGGER_LAST_POS.get(), Optional.of(player.position()));
         int level = getDrunk(player);
         if (last.isEmpty() || level <= StaggerRules.FROM || isKnockedOut(player)
                 || player.isShiftKeyDown() || player.getAbilities().flying
