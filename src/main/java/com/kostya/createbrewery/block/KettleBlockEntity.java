@@ -1,5 +1,6 @@
 package com.kostya.createbrewery.block;
 
+import com.kostya.createbrewery.BrewerMark;
 import com.kostya.createbrewery.DrinkData;
 import com.kostya.createbrewery.recipe.BrewingRecipe;
 import com.kostya.createbrewery.recipe.DrinkProfile;
@@ -13,6 +14,7 @@ import net.minecraft.core.HolderLookup;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.NbtOps;
 import net.minecraft.nbt.StringTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.network.Connection;
@@ -33,6 +35,7 @@ import net.neoforged.neoforge.items.ItemStackHandler;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
+import java.util.UUID;
 
 /**
  * The kettle's server-side state: water, wort, the waiting ingredients and brewing
@@ -76,7 +79,7 @@ public class KettleBlockEntity extends BlockEntity {
             if (tank == 0) {
                 return waterAmount > 0 ? new FluidStack(Fluids.WATER, waterAmount) : FluidStack.EMPTY;
             }
-            return wortAmount > 0 ? wortStack(wortAmount, wortStars, wortDrink) : FluidStack.EMPTY;
+            return wortAmount > 0 ? wortStack(wortAmount, wortStars, wortDrink, wortMark) : FluidStack.EMPTY;
         }
 
         @Override
@@ -107,8 +110,10 @@ public class KettleBlockEntity extends BlockEntity {
         @Override
         public FluidStack drain(int maxDrain, FluidAction action) {
             int stars = wortStars;
+            // Read first: draining the last of it clears the mark.
+            BrewerMark mark = wortMark;
             int drained = action.execute() ? drainWort(maxDrain) : Math.min(maxDrain, wortAmount);
-            return drained > 0 ? wortStack(drained, stars, wortDrink) : FluidStack.EMPTY;
+            return drained > 0 ? wortStack(drained, stars, wortDrink, mark) : FluidStack.EMPTY;
         }
     };
 
@@ -116,6 +121,14 @@ public class KettleBlockEntity extends BlockEntity {
     private int wortAmount;
     private int wortStars = DrinkData.MAX_STARS;
     private String wortDrink = DrinkProfile.BEER.id();
+    /** Who brewed the wort in the tank and on which day; {@code null} when nobody signed it or it is empty. */
+    @Nullable
+    private BrewerMark wortMark;
+    /** The player who placed the kettle; brews made in it carry their name. */
+    @Nullable
+    private UUID ownerId;
+    @Nullable
+    private String ownerName;
     /** The colour clients were last told about, so they are only told when it changes. */
     private int sentLiquidColor = EMPTY_COLOR;
     private int brewProgressTicks;
@@ -154,10 +167,30 @@ public class KettleBlockEntity extends BlockEntity {
         return wortDrink;
     }
 
-    /** Wort carries its quality and drink on the stack, so both survive Create's pipes. */
-    public static FluidStack wortStack(int amount, int stars, String drink) {
+    @Nullable
+    public BrewerMark getWortMark() {
+        return wortMark;
+    }
+
+    /** Makes the player the kettle's owner, who signs every brew made in it from now on. */
+    public void setOwner(UUID id, String name) {
+        ownerId = id;
+        ownerName = name;
+        setChanged();
+    }
+
+    @Nullable
+    public UUID getOwnerId() {
+        return ownerId;
+    }
+
+    /** Wort carries its quality, drink and brewer on the stack, so they survive Create's pipes. */
+    public static FluidStack wortStack(int amount, int stars, String drink, @Nullable BrewerMark mark) {
         FluidStack stack = new FluidStack(ModFluids.WORT.get(), amount);
         stack.set(ModDataComponents.DRINK_DATA.get(), new DrinkData(stars, 0, drink));
+        if (mark != null) {
+            stack.set(ModDataComponents.BREWER.get(), mark);
+        }
         return stack;
     }
 
@@ -242,6 +275,9 @@ public class KettleBlockEntity extends BlockEntity {
             return 0;
         }
         wortAmount -= drained;
+        if (wortAmount == 0) {
+            wortMark = null;
+        }
         setChanged();
         return drained;
     }
@@ -255,9 +291,13 @@ public class KettleBlockEntity extends BlockEntity {
         if (wortAmount < WORT_PER_BREW || level == null) {
             return ItemStack.EMPTY;
         }
+        BrewerMark mark = wortMark;
         wortAmount -= WORT_PER_BREW;
+        if (wortAmount == 0) {
+            wortMark = null;
+        }
         setChanged();
-        return WortBottling.bottle(level, wortStars, wortDrink);
+        return WortBottling.bottle(level, wortStars, wortDrink, mark);
     }
 
     /** Reads the heat level of the block directly beneath the kettle. */
@@ -338,6 +378,10 @@ public class KettleBlockEntity extends BlockEntity {
         int stars = brew.stars(brewStars);
         // Batches share one tank, so the weakest one decides the quality of the lot.
         wortStars = wortAmount > 0 ? Math.min(wortStars, stars) : stars;
+        // The first brew in the tank signs the lot; later batches only top it up.
+        if (wortAmount == 0) {
+            wortMark = ownerName == null ? null : new BrewerMark(ownerName, BrewerMark.dayOf(level.getDayTime()));
+        }
         wortDrink = brew.drink();
         waterAmount -= brew.amount();
         wortAmount += brew.amount();
@@ -438,6 +482,13 @@ public class KettleBlockEntity extends BlockEntity {
         tag.putInt("Wort", wortAmount);
         tag.putInt("WortStars", wortStars);
         tag.putString("WortDrink", wortDrink);
+        if (wortMark != null) {
+            BrewerMark.CODEC.encodeStart(NbtOps.INSTANCE, wortMark).ifSuccess(mark -> tag.put("WortBrewer", mark));
+        }
+        if (ownerId != null) {
+            tag.putUUID("OwnerId", ownerId);
+            tag.putString("OwnerName", ownerName == null ? "" : ownerName);
+        }
         tag.putInt("BrewProgress", brewProgressTicks);
         tag.putInt("BrewStars", brewStars);
         ListTag mix = new ListTag();
@@ -455,6 +506,11 @@ public class KettleBlockEntity extends BlockEntity {
         wortAmount = tag.getInt("Wort");
         wortStars = tag.contains("WortStars") ? tag.getInt("WortStars") : DrinkData.MAX_STARS;
         wortDrink = tag.contains("WortDrink") ? tag.getString("WortDrink") : DrinkProfile.BEER.id();
+        wortMark = tag.contains("WortBrewer")
+                ? BrewerMark.CODEC.parse(NbtOps.INSTANCE, tag.get("WortBrewer")).result().orElse(null)
+                : null;
+        ownerId = tag.hasUUID("OwnerId") ? tag.getUUID("OwnerId") : null;
+        ownerName = ownerId == null ? null : tag.getString("OwnerName");
         brewProgressTicks = tag.getInt("BrewProgress");
         brewStars = tag.contains("BrewStars") ? tag.getInt("BrewStars") : DrinkData.MAX_STARS;
         ListTag mix = tag.getList("Contents", Tag.TAG_STRING);

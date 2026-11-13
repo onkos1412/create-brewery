@@ -1,5 +1,6 @@
 package com.kostya.createbrewery.block;
 
+import com.kostya.createbrewery.BrewerMark;
 import com.kostya.createbrewery.DrinkData;
 import com.kostya.createbrewery.barrel.AgingRules;
 import com.kostya.createbrewery.barrel.BarrelLogic;
@@ -588,6 +589,10 @@ public class BarrelBlockEntity extends BlockEntity {
         ItemStack aged = new ItemStack(ModItems.DRINK_BOTTLE.get(), batch.getCount());
         aged.set(ModDataComponents.DRINK_DATA.get(), new DrinkData(result.stars(),
                 young ? profile.distilledAlcohol() : result.alcohol(), profile.aged()));
+        BrewerMark mark = batch.get(ModDataComponents.BREWER.get());
+        if (mark != null) {
+            aged.set(ModDataComponents.BREWER.get(), mark);
+        }
         output.setStackInSlot(outputSlot, aged);
         if (young) {
             // The bottles they came in are empty now: they wait with the others, or fall out if those are full.

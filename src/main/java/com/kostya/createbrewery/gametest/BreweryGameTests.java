@@ -1,5 +1,6 @@
 package com.kostya.createbrewery.gametest;
 
+import com.kostya.createbrewery.BrewerMark;
 import com.kostya.createbrewery.CreateBrewery;
 import com.kostya.createbrewery.DrinkData;
 import com.kostya.createbrewery.barrel.AgingRules;
@@ -10,6 +11,7 @@ import com.kostya.createbrewery.block.DistilleryBlockEntity;
 import com.kostya.createbrewery.block.KettleBlockEntity;
 import com.kostya.createbrewery.block.KettleLogic;
 import com.kostya.createbrewery.block.ModBlocks;
+import com.kostya.createbrewery.block.WortBottling;
 import com.kostya.createbrewery.config.BreweryConfig;
 import com.kostya.createbrewery.drunk.DrunkLevel;
 import com.kostya.createbrewery.drunk.DrunkManager;
@@ -580,7 +582,7 @@ public class BreweryGameTests {
         helper.setBlock(depot, AllBlocks.DEPOT.get());
         helper.setBlock(spout, AllBlocks.SPOUT.get());
         IFluidHandler tank = fluids(helper, spout);
-        tank.fill(KettleBlockEntity.wortStack(500, 3, "young_wine"), IFluidHandler.FluidAction.EXECUTE);
+        tank.fill(KettleBlockEntity.wortStack(500, 3, "young_wine", null), IFluidHandler.FluidAction.EXECUTE);
         items(helper, depot).insertItem(0, new ItemStack(Items.GLASS_BOTTLE), false);
         ItemStack loose = new ItemStack(Items.GLASS_BOTTLE);
         var bottle = loose.getCapability(Capabilities.FluidHandler.ITEM);
@@ -589,7 +591,7 @@ public class BreweryGameTests {
 
         helper.runAfterDelay(60, () -> {
             helper.assertTrue(items(helper, depot).getStackInSlot(0).is(Items.GLASS_BOTTLE), "filled from half a bottle's wort");
-            tank.fill(KettleBlockEntity.wortStack(500, 3, "young_wine"), IFluidHandler.FluidAction.EXECUTE);
+            tank.fill(KettleBlockEntity.wortStack(500, 3, "young_wine", null), IFluidHandler.FluidAction.EXECUTE);
             helper.succeedWhen(() -> {
                 ItemStack result = items(helper, depot).getStackInSlot(0);
                 helper.assertTrue(result.is(ModItems.DRINK_BOTTLE.get()), "not bottled: " + result);
@@ -1866,6 +1868,190 @@ public class BreweryGameTests {
                     "no crafting recipe for " + path);
         }
         helper.succeed();
+    }
+
+    // ---- brewer mark -----------------------------------------------------------------
+
+    /** Whoever places the kettle signs what it brews, with their name and the day. */
+    @GameTest(template = "empty", timeoutTicks = 400, batch = "brewer_sign")
+    public static void kettlePlacedByPlayerSignsBrew(GameTestHelper helper) {
+        helper.getLevel().setDayTime(5 * BrewerMark.TICKS_PER_DAY + 100);
+        KettleBlockEntity kettle = placeHeatedKettle(helper);
+        Player player = helper.makeMockPlayer(GameType.SURVIVAL);
+        ModBlocks.KETTLE.get().setPlacedBy(helper.getLevel(), helper.absolutePos(KETTLE),
+                kettle.getBlockState(), player, new ItemStack(ModBlocks.KETTLE.get()));
+        helper.assertTrue(player.getUUID().equals(kettle.getOwnerId()), "owner " + kettle.getOwnerId());
+
+        helper.startSequence()
+                .thenWaitUntil(() -> helper.assertTrue(kettle.getWortAmount() >= 1000, "kettle brewed no wort"))
+                .thenExecute(() -> {
+                    ItemStack bottle = kettle.bottleWort();
+                    BrewerMark mark = bottle.get(ModDataComponents.BREWER.get());
+                    helper.assertTrue(mark != null, "bottle is not signed");
+                    helper.assertTrue(player.getGameProfile().getName().equals(mark.name()), "signed by " + mark.name());
+                    long day = BrewerMark.dayOf(helper.getLevel().getDayTime());
+                    helper.assertTrue(mark.day() == day, "signed on day " + mark.day() + ", today is " + day);
+                    helper.assertTrue(kettle.getWortMark() == null, "empty kettle kept the mark");
+                })
+                .thenSucceed();
+    }
+
+    /** A kettle nobody placed (as by a schematic) brews unsigned drinks. */
+    @GameTest(template = "empty", timeoutTicks = 400)
+    public static void ownerlessKettleLeavesNoMark(GameTestHelper helper) {
+        KettleBlockEntity kettle = placeHeatedKettle(helper);
+        helper.assertTrue(kettle.getOwnerId() == null, "kettle has an owner");
+
+        helper.startSequence()
+                .thenWaitUntil(() -> helper.assertTrue(kettle.getWortAmount() >= 1000, "kettle brewed no wort"))
+                .thenExecute(() -> {
+                    ItemStack bottle = kettle.bottleWort();
+                    helper.assertFalse(bottle.isEmpty(), "no bottle");
+                    helper.assertFalse(bottle.has(ModDataComponents.BREWER.get()), "ownerless bottle is signed");
+                })
+                .thenSucceed();
+    }
+
+    /** A second batch topping up the tank keeps the first batch's signature and day. */
+    @GameTest(template = "empty", timeoutTicks = 800, batch = "brewer_second")
+    public static void secondBrewKeepsFirstMark(GameTestHelper helper) {
+        KettleBlockEntity kettle = placeHeatedKettle(helper);
+        kettle.setOwner(UUID.randomUUID(), "Kostya");
+        long[] firstDay = new long[1];
+
+        helper.startSequence()
+                .thenWaitUntil(() -> helper.assertTrue(kettle.getWortAmount() >= 1000, "first brew not done"))
+                .thenExecute(() -> {
+                    BrewerMark mark = kettle.getWortMark();
+                    helper.assertTrue(mark != null && "Kostya".equals(mark.name()), "first brew mark " + mark);
+                    firstDay[0] = mark.day();
+                    helper.getLevel().setDayTime(helper.getLevel().getDayTime() + BrewerMark.TICKS_PER_DAY);
+                    items(helper, KETTLE).insertItem(0, new ItemStack(Items.WHEAT, 2), false);
+                    fluids(helper, KETTLE).fill(new FluidStack(Fluids.WATER, 1000), IFluidHandler.FluidAction.EXECUTE);
+                })
+                .thenWaitUntil(() -> helper.assertTrue(kettle.getWortAmount() >= 2000, "second brew not done"))
+                .thenExecute(() -> {
+                    BrewerMark mark = kettle.getWortMark();
+                    helper.assertTrue(mark != null && mark.day() == firstDay[0],
+                            "mark " + mark + ", first day " + firstDay[0]);
+                })
+                .thenSucceed();
+    }
+
+    /** The mark goes into the cube with the wort, back out with it, and onto the distillate and its bottle. */
+    @GameTest(template = "empty", timeoutTicks = 800)
+    public static void markSurvivesDistillery(GameTestHelper helper) {
+        BrewerMark kostya = new BrewerMark("Kostya", 7);
+        helper.setBlock(DISTILLERY.below(), Blocks.CAMPFIRE);
+        helper.setBlock(DISTILLERY, ModBlocks.DISTILLERY.get());
+        DistilleryBlockEntity still = helper.getBlockEntity(DISTILLERY);
+        IFluidHandler tank = fluids(helper, DISTILLERY);
+
+        tank.fill(KettleBlockEntity.wortStack(600, 5, "potato_mash", kostya), IFluidHandler.FluidAction.EXECUTE);
+        tank.fill(KettleBlockEntity.wortStack(100, 5, "potato_mash", new BrewerMark("Other", 9)),
+                IFluidHandler.FluidAction.EXECUTE);
+        helper.assertTrue(kostya.equals(tank.getFluidInTank(0).get(ModDataComponents.BREWER.get())),
+                "tank shows " + tank.getFluidInTank(0).get(ModDataComponents.BREWER.get()));
+        FluidStack drained = tank.drain(1000, IFluidHandler.FluidAction.EXECUTE);
+        helper.assertTrue(kostya.equals(drained.get(ModDataComponents.BREWER.get())),
+                "drained " + drained.get(ModDataComponents.BREWER.get()));
+
+        // Emptied, the cube forgets the mark: unsigned wort stays unsigned.
+        tank.fill(KettleBlockEntity.wortStack(100, 5, "potato_mash", null), IFluidHandler.FluidAction.EXECUTE);
+        helper.assertFalse(tank.getFluidInTank(0).has(ModDataComponents.BREWER.get()), "empty cube kept the mark");
+        tank.drain(1000, IFluidHandler.FluidAction.EXECUTE);
+
+        tank.fill(KettleBlockEntity.wortStack(1000, 5, "potato_mash", kostya), IFluidHandler.FluidAction.EXECUTE);
+        driveStill(helper, DISTILLERY, 96);
+
+        helper.startSequence()
+                .thenWaitUntil(() -> helper.assertFalse(still.getOutput().getStackInSlot(0).isEmpty(),
+                        "no distillate; rpm=" + still.getRpm()))
+                .thenExecute(() -> {
+                    ItemStack distillate = still.getOutput().getStackInSlot(0);
+                    helper.assertTrue("vodka".equals(data(distillate).stage()), "made " + data(distillate).stage());
+                    helper.assertTrue(kostya.equals(distillate.get(ModDataComponents.BREWER.get())),
+                            "distillate mark " + distillate.get(ModDataComponents.BREWER.get()));
+                    ItemStack bottle = still.takeFinishedBottle();
+                    helper.assertTrue(kostya.equals(bottle.get(ModDataComponents.BREWER.get())),
+                            "bottle mark " + bottle.get(ModDataComponents.BREWER.get()));
+                })
+                .thenSucceed();
+    }
+
+    /** Aging keeps the mark, and so does over-aging. */
+    @GameTest(template = "empty", timeoutTicks = 300, batch = "aging_brewer")
+    public static void markSurvivesBarrel(GameTestHelper helper) {
+        BrewerMark kostya = new BrewerMark("Kostya", 7);
+        helper.setBlock(BARREL, ModBlocks.BARREL.get());
+        BarrelBlockEntity barrel = helper.getBlockEntity(BARREL);
+        ItemStack whiskey = new ItemStack(ModItems.DISTILLATE.get());
+        whiskey.set(ModDataComponents.DRINK_DATA.get(), new DrinkData(5, 40, "whiskey"));
+        whiskey.set(ModDataComponents.BREWER.get(), kostya);
+        barrel.getInput().setStackInSlot(0, whiskey);
+        barrel.getInput().setStackInSlot(1, new ItemStack(Items.OAK_LOG));
+        barrel.startAging();
+        long period = barrel.getRequiredTicks();
+
+        helper.startSequence()
+                .thenExecute(() -> helper.getLevel().setDayTime(helper.getLevel().getDayTime() + period))
+                .thenWaitUntil(() -> helper.assertFalse(barrel.getOutput().getStackInSlot(0).isEmpty(), "not finished"))
+                .thenExecuteAfter(2, () -> {
+                    ItemStack aged = barrel.getOutput().getStackInSlot(0);
+                    helper.assertTrue(kostya.equals(aged.get(ModDataComponents.BREWER.get())),
+                            "aged mark " + aged.get(ModDataComponents.BREWER.get()));
+                    helper.getLevel().setDayTime(helper.getLevel().getDayTime() + 2 * period);
+                })
+                .thenWaitUntil(() -> {
+                    int stars = data(barrel.getOutput().getStackInSlot(0)).stars();
+                    helper.assertTrue(stars == 3, "stars after over-aging: " + stars);
+                })
+                .thenExecute(() -> {
+                    ItemStack worse = barrel.getOutput().getStackInSlot(0);
+                    helper.assertTrue(kostya.equals(worse.get(ModDataComponents.BREWER.get())),
+                            "over-aged mark " + worse.get(ModDataComponents.BREWER.get()));
+                })
+                .thenSucceed();
+    }
+
+    /** Spouts and anything else filling bottles carry the mark over from the wort. */
+    @GameTest(template = "empty")
+    public static void spoutBottlingKeepsMark(GameTestHelper helper) {
+        BrewerMark kostya = new BrewerMark("Kostya", 7);
+        WortBottling.BottleHandler handler = new WortBottling.BottleHandler(new ItemStack(Items.GLASS_BOTTLE));
+        int filled = handler.fill(KettleBlockEntity.wortStack(1000, 4, "beer", kostya), IFluidHandler.FluidAction.EXECUTE);
+        helper.assertTrue(filled == WortBottling.WORT_PER_BOTTLE, "filled " + filled);
+        helper.assertTrue(kostya.equals(handler.getContainer().get(ModDataComponents.BREWER.get())),
+                "bottle mark " + handler.getContainer().get(ModDataComponents.BREWER.get()));
+        helper.succeed();
+    }
+
+    /** Owner and wort mark are saved; a save from before marks existed loads with neither. */
+    @GameTest(template = "empty", timeoutTicks = 400)
+    public static void kettleOwnerSurvivesSaveLoad(GameTestHelper helper) {
+        var registries = helper.getLevel().registryAccess();
+        KettleBlockEntity kettle = placeHeatedKettle(helper);
+        UUID owner = UUID.randomUUID();
+        kettle.setOwner(owner, "Kostya");
+
+        helper.startSequence()
+                .thenWaitUntil(() -> helper.assertTrue(kettle.getWortAmount() >= 1000, "kettle brewed no wort"))
+                .thenExecute(() -> {
+                    var tag = kettle.saveWithoutMetadata(registries);
+                    KettleBlockEntity loaded = new KettleBlockEntity(kettle.getBlockPos(), kettle.getBlockState());
+                    loaded.loadWithComponents(tag, registries);
+                    helper.assertTrue(owner.equals(loaded.getOwnerId()), "owner " + loaded.getOwnerId());
+                    helper.assertTrue(kettle.getWortMark() != null && kettle.getWortMark().equals(loaded.getWortMark()),
+                            "mark " + loaded.getWortMark() + ", was " + kettle.getWortMark());
+
+                    tag.remove("OwnerId");
+                    tag.remove("OwnerName");
+                    tag.remove("WortBrewer");
+                    KettleBlockEntity old = new KettleBlockEntity(kettle.getBlockPos(), kettle.getBlockState());
+                    old.loadWithComponents(tag, registries);
+                    helper.assertTrue(old.getOwnerId() == null && old.getWortMark() == null, "old save got a brewer");
+                })
+                .thenSucceed();
     }
 
 private static KettleBlockEntity placeHeatedKettle(GameTestHelper helper) {

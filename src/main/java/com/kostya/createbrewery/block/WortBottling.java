@@ -1,5 +1,6 @@
 package com.kostya.createbrewery.block;
 
+import com.kostya.createbrewery.BrewerMark;
 import com.kostya.createbrewery.DrinkData;
 import com.kostya.createbrewery.recipe.BrewingRecipe;
 import com.kostya.createbrewery.recipe.DrinkProfile;
@@ -13,6 +14,7 @@ import net.minecraft.world.level.Level;
 import net.neoforged.neoforge.fluids.FluidStack;
 import net.neoforged.neoforge.fluids.capability.IFluidHandlerItem;
 import net.neoforged.neoforge.server.ServerLifecycleHooks;
+import org.jetbrains.annotations.Nullable;
 
 /** Turns wort into a bottled drink, whichever machine does the pouring. */
 public final class WortBottling {
@@ -22,10 +24,13 @@ public final class WortBottling {
     private WortBottling() {
     }
 
-    public static ItemStack bottle(Level level, int stars, String drink) {
+    public static ItemStack bottle(Level level, int stars, String drink, @Nullable BrewerMark mark) {
         ItemStack bottle = new ItemStack(ModItems.DRINK_BOTTLE.get());
         DrinkProfile profile = BrewingRecipe.profileOf(level, drink);
         bottle.set(ModDataComponents.DRINK_DATA.get(), new DrinkData(stars, profile.alcohol(), drink));
+        if (mark != null) {
+            bottle.set(ModDataComponents.BREWER.get(), mark);
+        }
         return bottle;
     }
 
@@ -79,9 +84,10 @@ public final class WortBottling {
                 return 0;
             }
             DrinkData data = resource.get(ModDataComponents.DRINK_DATA.get());
+            BrewerMark mark = resource.get(ModDataComponents.BREWER.get());
             container = data == null
-                    ? bottle(server.overworld(), DrinkData.MAX_STARS, DrinkProfile.BEER.id())
-                    : bottle(server.overworld(), data.stars(), data.stage());
+                    ? bottle(server.overworld(), DrinkData.MAX_STARS, DrinkProfile.BEER.id(), mark)
+                    : bottle(server.overworld(), data.stars(), data.stage(), mark);
             return WORT_PER_BOTTLE;
         }
 

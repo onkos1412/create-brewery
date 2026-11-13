@@ -1,5 +1,6 @@
 package com.kostya.createbrewery.block;
 
+import com.kostya.createbrewery.BrewerMark;
 import com.kostya.createbrewery.DrinkData;
 import com.kostya.createbrewery.distillery.DistilleryLogic;
 import com.kostya.createbrewery.recipe.BrewingRecipe;
@@ -12,12 +13,14 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.NbtOps;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.neoforged.neoforge.fluids.FluidStack;
 import net.neoforged.neoforge.fluids.capability.IFluidHandler;
 import net.neoforged.neoforge.items.ItemStackHandler;
+import org.jetbrains.annotations.Nullable;
 
 /** The distillery: a Create kinetic machine, driven through the shaft in its back. */
 public class DistilleryBlockEntity extends KineticBlockEntity {
@@ -27,6 +30,9 @@ public class DistilleryBlockEntity extends KineticBlockEntity {
     private int wortAmount;
     private int inputStars = DrinkData.MAX_STARS;
     private String wortDrink = DrinkProfile.BEER.id();
+    /** Who brewed the wort in the cube; the first wort in signs the batch. */
+    @Nullable
+    private BrewerMark inputMark;
     private int progressTicks;
     private int heatLevel;
 
@@ -51,7 +57,7 @@ public class DistilleryBlockEntity extends KineticBlockEntity {
 
         @Override
         public FluidStack getFluidInTank(int tank) {
-            return wortAmount > 0 ? KettleBlockEntity.wortStack(wortAmount, inputStars, wortDrink) : FluidStack.EMPTY;
+            return wortAmount > 0 ? KettleBlockEntity.wortStack(wortAmount, inputStars, wortDrink, inputMark) : FluidStack.EMPTY;
         }
 
         @Override
@@ -78,6 +84,9 @@ public class DistilleryBlockEntity extends KineticBlockEntity {
             if (accepted > 0 && action.execute()) {
                 int stars = data == null ? DrinkData.MAX_STARS : data.stars();
                 inputStars = wortAmount > 0 ? Math.min(inputStars, stars) : stars;
+                if (wortAmount == 0) {
+                    inputMark = resource.get(ModDataComponents.BREWER.get());
+                }
                 wortDrink = drink;
                 wortAmount += accepted;
                 setChanged();
@@ -97,9 +106,12 @@ public class DistilleryBlockEntity extends KineticBlockEntity {
             if (drained <= 0) {
                 return FluidStack.EMPTY;
             }
-            FluidStack stack = KettleBlockEntity.wortStack(drained, inputStars, wortDrink);
+            FluidStack stack = KettleBlockEntity.wortStack(drained, inputStars, wortDrink, inputMark);
             if (action.execute()) {
                 wortAmount -= drained;
+                if (wortAmount == 0) {
+                    inputMark = null;
+                }
                 progressTicks = 0;
                 setChanged();
             }
@@ -139,9 +151,13 @@ public class DistilleryBlockEntity extends KineticBlockEntity {
         if (data == null || !data.isSpoiled() && BrewingRecipe.profileDistilledTo(level, data.stage()).canAge()) {
             return ItemStack.EMPTY;
         }
+        BrewerMark mark = distillate.get(ModDataComponents.BREWER.get());
         output.extractItem(0, 1, false);
         ItemStack bottle = new ItemStack(ModItems.DRINK_BOTTLE.get());
         bottle.set(ModDataComponents.DRINK_DATA.get(), data);
+        if (mark != null) {
+            bottle.set(ModDataComponents.BREWER.get(), mark);
+        }
         return bottle;
     }
 
@@ -179,10 +195,15 @@ public class DistilleryBlockEntity extends KineticBlockEntity {
             BlockEntity neighbour = level.getBlockEntity(worldPosition.relative(direction));
             if (neighbour instanceof KettleBlockEntity kettle
                     && kettle.getWortAmount() >= INPUT_WORT
-                    && canTake(kettle.getWortDrink())
-                    && kettle.drainWort(INPUT_WORT) == INPUT_WORT) {
+                    && canTake(kettle.getWortDrink())) {
+                // Read before draining: taking the last of the kettle's wort clears its mark.
+                BrewerMark mark = kettle.getWortMark();
+                if (kettle.drainWort(INPUT_WORT) != INPUT_WORT) {
+                    continue;
+                }
                 wortAmount = INPUT_WORT;
                 inputStars = kettle.getWortStars();
+                inputMark = mark;
                 wortDrink = kettle.getWortDrink();
                 progressTicks = 0;
                 setChanged();
@@ -227,8 +248,12 @@ public class DistilleryBlockEntity extends KineticBlockEntity {
         distillate.set(ModDataComponents.DRINK_DATA.get(), result.spoiled()
                 ? new DrinkData(DrinkData.MIN_STARS, SPOILED_ALCOHOL, DrinkData.SPOILED_STAGE)
                 : new DrinkData(result.stars(), drink.distilledAlcohol(), drink.distilled()));
+        if (inputMark != null) {
+            distillate.set(ModDataComponents.BREWER.get(), inputMark);
+        }
         output.setStackInSlot(0, distillate);
         wortAmount = 0;
+        inputMark = null;
         progressTicks = 0;
         setChanged();
     }
@@ -239,6 +264,9 @@ public class DistilleryBlockEntity extends KineticBlockEntity {
         tag.putInt("Wort", wortAmount);
         tag.putInt("InputStars", inputStars);
         tag.putString("WortDrink", wortDrink);
+        if (inputMark != null) {
+            BrewerMark.CODEC.encodeStart(NbtOps.INSTANCE, inputMark).ifSuccess(mark -> tag.put("InputBrewer", mark));
+        }
         tag.putInt("Progress", progressTicks);
         tag.put("Output", output.serializeNBT(registries));
     }
@@ -249,6 +277,9 @@ public class DistilleryBlockEntity extends KineticBlockEntity {
         wortAmount = tag.getInt("Wort");
         inputStars = tag.contains("InputStars") ? tag.getInt("InputStars") : DrinkData.MAX_STARS;
         wortDrink = tag.contains("WortDrink") ? tag.getString("WortDrink") : DrinkProfile.BEER.id();
+        inputMark = tag.contains("InputBrewer")
+                ? BrewerMark.CODEC.parse(NbtOps.INSTANCE, tag.get("InputBrewer")).result().orElse(null)
+                : null;
         progressTicks = tag.getInt("Progress");
         if (tag.contains("Output")) {
             output.deserializeNBT(registries, tag.getCompound("Output"));
