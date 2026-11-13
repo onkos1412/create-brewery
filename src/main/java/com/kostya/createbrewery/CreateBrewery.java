@@ -23,6 +23,7 @@ public class CreateBrewery {
     // FML will recognize some parameter types like IEventBus or ModContainer and pass them in automatically.
     public CreateBrewery(IEventBus modEventBus, ModContainer modContainer) {
         contentRegistries().forEach(registry -> registry.register(modEventBus));
+        modEventBus.addListener(com.kostya.createbrewery.network.ModNetwork::register);
         modContainer.registerConfig(net.neoforged.fml.config.ModConfig.Type.SERVER,
                 com.kostya.createbrewery.config.BreweryConfig.SPEC);
         LOGGER.info("Create Brewery: {} content registries wired", contentRegistries().size());

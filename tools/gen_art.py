@@ -142,6 +142,61 @@ def write_item_textures():
     save(bottle("#a8c878", ["#9fd05a", "#7fa83a", "#5a8024"], ("#1d2a1a", "#d8e8a0"), True), ITEM, "absinthe_bottle")
     save(bottle("#c9a050", ["#f6c040", "#f0a830", "#c07c1c"], ("#2a1a3a", "#f6e070"), True), ITEM, "firefly_bottle")
     save(bottle("#dfe9e6", ["#f3e7c0", "#e6d49a", "#cbb676"], None, True), ITEM, "distillate")
+    save(brewer_book(), ITEM, "brewer_book")
+
+
+def brewer_book():
+    """A brown leather book seen from the front: spine on the left, page edges on the right, a brass clasp
+    and a small amber bottle tooled into the cover."""
+    outline = rgb("#1d1a18")
+    leather = ["#3a2010", "#5a3418", "#7a4a22", "#94602e"]
+    paper = ["#e8dcc0", "#cbb88f"]
+    img = tex()
+    p = img.putpixel
+    # Cover, lit from the top left.
+    for y in range(2, 14):
+        for x in range(3, 13):
+            shade = 3 if y == 2 or x == 3 else 1 if y == 13 or x == 12 else 2
+            p((x, y), rgb(leather[shade]))
+    # Spine, darker and banded.
+    for y in range(2, 14):
+        p((2, y), rgb(leather[0]))
+        p((3, y), rgb(leather[1]))
+    for y in (4, 11):
+        p((2, y), rgb(BRASS[2]))
+        p((3, y), rgb(BRASS[3]))
+    # Page edges peeking out at the fore-edge and the foot.
+    for y in range(2, 14):
+        p((13, y), rgb(paper[0] if y % 2 else paper[1]))
+    for x in range(4, 14):
+        p((x, 14), rgb(paper[1] if x % 2 else paper[0]))
+    # Outline.
+    for x in range(2, 14):
+        p((x, 1), outline)
+    for y in range(1, 15):
+        p((1, y), outline)
+        p((14, y), outline)
+    for x in range(1, 15):
+        p((x, 15), outline)
+    p((2, 14), outline)
+    p((3, 14), outline)
+    # Brass clasp across the fore-edge.
+    for x in (12, 13, 14):
+        p((x, 7), rgb(BRASS[4]))
+        p((x, 8), rgb(BRASS[2]))
+    p((11, 7), rgb(BRASS[5]))
+    p((11, 8), rgb(BRASS[3]))
+    # Amber bottle emblem.
+    amber = ["#f2b840", "#d98f20", "#8c4f0c"]
+    for y in (4, 5):
+        p((7, y), rgb(amber[0]))
+        p((8, y), rgb(amber[1]))
+    for y in range(6, 11):
+        for x in range(6, 10):
+            p((x, y), rgb(amber[0] if x == 6 else amber[2] if x == 9 else amber[1]))
+    p((7, 3), rgb(OAK[4]))
+    p((8, 3), rgb(OAK[3]))
+    return img
 
 
 # ---- models ------------------------------------------------------------------------
@@ -371,6 +426,8 @@ def write_models():
     })
     dump(items / "distillate.json", {"parent": "minecraft:item/generated",
                                      "textures": {"layer0": "brewery:item/distillate"}})
+    dump(items / "brewer_book.json", {"parent": "minecraft:item/generated",
+                                      "textures": {"layer0": "brewery:item/brewer_book"}})
     # The base model is beer; the `brewery:drink` property picks the others (see ModClientSetup).
     art = ["whiskey", "cider", "mash", "calvados", "vodka", "rum", "wine", "mead", "spoiled",
            "kvass", "stout", "tequila", "absinthe", "firefly"]

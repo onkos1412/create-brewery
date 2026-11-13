@@ -119,5 +119,8 @@
   "brewery.configuration.effectMultiplier": "Drink effect multiplier",
   "brewery.configuration.drunk": "Drunk mechanics",
   "brewery.configuration.drinks": "Drinks",
-  "tooltip.brewery.brewer": "Brewed by %s, day %s"
+  "tooltip.brewery.brewer": "Brewed by %s, day %s",
+  "item.brewery.brewer_book": "Brewer's Book",
+  "tooltip.brewery.book_owner": "Brewer's book of %s",
+  "tooltip.brewery.book_unbound": "Not yet signed"
 }

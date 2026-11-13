@@ -48,6 +48,7 @@ public final class ModCreativeTabs {
                         output.accept(ModBlocks.DISTILLERY_ITEM.get());
                         output.accept(ModBlocks.BARREL_ITEM.get());
                         output.accept(ModItems.DISTILLATE.get());
+                        output.accept(ModItems.BREWER_BOOK.get());
                         for (Map.Entry<String, Integer> drink : TAB_DRINKS.entrySet()) {
                             ItemStack bottle = new ItemStack(ModItems.DRINK_BOTTLE.get());
                             bottle.set(ModDataComponents.DRINK_DATA.get(),

@@ -17,11 +17,14 @@ import com.kostya.createbrewery.drunk.DrunkLevel;
 import com.kostya.createbrewery.drunk.DrunkManager;
 import com.kostya.createbrewery.drunk.ModAttachments;
 import com.kostya.createbrewery.drunk.VomitRules;
+import com.kostya.createbrewery.item.BookOwner;
+import com.kostya.createbrewery.item.BrewerBookItem;
 import com.kostya.createbrewery.journal.BarrelRecord;
 import com.kostya.createbrewery.journal.BreweryJournalData;
 import com.kostya.createbrewery.journal.DrinkJournal;
 import com.kostya.createbrewery.journal.KettleRecord;
 import com.kostya.createbrewery.journal.StillRecord;
+import com.kostya.createbrewery.network.OpenBrewerBookPayload;
 import com.kostya.createbrewery.recipe.BrewingRecipe;
 import com.kostya.createbrewery.recipe.BrewingRecipeSerializer;
 import com.kostya.createbrewery.recipe.DrinkProfile;
@@ -2273,6 +2276,80 @@ public class BreweryGameTests {
         helper.assertFalse(journalData.journalOf(owner).isEmpty(), "nothing was recorded");
         helper.assertTrue(journalData.journalOf(owner).equals(loaded.journalOf(owner)),
                 "loaded " + loaded.journalOf(owner) + ", saved " + journalData.journalOf(owner));
+        helper.succeed();
+    }
+
+    /** The first real player to open an unsigned book signs it and reads it. */
+    @GameTest(template = "empty")
+    public static void bookBindsToFirstReader(GameTestHelper helper) {
+        ServerPlayer reader = freshPlayer(helper);
+        ItemStack book = new ItemStack(ModItems.BREWER_BOOK.get());
+        OpenBrewerBookPayload payload = BrewerBookItem.payloadFor(reader, book);
+        BookOwner owner = book.get(ModDataComponents.BOOK_OWNER.get());
+        helper.assertTrue(owner != null && owner.id().equals(reader.getUUID())
+                && owner.name().equals(reader.getGameProfile().getName()), "book owner " + owner);
+        helper.assertTrue(payload.readable(), "the owner cannot read the book");
+        helper.assertTrue(payload.ownerName().equals(reader.getGameProfile().getName()), "name " + payload.ownerName());
+        helper.succeed();
+    }
+
+    /** Someone else's book opens blank and stays theirs. */
+    @GameTest(template = "empty")
+    public static void strangerGetsNothing(GameTestHelper helper) {
+        ServerPlayer owner = freshPlayer(helper);
+        ServerPlayer stranger = freshPlayer(helper);
+        ItemStack book = new ItemStack(ModItems.BREWER_BOOK.get());
+        BrewerBookItem.payloadFor(owner, book);
+        OpenBrewerBookPayload payload = BrewerBookItem.payloadFor(stranger, book);
+        helper.assertFalse(payload.readable(), "a stranger read the book");
+        helper.assertTrue(payload.ownerName().isEmpty(), "stranger saw the name " + payload.ownerName());
+        helper.assertTrue(payload.pages().isEmpty(), "stranger saw pages " + payload.pages());
+        BookOwner bound = book.get(ModDataComponents.BOOK_OWNER.get());
+        helper.assertTrue(bound != null && bound.id().equals(owner.getUUID()), "owner changed to " + bound);
+        helper.succeed();
+    }
+
+    /** Create's deployer and other fake players never sign a book. */
+    @GameTest(template = "empty")
+    public static void fakePlayerDoesNotBind(GameTestHelper helper) {
+        var fake = net.neoforged.neoforge.common.util.FakePlayerFactory.getMinecraft(helper.getLevel());
+        ItemStack book = new ItemStack(ModItems.BREWER_BOOK.get());
+        OpenBrewerBookPayload payload = BrewerBookItem.payloadFor(fake, book);
+        helper.assertTrue(book.get(ModDataComponents.BOOK_OWNER.get()) == null,
+                "fake player signed the book: " + book.get(ModDataComponents.BOOK_OWNER.get()));
+        helper.assertFalse(payload.readable(), "fake player read the book");
+        helper.succeed();
+    }
+
+    /** One page per drink, flagged with the stages it has, carrying what the owner has recorded. */
+    @GameTest(template = "empty")
+    public static void ownerSeesAllDrinksWithStageFlags(GameTestHelper helper) {
+        ServerPlayer reader = freshPlayer(helper);
+        BreweryJournalData.get(helper.getLevel().getServer()).recordKettle(reader.getUUID(), "beer",
+                new KettleRecord(Map.of("minecraft:wheat", 2), KettleLogic.HEAT_HEATED, 4));
+        OpenBrewerBookPayload payload = BrewerBookItem.payloadFor(reader, new ItemStack(ModItems.BREWER_BOOK.get()));
+
+        List<String> drinks = helper.getLevel().getRecipeManager()
+                .getAllRecipesFor(com.kostya.createbrewery.recipe.ModRecipeTypes.BREWING.get()).stream()
+                .map(holder -> holder.value().drink().id()).distinct().toList();
+        List<String> pageDrinks = payload.pages().stream().map(OpenBrewerBookPayload.Page::drinkId).toList();
+        helper.assertTrue(pageDrinks.size() == drinks.size() && pageDrinks.containsAll(drinks)
+                && pageDrinks.stream().distinct().count() == pageDrinks.size(), "pages " + pageDrinks);
+        helper.assertFalse(pageDrinks.contains(DrinkProfile.MUDDY.id()), "muddy brew has a page");
+
+        Map<String, OpenBrewerBookPayload.Page> byDrink = new java.util.HashMap<>();
+        payload.pages().forEach(page -> byDrink.put(page.drinkId(), page));
+        OpenBrewerBookPayload.Page kvass = byDrink.get("kvass");
+        helper.assertTrue(kvass != null && !kvass.hasStill() && !kvass.hasBarrel(), "kvass page " + kvass);
+        // Whiskey is distilled from beer, then aged.
+        OpenBrewerBookPayload.Page beer = byDrink.get("beer");
+        helper.assertTrue(beer != null && beer.hasStill() && beer.hasBarrel(), "beer page " + beer);
+        OpenBrewerBookPayload.Page wine = byDrink.get("young_wine");
+        helper.assertTrue(wine != null && !wine.hasStill() && wine.hasBarrel(), "wine page " + wine);
+
+        helper.assertTrue(beer.journal().flatMap(DrinkJournal::kettle).map(KettleRecord::stars).orElse(0) == 4,
+                "beer journal " + beer.journal());
+        helper.assertTrue(kvass.journal().isEmpty(), "kvass journal " + kvass.journal());
         helper.succeed();
     }
 

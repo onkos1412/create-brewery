@@ -119,5 +119,8 @@
   "brewery.configuration.effectMultiplier": "Множитель эффектов напитков",
   "brewery.configuration.drunk": "Опьянение",
   "brewery.configuration.drinks": "Напитки",
-  "tooltip.brewery.brewer": "Сварил: %s, день %s"
+  "tooltip.brewery.brewer": "Сварил: %s, день %s",
+  "item.brewery.brewer_book": "Книга пивовара",
+  "tooltip.brewery.book_owner": "Книга пивовара %s",
+  "tooltip.brewery.book_unbound": "Ещё не подписана"
 }

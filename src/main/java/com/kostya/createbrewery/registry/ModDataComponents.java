@@ -3,6 +3,7 @@ package com.kostya.createbrewery.registry;
 import com.kostya.createbrewery.BrewerMark;
 import com.kostya.createbrewery.CreateBrewery;
 import com.kostya.createbrewery.DrinkData;
+import com.kostya.createbrewery.item.BookOwner;
 import net.minecraft.core.component.DataComponentType;
 import net.minecraft.core.registries.Registries;
 import net.neoforged.bus.api.IEventBus;
@@ -31,6 +32,15 @@ public final class ModDataComponents {
             DATA_COMPONENTS.register("brewer", () -> DataComponentType.<BrewerMark>builder()
                     .persistent(BrewerMark.CODEC)
                     .networkSynchronized(BrewerMark.STREAM_CODEC)
+                    .build());
+
+    /**
+     * Who a brewer's book is signed to. Synced so client tooltips can show it.
+     */
+    public static final DeferredHolder<DataComponentType<?>, DataComponentType<BookOwner>> BOOK_OWNER =
+            DATA_COMPONENTS.register("book_owner", () -> DataComponentType.<BookOwner>builder()
+                    .persistent(BookOwner.CODEC)
+                    .networkSynchronized(BookOwner.STREAM_CODEC)
                     .build());
 
     private ModDataComponents() {
