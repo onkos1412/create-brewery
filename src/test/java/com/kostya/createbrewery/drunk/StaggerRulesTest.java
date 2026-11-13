@@ -21,7 +21,7 @@ class StaggerRulesTest {
     }
 
     @Test
-    void strengthIsOneTenthPlusAQuarterHundredth() {
+    void strengthIsPointOnePlusLevelOver400() {
         assertEquals(0.35, StaggerRules.strength(100), 1e-9);
         assertEquals(0.1, StaggerRules.strength(0), 1e-9);
     }

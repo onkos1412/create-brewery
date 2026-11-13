@@ -44,11 +44,11 @@ import net.minecraft.world.item.Items;
 import net.minecraft.world.item.alchemy.PotionContents;
 import net.minecraft.world.item.alchemy.Potions;
 import net.minecraft.world.level.GameType;
-import net.minecraft.world.level.levelgen.LegacyRandomSource;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.HopperBlock;
 import net.minecraft.world.level.block.entity.HopperBlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.levelgen.LegacyRandomSource;
 import net.minecraft.world.level.material.Fluids;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.entity.living.LivingDeathEvent;
@@ -1298,9 +1298,10 @@ public class BreweryGameTests {
     public static void drunkWalkerIsPushed(GameTestHelper helper) {
         Player player = helper.makeMockPlayer(GameType.SURVIVAL);
         DrunkManager.addDrunk(player, 90);
-        player.setDeltaMovement(0.2, 0, 0);
+        player.setDeltaMovement(0, 0, 0);
+        walk(player);
         DrunkManager.staggerTick(player, fixedRoll(0.0f));
-        helper.assertTrue(Math.abs(player.getDeltaMovement().x - 0.2) > 0.05,
+        helper.assertTrue(Math.abs(player.getDeltaMovement().x) > 0.05,
                 "walker was not pushed: " + player.getDeltaMovement());
         helper.succeed();
     }
@@ -1309,9 +1310,11 @@ public class BreweryGameTests {
     public static void standingStillIsNotPushed(GameTestHelper helper) {
         Player player = helper.makeMockPlayer(GameType.SURVIVAL);
         DrunkManager.addDrunk(player, 90);
-        player.setDeltaMovement(0, 0, 0);
+        player.setDeltaMovement(0.2, 0, 0);
+        player.xo = player.getX();
+        player.zo = player.getZ();
         DrunkManager.staggerTick(player, fixedRoll(0.0f));
-        helper.assertTrue(player.getDeltaMovement().horizontalDistanceSqr() == 0,
+        helper.assertTrue(player.getDeltaMovement().x == 0.2,
                 "standing player was pushed: " + player.getDeltaMovement());
         helper.succeed();
     }
@@ -1322,9 +1325,16 @@ public class BreweryGameTests {
         DrunkManager.addDrunk(player, 90);
         player.setShiftKeyDown(true);
         player.setDeltaMovement(0.2, 0, 0);
+        walk(player);
         DrunkManager.staggerTick(player, fixedRoll(0.0f));
         helper.assertTrue(player.getDeltaMovement().x == 0.2, "sneaking player was pushed: " + player.getDeltaMovement());
         helper.succeed();
+    }
+
+    /** Makes the player look like they stepped 0.2 blocks along x since the last tick. */
+    private static void walk(Player player) {
+        player.xo = player.getX() - 0.2;
+        player.zo = player.getZ();
     }
 
     /** A random source whose every float is {@code value}, so the stagger roll and angle are known. */

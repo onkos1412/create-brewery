@@ -124,12 +124,15 @@ public final class DrunkManager {
                 || player.isFallFlying() || player.isPassenger()) {
             return;
         }
-        Vec3 motion = player.getDeltaMovement();
-        if (motion.horizontalDistanceSqr() < 0.01 * 0.01 || !StaggerRules.shouldStagger(level, random.nextFloat())) {
+        // Walking is client-authoritative, so the server's delta movement stays near zero; use the position change.
+        double dx = player.getX() - player.xo;
+        double dz = player.getZ() - player.zo;
+        if (dx * dx + dz * dz < 0.01 * 0.01 || !StaggerRules.shouldStagger(level, random.nextFloat())) {
             return;
         }
         double angle = random.nextFloat() * 2 * Math.PI;
         double strength = StaggerRules.strength(level);
+        Vec3 motion = player.getDeltaMovement();
         player.setDeltaMovement(motion.add(Math.cos(angle) * strength, 0, Math.sin(angle) * strength));
         player.hurtMarked = true;
     }
