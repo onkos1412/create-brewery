@@ -12,6 +12,8 @@ import com.kostya.createbrewery.recipe.ModRecipeTypes;
 import com.kostya.createbrewery.registry.ModDataComponents;
 import com.kostya.createbrewery.registry.ModItems;
 import net.createmod.ponder.foundation.PonderIndex;
+import com.kostya.createbrewery.recipe.BrewingRecipe;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.RecipeBookCategories;
 import net.minecraft.client.renderer.item.ItemProperties;
 import net.neoforged.api.distmarker.Dist;
@@ -63,6 +65,15 @@ public final class ModClientSetup {
     @SubscribeEvent
     public static void registerItemColors(RegisterColorHandlersEvent.Item event) {
         event.register((stack, tintIndex) -> 0xFF000000 | KettleBlockEntity.EMPTY_COLOR, ModBlocks.KETTLE_ITEM.get());
+        // The mug's liquid layer is grey art tinted with the colour of the drink inside.
+        event.register((stack, tintIndex) -> {
+            DrinkData data = stack.get(ModDataComponents.DRINK_DATA.get());
+            var level = Minecraft.getInstance().level;
+            if (tintIndex != 1 || data == null || level == null) {
+                return 0xFFFFFFFF;
+            }
+            return 0xFF000000 | BrewingRecipe.profileWithStage(level, data.stage()).color();
+        }, ModItems.DRINK_MUG.get());
     }
 
     @SubscribeEvent

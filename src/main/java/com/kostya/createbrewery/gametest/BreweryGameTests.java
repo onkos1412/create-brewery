@@ -2566,6 +2566,66 @@ public class BreweryGameTests {
         helper.succeed();
     }
 
+    /** An empty mug takes one portion and keeps the drink's quality and signature. */
+    @GameTest(template = "empty")
+    public static void mugPoursFromKeg(GameTestHelper helper) {
+        KegBlockEntity keg = placeKeg(helper, KEG);
+        BrewerMark kostya = new BrewerMark("Kostya", 7);
+        DrinkData whiskey = new DrinkData(4, 40, "aged_whiskey");
+        keg.pourIn(drinkBottle(2, whiskey, kostya), false);
+        helper.assertTrue(keg.getPortions() == 1, "portions " + keg.getPortions());
+        keg.pourIn(drinkBottle(1, whiskey, kostya), false);
+        ServerPlayer player = freshPlayer(helper);
+        player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(ModItems.MUG.get(), 3));
+        useOnKeg(helper, player, KEG);
+        helper.assertTrue(keg.getPortions() == 1, "portions " + keg.getPortions());
+        helper.assertTrue(player.getMainHandItem().is(ModItems.MUG.get()) && player.getMainHandItem().getCount() == 2,
+                "mugs left " + player.getMainHandItem());
+        ItemStack full = ItemStack.EMPTY;
+        for (ItemStack stack : player.getInventory().items) {
+            if (stack.is(ModItems.DRINK_MUG.get())) {
+                full = stack;
+            }
+        }
+        helper.assertFalse(full.isEmpty(), "no mug of drink");
+        helper.assertTrue(whiskey.equals(full.get(ModDataComponents.DRINK_DATA.get())), "data " + data(full));
+        helper.assertTrue(kostya.equals(full.get(ModDataComponents.BREWER.get())), "signature lost");
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
+    public static void emptyKegPoursNothing(GameTestHelper helper) {
+        KegBlockEntity keg = placeKeg(helper, KEG);
+        ServerPlayer player = freshPlayer(helper);
+        player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(ModItems.MUG.get(), 2));
+        useOnKeg(helper, player, KEG);
+        helper.assertTrue(player.getMainHandItem().getCount() == 2 && player.getMainHandItem().is(ModItems.MUG.get()),
+                "mugs " + player.getMainHandItem());
+        helper.assertTrue(countInInventory(player, ModItems.DRINK_MUG.get()) == 0, "got a mug of nothing");
+        helper.assertTrue(keg.getPortions() == 0, "portions " + keg.getPortions());
+        helper.succeed();
+    }
+
+    /** A mug drinks exactly like the bottle of the same drink, and hands the empty mug back. */
+    @GameTest(template = "empty")
+    public static void drinkingMugReturnsMug(GameTestHelper helper) {
+        DrinkData whiskey = new DrinkData(5, 40, "whiskey");
+        ServerPlayer withBottle = freshPlayer(helper);
+        ItemStack bottle = drinkBottle(1, whiskey, null);
+        ItemStack bottleLeft = bottle.getItem().finishUsingItem(bottle, helper.getLevel(), withBottle);
+        helper.assertTrue(bottleLeft.is(Items.GLASS_BOTTLE), "bottle gave " + bottleLeft);
+
+        ServerPlayer withMug = freshPlayer(helper);
+        ItemStack mug = new ItemStack(ModItems.DRINK_MUG.get());
+        mug.set(ModDataComponents.DRINK_DATA.get(), whiskey);
+        ItemStack left = mug.getItem().finishUsingItem(mug, helper.getLevel(), withMug);
+        helper.assertTrue(left.is(ModItems.MUG.get()), "mug gave " + left);
+        helper.assertTrue(DrunkManager.getDrunk(withMug) > 0, "no drunk");
+        helper.assertTrue(DrunkManager.getDrunk(withMug) == DrunkManager.getDrunk(withBottle),
+                "mug " + DrunkManager.getDrunk(withMug) + " bottle " + DrunkManager.getDrunk(withBottle));
+        helper.succeed();
+    }
+
     /** A broken keg spills its portions as bottles and the glass it kept. */
     @GameTest(template = "empty")
     public static void brokenKegDropsPortionsAndEmpties(GameTestHelper helper) {

@@ -163,6 +163,53 @@ def write_item_textures():
     save(bottle("#c9a050", ["#f6c040", "#f0a830", "#c07c1c"], ("#2a1a3a", "#f6e070"), True), ITEM, "firefly_bottle")
     save(bottle("#dfe9e6", ["#f3e7c0", "#e6d49a", "#cbb676"], None, True), ITEM, "distillate")
     save(brewer_book(), ITEM, "brewer_book")
+    write_mug_textures()
+
+
+def mug_body():
+    """A wooden mug with a handle on the right; the dark band under the rim is where the drink shows."""
+    outline = rgb("#1d1a18")
+    img = tex()
+    p = img.putpixel
+    for y in range(4, 15):
+        for x in range(3, 11):
+            p((x, y), rgb(OAK[3] if x < 5 else OAK[2] if x < 9 else OAK[1]))
+    for y in (6, 12):
+        for x in range(3, 11):
+            p((x, y), rgb(IRON[3]))
+    for x in range(3, 11):
+        p((x, 4), rgb("#2a1a0c"))
+        p((x, 5), rgb("#2a1a0c"))
+    for y in range(3, 16):
+        p((2, y), outline)
+        p((11, y), outline)
+    for x in range(2, 12):
+        p((x, 3), outline)
+        p((x, 15), outline)
+    # Handle.
+    for y in range(6, 12):
+        p((13, y), outline)
+    for x in (12, 13):
+        p((x, 6), outline)
+        p((x, 11), outline)
+    for y in range(7, 11):
+        p((12, y), rgb(OAK[4]))
+    return img
+
+
+def mug_liquid():
+    """The drink in the mug, in grey so the item colour handler can tint it."""
+    img = tex()
+    for y, shade in ((4, "#ffffff"), (5, "#c8c8c8")):
+        for x in range(3, 11):
+            img.putpixel((x, y), rgb(shade))
+    return img
+
+
+def write_mug_textures():
+    save(mug_body(), ITEM, "mug")
+    save(mug_body(), ITEM, "drink_mug")
+    save(mug_liquid(), ITEM, "drink_mug_liquid")
 
 
 def brewer_book():
@@ -495,6 +542,9 @@ def write_models():
                                      "textures": {"layer0": "brewery:item/distillate"}})
     dump(items / "brewer_book.json", {"parent": "minecraft:item/generated",
                                       "textures": {"layer0": "brewery:item/brewer_book"}})
+    dump(items / "mug.json", {"parent": "minecraft:item/generated", "textures": {"layer0": "brewery:item/mug"}})
+    dump(items / "drink_mug.json", {"parent": "minecraft:item/generated", "textures": {
+        "layer0": "brewery:item/drink_mug", "layer1": "brewery:item/drink_mug_liquid"}})
     # The base model is beer; the `brewery:drink` property picks the others (see ModClientSetup).
     art = ["whiskey", "cider", "mash", "calvados", "vodka", "rum", "wine", "mead", "spoiled",
            "kvass", "stout", "tequila", "absinthe", "firefly"]

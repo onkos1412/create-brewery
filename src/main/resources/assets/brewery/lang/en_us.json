@@ -138,5 +138,7 @@
   "gui.brewery.book.heat.2": "Superheated",
   "block.brewery.keg": "Keg",
   "gui.brewery.keg.portions": "%s/%s",
-  "gui.brewery.keg.empty": "Empty"
+  "gui.brewery.keg.empty": "Empty",
+  "item.brewery.mug": "Mug",
+  "item.brewery.drink_mug": "Mug of drink"
 }

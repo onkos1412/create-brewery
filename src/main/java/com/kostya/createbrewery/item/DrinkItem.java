@@ -106,9 +106,14 @@ public class DrinkItem extends Item {
             }
             player.playSound(SoundEvents.PLAYER_BURP, 0.5f, level.random.nextFloat() * 0.1f + 0.9f);
             // Like a vanilla potion, the empty bottle comes back: production spends one for every drink.
-            return ItemUtils.createFilledResult(stack, player, new ItemStack(Items.GLASS_BOTTLE));
+            return ItemUtils.createFilledResult(stack, player, emptyContainer());
         }
         return stack;
+    }
+
+    /** What comes back once the drink is gone: the glass bottle, or the mug in {@link DrinkMugItem}. */
+    protected ItemStack emptyContainer() {
+        return new ItemStack(Items.GLASS_BOTTLE);
     }
 
     /** Advancements for what was drunk: a muddy brew, an aged drink, a five-star one, and the taster's list. */

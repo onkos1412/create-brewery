@@ -1,6 +1,8 @@
 package com.kostya.createbrewery.block;
 
+import com.kostya.createbrewery.BrewerMark;
 import com.kostya.createbrewery.keg.KegRules;
+import com.kostya.createbrewery.registry.ModDataComponents;
 import com.kostya.createbrewery.registry.ModItems;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -71,6 +73,9 @@ public class KegBlock extends Block implements EntityBlock {
     @Override
     protected ItemInteractionResult useItemOn(ItemStack stack, BlockState state, Level level, BlockPos pos,
                                               Player player, InteractionHand hand, BlockHitResult hit) {
+        if (stack.is(ModItems.MUG.get())) {
+            return pourMug(stack, level, pos, player, hand);
+        }
         if (!stack.is(ModItems.DRINK_BOTTLE.get())) {
             return ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
         }
@@ -83,6 +88,30 @@ public class KegBlock extends Block implements EntityBlock {
         // Like filling a cauldron: the bottle comes back empty, and a creative player keeps theirs.
         player.setItemInHand(hand, ItemUtils.createFilledResult(stack, player, new ItemStack(Items.GLASS_BOTTLE)));
         level.playSound(null, pos, SoundEvents.BOTTLE_EMPTY, SoundSource.BLOCKS, 1.0f, 1.0f);
+        return ItemInteractionResult.SUCCESS;
+    }
+
+    /** An empty mug takes one portion: a mug of the same drink, quality and signature included. */
+    private static ItemInteractionResult pourMug(ItemStack mug, Level level, BlockPos pos, Player player,
+                                                 InteractionHand hand) {
+        if (level.isClientSide()) {
+            return ItemInteractionResult.SUCCESS;
+        }
+        if (!(level.getBlockEntity(pos) instanceof KegBlockEntity keg)) {
+            return ItemInteractionResult.FAIL;
+        }
+        ItemStack poured = keg.pourOut();
+        if (poured.isEmpty()) {
+            return ItemInteractionResult.FAIL;
+        }
+        ItemStack filled = new ItemStack(ModItems.DRINK_MUG.get());
+        filled.set(ModDataComponents.DRINK_DATA.get(), poured.get(ModDataComponents.DRINK_DATA.get()));
+        BrewerMark mark = poured.get(ModDataComponents.BREWER.get());
+        if (mark != null) {
+            filled.set(ModDataComponents.BREWER.get(), mark);
+        }
+        player.setItemInHand(hand, ItemUtils.createFilledResult(mug, player, filled));
+        level.playSound(null, pos, SoundEvents.BOTTLE_FILL, SoundSource.BLOCKS, 1.0f, 1.0f);
         return ItemInteractionResult.SUCCESS;
     }
 

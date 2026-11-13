@@ -138,5 +138,7 @@
   "gui.brewery.book.heat.2": "Сильный нагрев",
   "block.brewery.keg": "Бочонок",
   "gui.brewery.keg.portions": "%s/%s",
-  "gui.brewery.keg.empty": "Пусто"
+  "gui.brewery.keg.empty": "Пусто",
+  "item.brewery.mug": "Кружка",
+  "item.brewery.drink_mug": "Кружка напитка"
 }

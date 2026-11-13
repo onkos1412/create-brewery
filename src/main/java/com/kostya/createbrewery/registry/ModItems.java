@@ -4,6 +4,7 @@ import com.kostya.createbrewery.CreateBrewery;
 import com.kostya.createbrewery.item.BrewerBookItem;
 import com.kostya.createbrewery.item.DistillateItem;
 import com.kostya.createbrewery.item.DrinkItem;
+import com.kostya.createbrewery.item.DrinkMugItem;
 import net.minecraft.world.item.Item;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.neoforge.registries.DeferredItem;
@@ -28,6 +29,14 @@ public final class ModItems {
     /** The brewer's book: signed by its first reader, it shows them their brewing journal. */
     public static final DeferredItem<Item> BREWER_BOOK = ITEMS.register("brewer_book",
             () -> new BrewerBookItem(new Item.Properties().stacksTo(1)));
+
+    /** An empty wooden mug: use it on a keg to fill it with one portion. */
+    public static final DeferredItem<Item> MUG = ITEMS.register("mug",
+            () -> new Item(new Item.Properties().stacksTo(16)));
+
+    /** A mug of drink; drinking it hands the mug back. */
+    public static final DeferredItem<Item> DRINK_MUG = ITEMS.register("drink_mug",
+            () -> new DrinkMugItem(new Item.Properties().stacksTo(1)));
 
     private ModItems() {
     }
