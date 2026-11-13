@@ -5,11 +5,14 @@ import com.mojang.serialization.Codec;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.world.phys.Vec3;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.neoforge.attachment.AttachmentType;
 import net.neoforged.neoforge.registries.DeferredHolder;
 import net.neoforged.neoforge.registries.DeferredRegister;
 import net.neoforged.neoforge.registries.NeoForgeRegistries;
+
+import java.util.Optional;
 
 /**
  * The player attachment that stores the drunk counter, persisted across sessions and
@@ -40,6 +43,10 @@ public final class ModAttachments {
             ATTACHMENTS.register("hangover_debt", () -> AttachmentType.builder(() -> 0)
                     .serialize(Codec.INT)
                     .build());
+
+    /** Where the player stood at the last stagger check, to tell if they walked. Neither saved nor synced. */
+    public static final DeferredHolder<AttachmentType<?>, AttachmentType<Optional<Vec3>>> STAGGER_LAST_POS =
+            ATTACHMENTS.register("stagger_last_pos", () -> AttachmentType.builder(() -> Optional.<Vec3>empty()).build());
 
     private ModAttachments() {
     }

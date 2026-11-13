@@ -7,6 +7,8 @@ import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.Vec3;
 
+import java.util.Optional;
+
 /**
  * Read/write access to a player's drunk level, hiding the attachment plumbing.
  */
@@ -113,21 +115,27 @@ public final class DrunkManager {
         player.displayClientMessage(Component.translatable("message.brewery.passed_out"), true);
     }
 
+    /** A drunk player must have moved at least this far (horizontally) since the last check to be shoved. */
+    private static final double WALKED_BLOCKS = 0.2;
+
     /**
-     * Once a second: a drunk player on the move may be shoved sideways. Standing still, sneaking,
-     * flying, riding and being knocked out are left alone.
+     * Once a second: a drunk player who walked since the last check may be shoved sideways. Walking is
+     * judged by how far the player moved since the previous check, not by vanilla's per-tick bookkeeping.
+     * Standing still, sneaking, flying, riding and being knocked out are left alone, and the first
+     * check after joining only records a position.
      */
     public static void staggerTick(Player player, RandomSource random) {
+        Optional<Vec3> last = player.getData(ModAttachments.STAGGER_LAST_POS.get());
+        player.setData(ModAttachments.STAGGER_LAST_POS.get(), Optional.of(player.position()));
         int level = getDrunk(player);
-        if (level <= StaggerRules.FROM || isKnockedOut(player)
+        if (last.isEmpty() || level <= StaggerRules.FROM || isKnockedOut(player)
                 || player.isShiftKeyDown() || player.getAbilities().flying
                 || player.isFallFlying() || player.isPassenger()) {
             return;
         }
-        // Walking is client-authoritative, so the server's delta movement stays near zero; use the position change.
-        double dx = player.getX() - player.xo;
-        double dz = player.getZ() - player.zo;
-        if (dx * dx + dz * dz < 0.01 * 0.01 || !StaggerRules.shouldStagger(level, random.nextFloat())) {
+        double dx = player.getX() - last.get().x;
+        double dz = player.getZ() - last.get().z;
+        if (dx * dx + dz * dz < WALKED_BLOCKS * WALKED_BLOCKS || !StaggerRules.shouldStagger(level, random.nextFloat())) {
             return;
         }
         double angle = random.nextFloat() * 2 * Math.PI;

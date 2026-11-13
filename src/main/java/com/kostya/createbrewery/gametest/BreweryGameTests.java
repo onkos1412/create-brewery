@@ -1293,12 +1293,14 @@ public class BreweryGameTests {
         helper.succeed();
     }
 
-    /** A drunk player on the move is shoved sideways by a stagger. */
+    /** A drunk player who walked since the last check is shoved sideways by a stagger. */
     @GameTest(template = "empty")
     public static void drunkWalkerIsPushed(GameTestHelper helper) {
         Player player = helper.makeMockPlayer(GameType.SURVIVAL);
         DrunkManager.addDrunk(player, 90);
         player.setDeltaMovement(0, 0, 0);
+        DrunkManager.staggerTick(player, fixedRoll(0.0f));
+        helper.assertTrue(player.getDeltaMovement().x == 0, "first check pushed: " + player.getDeltaMovement());
         walk(player);
         DrunkManager.staggerTick(player, fixedRoll(0.0f));
         helper.assertTrue(Math.abs(player.getDeltaMovement().x) > 0.05,
@@ -1311,8 +1313,7 @@ public class BreweryGameTests {
         Player player = helper.makeMockPlayer(GameType.SURVIVAL);
         DrunkManager.addDrunk(player, 90);
         player.setDeltaMovement(0.2, 0, 0);
-        player.xo = player.getX();
-        player.zo = player.getZ();
+        DrunkManager.staggerTick(player, fixedRoll(0.0f));
         DrunkManager.staggerTick(player, fixedRoll(0.0f));
         helper.assertTrue(player.getDeltaMovement().x == 0.2,
                 "standing player was pushed: " + player.getDeltaMovement());
@@ -1325,16 +1326,16 @@ public class BreweryGameTests {
         DrunkManager.addDrunk(player, 90);
         player.setShiftKeyDown(true);
         player.setDeltaMovement(0.2, 0, 0);
+        DrunkManager.staggerTick(player, fixedRoll(0.0f));
         walk(player);
         DrunkManager.staggerTick(player, fixedRoll(0.0f));
         helper.assertTrue(player.getDeltaMovement().x == 0.2, "sneaking player was pushed: " + player.getDeltaMovement());
         helper.succeed();
     }
 
-    /** Makes the player look like they stepped 0.2 blocks along x since the last tick. */
+    /** Moves the player a block along x, as a second of walking would. */
     private static void walk(Player player) {
-        player.xo = player.getX() - 0.2;
-        player.zo = player.getZ();
+        player.setPos(player.getX() + 1, player.getY(), player.getZ());
     }
 
     /** A random source whose every float is {@code value}, so the stagger roll and angle are known. */
