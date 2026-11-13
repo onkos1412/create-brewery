@@ -1299,6 +1299,7 @@ public class BreweryGameTests {
     @GameTest(template = "empty")
     public static void drunkWalkerIsPushed(GameTestHelper helper) {
         Player player = helper.makeMockPlayer(GameType.SURVIVAL);
+        player.setOnGround(true);
         DrunkManager.addDrunk(player, 90);
         player.setDeltaMovement(0, 0, 0);
         DrunkManager.staggerTick(player, fixedRoll(0.0f));
@@ -1313,6 +1314,7 @@ public class BreweryGameTests {
     @GameTest(template = "empty")
     public static void standingStillIsNotPushed(GameTestHelper helper) {
         Player player = helper.makeMockPlayer(GameType.SURVIVAL);
+        player.setOnGround(true);
         DrunkManager.addDrunk(player, 90);
         player.setDeltaMovement(0.2, 0, 0);
         DrunkManager.staggerTick(player, fixedRoll(0.0f));
@@ -1325,6 +1327,7 @@ public class BreweryGameTests {
     @GameTest(template = "empty")
     public static void sneakingIsNotPushed(GameTestHelper helper) {
         Player player = helper.makeMockPlayer(GameType.SURVIVAL);
+        player.setOnGround(true);
         DrunkManager.addDrunk(player, 90);
         player.setShiftKeyDown(true);
         player.setDeltaMovement(0.2, 0, 0);
@@ -1332,6 +1335,61 @@ public class BreweryGameTests {
         walk(player);
         DrunkManager.staggerTick(player, fixedRoll(0.0f));
         helper.assertTrue(player.getDeltaMovement().x == 0.2, "sneaking player was pushed: " + player.getDeltaMovement());
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
+    public static void airbornePlayerIsNotPushed(GameTestHelper helper) {
+        Player player = helper.makeMockPlayer(GameType.SURVIVAL);
+        player.setOnGround(false);
+        DrunkManager.addDrunk(player, 90);
+        player.setDeltaMovement(0.2, 0, 0);
+        DrunkManager.staggerTick(player, fixedRoll(0.0f));
+        walk(player);
+        DrunkManager.staggerTick(player, fixedRoll(0.0f));
+        helper.assertTrue(player.getDeltaMovement().x == 0.2, "airborne player was pushed: " + player.getDeltaMovement());
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
+    public static void knockedOutPlayerIsNotPushed(GameTestHelper helper) {
+        Player player = helper.makeMockPlayer(GameType.SURVIVAL);
+        player.setOnGround(true);
+        DrunkManager.addDrunk(player, 90);
+        player.setData(ModAttachments.KNOCKOUT_TICKS.get(), 100);
+        player.setDeltaMovement(0.2, 0, 0);
+        DrunkManager.staggerTick(player, fixedRoll(0.0f));
+        walk(player);
+        DrunkManager.staggerTick(player, fixedRoll(0.0f));
+        helper.assertTrue(player.getDeltaMovement().x == 0.2, "knocked-out player was pushed: " + player.getDeltaMovement());
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
+    public static void unluckyRollIsNotPushed(GameTestHelper helper) {
+        Player player = helper.makeMockPlayer(GameType.SURVIVAL);
+        player.setOnGround(true);
+        DrunkManager.addDrunk(player, 90);
+        player.setDeltaMovement(0.2, 0, 0);
+        DrunkManager.staggerTick(player, fixedRoll(0.99f));
+        walk(player);
+        DrunkManager.staggerTick(player, fixedRoll(0.99f));
+        helper.assertTrue(player.getDeltaMovement().x == 0.2, "pushed on a high roll: " + player.getDeltaMovement());
+        helper.succeed();
+    }
+
+    /** Dying wipes the vomit cooldown too, so the respawned player can throw up at once. */
+    @GameTest(template = "empty")
+    public static void deathClearsVomitCooldown(GameTestHelper helper) {
+        Player player = helper.makeMockPlayer(GameType.SURVIVAL);
+        DrunkManager.addDrunk(player, 100);
+        player.getFoodData().setFoodLevel(20);
+        DrunkManager.vomitTick(player, fixedRoll(0.0f));
+        helper.assertTrue(player.getFoodData().getFoodLevel() == 16, "first bout: " + player.getFoodData().getFoodLevel());
+        DrunkManager.reset(player);
+        DrunkManager.addDrunk(player, 100);
+        DrunkManager.vomitTick(player, fixedRoll(0.0f));
+        helper.assertTrue(player.getFoodData().getFoodLevel() == 12, "cooldown survived death: " + player.getFoodData().getFoodLevel());
         helper.succeed();
     }
 

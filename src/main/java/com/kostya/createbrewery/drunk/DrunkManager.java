@@ -25,6 +25,12 @@ public final class DrunkManager {
     /** How long passing out lasts: ten seconds. */
     public static final int KNOCKOUT_TICKS = 200;
 
+    /** Length of the per-second drunk tick (sobering, staggering, vomiting), in game ticks. */
+    public static final int SECOND_TICKS = 20;
+
+    /** A drunk player must have moved at least this far (horizontally) since the last check to be shoved. */
+    private static final double WALKED_BLOCKS = 0.2;
+
     private DrunkManager() {
     }
 
@@ -124,13 +130,10 @@ public final class DrunkManager {
         player.displayClientMessage(Component.translatable("message.brewery.passed_out"), true);
     }
 
-    /** A drunk player must have moved at least this far (horizontally) since the last check to be shoved. */
-    private static final double WALKED_BLOCKS = 0.2;
-
     /**
      * Once a second: a drunk player who walked since the last check may be shoved sideways. Walking is
      * judged by how far the player moved since the previous check, not by vanilla's per-tick bookkeeping.
-     * Standing still, sneaking, flying, riding and being knocked out are left alone, and the first
+     * Standing still, sneaking, flying, riding, being in the air and being knocked out are left alone, and the first
      * check after joining only records a position.
      */
     public static void staggerTick(Player player, RandomSource random) {
@@ -139,7 +142,7 @@ public final class DrunkManager {
         int level = getDrunk(player);
         if (last.isEmpty() || level <= StaggerRules.FROM || isKnockedOut(player)
                 || player.isShiftKeyDown() || player.getAbilities().flying
-                || player.isFallFlying() || player.isPassenger()) {
+                || player.isFallFlying() || !player.onGround() || player.isPassenger()) {
             return;
         }
         double dx = player.getX() - last.get().x;
@@ -159,7 +162,7 @@ public final class DrunkManager {
      * throw up. A knocked-out player never does.
      */
     public static void vomitTick(Player player, RandomSource random) {
-        int cooldown = Math.max(0, player.getData(ModAttachments.VOMIT_COOLDOWN.get()) - DrunkEvents.SOBER_INTERVAL_TICKS);
+        int cooldown = Math.max(0, player.getData(ModAttachments.VOMIT_COOLDOWN.get()) - SECOND_TICKS);
         player.setData(ModAttachments.VOMIT_COOLDOWN.get(), cooldown);
         if (isKnockedOut(player)
                 || !VomitRules.shouldVomit(getDrunk(player), getHangoverDebt(player), cooldown, random.nextFloat())) {
@@ -169,6 +172,7 @@ public final class DrunkManager {
         FoodData food = player.getFoodData();
         food.setFoodLevel(Math.max(0, food.getFoodLevel() - VomitRules.FOOD_LOST));
         player.addEffect(new MobEffectInstance(MobEffects.CONFUSION, 100));
+        // The level never reaches 0 here (VomitRules.FROM_LEVEL > SOBERS_BY), so hangover settlement stays in soberTick.
         levelOf(player).set(Math.max(0, getDrunk(player) - VomitRules.SOBERS_BY));
         markDirty(player);
         if (player.level() instanceof ServerLevel level) {

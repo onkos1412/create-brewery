@@ -26,9 +26,6 @@ import java.util.Random;
 @EventBusSubscriber(modid = CreateBrewery.MOD_ID)
 public final class DrunkEvents {
 
-    /** How often (in ticks) a sober step is applied: once per second. */
-    public static final int SOBER_INTERVAL_TICKS = 20;
-
     private DrunkEvents() {
     }
 
@@ -38,7 +35,7 @@ public final class DrunkEvents {
         if (player.level().isClientSide()) {
             return;
         }
-        if (player.tickCount % SOBER_INTERVAL_TICKS == 0) {
+        if (player.tickCount % DrunkManager.SECOND_TICKS == 0) {
             DrunkManager.soberTick(player);
             DrunkManager.staggerTick(player, player.getRandom());
             DrunkManager.vomitTick(player, player.getRandom());
