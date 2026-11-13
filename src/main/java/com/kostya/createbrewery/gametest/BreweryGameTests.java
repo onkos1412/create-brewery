@@ -2687,6 +2687,39 @@ public class BreweryGameTests {
         helper.succeed();
     }
 
+    /**
+     * Create lifts machines into a contraption by removing the block entity first and then setting air
+     * with drops suppressed (Contraption.removeBlocksFromWorld); the contents travel inside the
+     * contraption, so nothing may also fall out on the ground.
+     */
+    @GameTest(template = "empty")
+    public static void contraptionAssemblyDropsNothing(GameTestHelper helper) {
+        placeKettle(helper, Items.WHEAT);
+        BarrelBlockEntity barrel = placeBarrels(helper, BARREL);
+        ItemStack rum = new ItemStack(ModItems.DISTILLATE.get(), 4);
+        rum.set(ModDataComponents.DRINK_DATA.get(), new DrinkData(5, 45, "rum"));
+        barrel.getInput().insertItem(0, rum, false);
+        BlockPos kegPos = new BlockPos(3, 2, 3);
+        KegBlockEntity keg = placeKeg(helper, kegPos);
+        keg.pourIn(drinkBottle(1, new DrinkData(3, 20, "mead"), null), false);
+
+        int flags = net.minecraft.world.level.block.Block.UPDATE_MOVE_BY_PISTON
+                | net.minecraft.world.level.block.Block.UPDATE_SUPPRESS_DROPS
+                | net.minecraft.world.level.block.Block.UPDATE_KNOWN_SHAPE
+                | net.minecraft.world.level.block.Block.UPDATE_CLIENTS
+                | net.minecraft.world.level.block.Block.UPDATE_IMMEDIATE;
+        for (BlockPos pos : List.of(KETTLE, BARREL, kegPos)) {
+            BlockPos absolute = helper.absolutePos(pos);
+            helper.getLevel().removeBlockEntity(absolute);
+            helper.getLevel().setBlock(absolute, Blocks.AIR.defaultBlockState(), flags);
+        }
+
+        List<ItemEntity> dropped = helper.getLevel().getEntitiesOfClass(ItemEntity.class,
+                new net.minecraft.world.phys.AABB(helper.absolutePos(BlockPos.ZERO)).inflate(8));
+        helper.assertTrue(dropped.isEmpty(), "contraption assembly dropped " + dropped.size() + " stacks");
+        helper.succeed();
+    }
+
     /** A creative player's bottle stays in the hand, as with vanilla bottles. */
     @GameTest(template = "empty")
     public static void creativePourKeepsBottle(GameTestHelper helper) {
