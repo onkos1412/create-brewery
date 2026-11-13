@@ -79,3 +79,7 @@ gradlew runGameTestServer
 ```
 
 `build` собирает мод и запускает юнит-тесты, `runGameTestServer` проверяет машины в настоящем мире. Текстуры и модели генерирует `tools/gen_art.py` (нужен Python с Pillow).
+
+## Лицензия
+
+MIT, см. [LICENSE](LICENSE). Список изменений — в [CHANGELOG.md](CHANGELOG.md).

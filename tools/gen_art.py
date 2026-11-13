@@ -636,12 +636,38 @@ def write_ponder():
     })
 
 
+def write_logo():
+    """The 128x128 mod logo: a whiskey bottle and five gold stars on an andesite plate in a brass frame."""
+    rng = random.Random(42)
+    size = 128
+    img = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+    d.rounded_rectangle((0, 0, size - 1, size - 1), radius=14, fill=rgb(BRASS[1]))
+    d.rounded_rectangle((4, 4, size - 5, size - 5), radius=11, fill=rgb(BRASS[3]))
+    d.rounded_rectangle((8, 8, size - 9, size - 9), radius=8, fill=rgb(ANDESITE[2]))
+    for _ in range(900):
+        x, y = rng.randrange(10, size - 10), rng.randrange(10, size - 10)
+        img.putpixel((x, y), rgb(rng.choice(ANDESITE[1:4])))
+    bottle_art = Image.open(ITEM / "whiskey_bottle.png").convert("RGBA").resize((96, 96), Image.NEAREST)
+    img.alpha_composite(bottle_art, (16, 6))
+    star = ["..x..", ".xxx.", "xxxxx", ".xxx.", ".x.x."]
+    for index in range(5):
+        left = 17 + index * 20
+        for row, line in enumerate(star):
+            for col, ch in enumerate(line):
+                if ch == "x":
+                    d.rectangle((left + col * 3, 102 + row * 3, left + col * 3 + 2, 102 + row * 3 + 2),
+                                fill=rgb(BRASS[5] if row < 2 else BRASS[4]))
+    img.save(ROOT.parent.parent / "brewery_logo.png")
+
+
 def main():
     write_block_textures()
     write_item_textures()
     write_models()
     write_gui()
     write_ponder()
+    write_logo()
 
 
 if __name__ == "__main__":
