@@ -122,5 +122,18 @@
   "tooltip.brewery.brewer": "Сварил: %s, день %s",
   "item.brewery.brewer_book": "Книга пивовара",
   "tooltip.brewery.book_owner": "Книга пивовара %s",
-  "tooltip.brewery.book_unbound": "Ещё не подписана"
+  "tooltip.brewery.book_unbound": "Ещё не подписана",
+  "gui.brewery.book.title": "Книга пивовара %s",
+  "gui.brewery.book.discovered": "Открыто %s из %s",
+  "gui.brewery.book.unknown": "???",
+  "gui.brewery.book.kettle": "Котёл",
+  "gui.brewery.book.still": "Куб",
+  "gui.brewery.book.barrel": "Бочка",
+  "gui.brewery.book.rpm": "%s об/мин",
+  "gui.brewery.book.days": "%s дн.",
+  "gui.brewery.book.none": "—",
+  "gui.brewery.book.illegible": "Почерк неразборчив…",
+  "gui.brewery.book.heat.0": "Без нагрева",
+  "gui.brewery.book.heat.1": "Нагрев",
+  "gui.brewery.book.heat.2": "Сильный нагрев"
 }

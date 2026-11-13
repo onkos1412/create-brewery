@@ -619,6 +619,88 @@ def write_gui():
     save(parts, GUI, "machine_parts")
 
 
+def write_book_gui():
+    """The brewer's book open on a two-page spread, 292x180: leather cover with brass corners,
+    parchment pages with a shadowed fold. Below it at v 184 the page-turn arrows, 18x10:
+    next at u 0 (hovered 20), previous at u 40 (hovered 60)."""
+    rng = random.Random(7)
+    leather = ["#2a170b", "#3a2010", "#5a3418", "#7a4a22", "#94602e"]
+    paper = ["#efe4c8", "#e8dcc0", "#ddcfae", "#cbb88f", "#a8916a"]
+    img = Image.new("RGBA", (320, 200), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+    w, h = 292, 180
+    # Cover: grained leather, lit from the top left, with a tooled line inside the edge.
+    d.rectangle((0, 0, w - 1, h - 1), fill=rgb(leather[2]))
+    for _ in range(2600):
+        x, y = rng.randrange(1, w - 1), rng.randrange(1, h - 1)
+        img.putpixel((x, y), rgb(rng.choice((leather[1], leather[3], leather[1]))))
+    d.rectangle((0, 0, w - 1, h - 1), outline=rgb("#1d1a18"))
+    d.line((1, 1, w - 2, 1), fill=rgb(leather[4]))
+    d.line((1, 1, 1, h - 2), fill=rgb(leather[4]))
+    d.line((w - 2, 2, w - 2, h - 2), fill=rgb(leather[0]))
+    d.line((2, h - 2, w - 2, h - 2), fill=rgb(leather[0]))
+    d.rectangle((4, 3, w - 5, h - 4), outline=rgb(leather[1]))
+    # Spine showing above and below the fold.
+    d.rectangle((143, 1, 148, h - 2), fill=rgb(leather[1]))
+    d.line((145, 1, 145, h - 2), fill=rgb(leather[0]))
+    # Page stacks: a few sheets peeking out beneath each page.
+    for left, right in ((8, 145), (146, 283)):
+        d.rectangle((left, 7, right, 174), fill=rgb(paper[4]))
+        d.rectangle((left + 1, 7, right - 1, 173), fill=rgb(paper[3]))
+        for y in range(9, 173, 2):
+            outer = left if left < 146 else right
+            img.putpixel((outer + (1 if left < 146 else -1), y), rgb(paper[2]))
+    # The pages themselves, parchment with faint mottling.
+    for left, right in ((10, 145), (146, 281)):
+        d.rectangle((left, 8, right, 171), fill=rgb(paper[1]))
+        for _ in range(900):
+            x, y = rng.randrange(left, right + 1), rng.randrange(8, 172)
+            img.putpixel((x, y), rgb(rng.choice((paper[0], paper[2], paper[0]))))
+        for _ in range(6):
+            cx, cy = rng.randrange(left + 10, right - 10), rng.randrange(20, 160)
+            for _ in range(14):
+                img.putpixel((cx + rng.randrange(-3, 4), cy + rng.randrange(-2, 3)), rgb(paper[2]))
+        d.line((left, 8, right, 8), fill=rgb(paper[0]))
+        d.line((left, 171, right, 171), fill=rgb(paper[3]))
+    d.line((10, 8, 10, 171), fill=rgb(paper[2]))
+    d.line((281, 8, 281, 171), fill=rgb(paper[3]))
+    # The fold: pages darken towards the spine.
+    for i, color in enumerate((paper[4], paper[3], paper[3], paper[2], paper[2])):
+        d.line((145 - i, 8, 145 - i, 171), fill=rgb(color))
+        d.line((146 + i, 8, 146 + i, 171), fill=rgb(color))
+    d.line((145, 8, 145, 171), fill=rgb("#7a6440"))
+    # Brass corner pieces with a rivet each.
+    for cx, cy, sx, sy in ((0, 0, 1, 1), (w - 1, 0, -1, 1), (0, h - 1, 1, -1), (w - 1, h - 1, -1, -1)):
+        for i in range(11):
+            for j in range(11 - i):
+                shade = BRASS[4] if i == 0 or j == 0 else BRASS[1] if i + j == 10 else BRASS[3]
+                img.putpixel((cx + sx * i, cy + sy * j), rgb(shade))
+        rx, ry = cx + sx * 3, cy + sy * 3
+        img.putpixel((rx, ry), rgb(BRASS[5]))
+        img.putpixel((rx + sx, ry + sy), rgb(BRASS[0]))
+    # Page-turn arrows, inked: next points right, previous left.
+    shape = [
+        "..........xx......",
+        "..........xox.....",
+        "xxxxxxxxxxxoox....",
+        "xoooooooooooooox..",
+        "xooooooooooooooox.",
+        "xooooooooooooooox.",
+        "xoooooooooooooox..",
+        "xxxxxxxxxxxoox....",
+        "..........xox.....",
+        "..........xx......",
+    ]
+    for u, flip, fill, edge in ((0, False, "#8a6a3a", "#3b2a1a"), (20, False, BRASS[3], "#5a2a1c"),
+                                (40, True, "#8a6a3a", "#3b2a1a"), (60, True, BRASS[3], "#5a2a1c")):
+        for row, line in enumerate(shape):
+            for col, ch in enumerate(line):
+                if ch != ".":
+                    x = u + (17 - col if flip else col)
+                    img.putpixel((x, 184 + row), rgb(edge if ch == "x" else fill))
+    save(img, GUI, "brewer_book")
+
+
 # ---- ponder scenes ------------------------------------------------------------------
 
 def nbt_string(value):
@@ -723,6 +805,7 @@ def main():
     write_item_textures()
     write_models()
     write_gui()
+    write_book_gui()
     write_ponder()
     write_logo()
 
