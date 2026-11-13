@@ -1,0 +1,22 @@
+{
+  "parent": "brewery:first_brew",
+  "display": {
+    "icon": {
+      "id": "minecraft:nether_star"
+    },
+    "title": {
+      "translate": "advancements.brewery.master_brewer.title"
+    },
+    "description": {
+      "translate": "advancements.brewery.master_brewer.description"
+    },
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": false
+  },
+  "criteria": {
+    "drank_five_stars": {
+      "trigger": "minecraft:impossible"
+    }
+  }
+}

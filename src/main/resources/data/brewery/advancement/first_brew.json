@@ -1,0 +1,29 @@
+{
+  "parent": "brewery:root",
+  "display": {
+    "icon": {
+      "id": "brewery:drink_bottle"
+    },
+    "title": {
+      "translate": "advancements.brewery.first_brew.title"
+    },
+    "description": {
+      "translate": "advancements.brewery.first_brew.description"
+    },
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": false
+  },
+  "criteria": {
+    "has_drink": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": {
+        "items": [
+          {
+            "items": "brewery:drink_bottle"
+          }
+        ]
+      }
+    }
+  }
+}

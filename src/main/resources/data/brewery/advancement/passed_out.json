@@ -1,0 +1,22 @@
+{
+  "parent": "brewery:first_brew",
+  "display": {
+    "icon": {
+      "id": "minecraft:skeleton_skull"
+    },
+    "title": {
+      "translate": "advancements.brewery.passed_out.title"
+    },
+    "description": {
+      "translate": "advancements.brewery.passed_out.description"
+    },
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": true
+  },
+  "criteria": {
+    "passed_out": {
+      "trigger": "minecraft:impossible"
+    }
+  }
+}

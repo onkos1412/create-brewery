@@ -1,9 +1,11 @@
 package com.kostya.createbrewery.drunk;
 
+import com.kostya.createbrewery.advancement.BreweryAdvancements;
 import net.minecraft.core.particles.ItemParticleOption;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.RandomSource;
@@ -80,6 +82,9 @@ public final class DrunkManager {
             player.addEffect(new MobEffectInstance(MobEffects.DIG_SLOWDOWN, ticks));
             player.addEffect(new MobEffectInstance(MobEffects.HUNGER, ticks));
             player.displayClientMessage(Component.translatable("message.brewery.hangover"), true);
+            if (player instanceof ServerPlayer serverPlayer) {
+                BreweryAdvancements.award(serverPlayer, "hangover", "hungover");
+            }
         }
     }
 
@@ -128,6 +133,9 @@ public final class DrunkManager {
         player.addEffect(new MobEffectInstance(MobEffects.BLINDNESS, KNOCKOUT_TICKS + 20));
         player.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, KNOCKOUT_TICKS, 6));
         player.displayClientMessage(Component.translatable("message.brewery.passed_out"), true);
+        if (player instanceof ServerPlayer serverPlayer) {
+            BreweryAdvancements.award(serverPlayer, "passed_out", "passed_out");
+        }
     }
 
     /**

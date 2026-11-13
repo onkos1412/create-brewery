@@ -1,6 +1,7 @@
 package com.kostya.createbrewery.item;
 
 import com.kostya.createbrewery.DrinkData;
+import com.kostya.createbrewery.advancement.BreweryAdvancements;
 import com.kostya.createbrewery.drunk.DrunkManager;
 import com.kostya.createbrewery.drunk.HangoverRules;
 import com.kostya.createbrewery.recipe.BrewingRecipe;
@@ -14,6 +15,7 @@ import net.minecraft.core.Holder;
 import net.minecraft.core.component.DataComponentMap;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResultHolder;
@@ -74,6 +76,9 @@ public class DrinkItem extends Item {
         if (entity instanceof Player player) {
             DrinkData data = stack.getOrDefault(ModDataComponents.DRINK_DATA.get(), new DrinkData(DrinkData.MAX_STARS));
             if (!level.isClientSide) {
+                if (player instanceof ServerPlayer serverPlayer) {
+                    awardAdvancements(serverPlayer, level, data);
+                }
                 // Alcohol is stored on the product, while quality remains a separate value.
                 int drunk = data.alcohol() / 5;
                 DrunkManager.addDrunk(player, drunk);
@@ -102,6 +107,25 @@ public class DrinkItem extends Item {
             return ItemUtils.createFilledResult(stack, player, new ItemStack(Items.GLASS_BOTTLE));
         }
         return stack;
+    }
+
+    /** Advancements for what was drunk: a muddy brew, an aged drink, a five-star one, and the taster's list. */
+    private static void awardAdvancements(ServerPlayer player, Level level, DrinkData data) {
+        String stage = data.stage();
+        boolean muddy = stage.equals(DrinkProfile.MUDDY.id());
+        if (muddy) {
+            BreweryAdvancements.award(player, "muddy", "drank_muddy");
+        }
+        if (!muddy && !data.isSpoiled() && data.stars() == DrinkData.MAX_STARS) {
+            BreweryAdvancements.award(player, "master_brewer", "drank_five_stars");
+        }
+        String aged = BrewingRecipe.profileWithStage(level, stage).aged();
+        if (!aged.isBlank() && stage.equals(aged)) {
+            BreweryAdvancements.award(player, "aged", "drank_aged");
+        }
+        if (BreweryAdvancements.TASTER_DRINKS.contains(stage)) {
+            BreweryAdvancements.award(player, "taster", stage);
+        }
     }
 
     /** The drink's own effects, as long as its quality earns: a five-star drink keeps the recipe's full duration. */

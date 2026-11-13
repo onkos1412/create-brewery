@@ -1,0 +1,22 @@
+{
+  "parent": "brewery:distilled",
+  "display": {
+    "icon": {
+      "id": "minecraft:clock"
+    },
+    "title": {
+      "translate": "advancements.brewery.aged.title"
+    },
+    "description": {
+      "translate": "advancements.brewery.aged.description"
+    },
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": false
+  },
+  "criteria": {
+    "drank_aged": {
+      "trigger": "minecraft:impossible"
+    }
+  }
+}

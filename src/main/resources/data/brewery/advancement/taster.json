@@ -1,0 +1,59 @@
+{
+  "parent": "brewery:master_brewer",
+  "display": {
+    "icon": {
+      "id": "minecraft:golden_apple"
+    },
+    "title": {
+      "translate": "advancements.brewery.taster.title"
+    },
+    "description": {
+      "translate": "advancements.brewery.taster.description"
+    },
+    "frame": "challenge",
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": false
+  },
+  "criteria": {
+    "beer": {
+      "trigger": "minecraft:impossible"
+    },
+    "cider": {
+      "trigger": "minecraft:impossible"
+    },
+    "kvass": {
+      "trigger": "minecraft:impossible"
+    },
+    "wine": {
+      "trigger": "minecraft:impossible"
+    },
+    "mead": {
+      "trigger": "minecraft:impossible"
+    },
+    "stout": {
+      "trigger": "minecraft:impossible"
+    },
+    "aged_whiskey": {
+      "trigger": "minecraft:impossible"
+    },
+    "aged_calvados": {
+      "trigger": "minecraft:impossible"
+    },
+    "aged_rum": {
+      "trigger": "minecraft:impossible"
+    },
+    "aged_tequila": {
+      "trigger": "minecraft:impossible"
+    },
+    "vodka": {
+      "trigger": "minecraft:impossible"
+    },
+    "absinthe": {
+      "trigger": "minecraft:impossible"
+    },
+    "firefly_liqueur": {
+      "trigger": "minecraft:impossible"
+    }
+  }
+}

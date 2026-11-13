@@ -1,0 +1,22 @@
+{
+  "parent": "brewery:passed_out",
+  "display": {
+    "icon": {
+      "id": "minecraft:fermented_spider_eye"
+    },
+    "title": {
+      "translate": "advancements.brewery.hangover.title"
+    },
+    "description": {
+      "translate": "advancements.brewery.hangover.description"
+    },
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": true
+  },
+  "criteria": {
+    "hungover": {
+      "trigger": "minecraft:impossible"
+    }
+  }
+}

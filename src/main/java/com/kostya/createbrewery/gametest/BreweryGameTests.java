@@ -29,10 +29,22 @@ import com.simibubi.create.content.processing.burner.BlazeBurnerBlock;
 import com.simibubi.create.content.processing.burner.BlazeBurnerBlockEntity;
 import com.simibubi.create.foundation.blockEntity.behaviour.BlockEntityBehaviour;
 import com.simibubi.create.foundation.blockEntity.behaviour.scrollValue.ScrollValueBehaviour;
+import com.mojang.authlib.GameProfile;
+import io.netty.channel.embedded.EmbeddedChannel;
+import net.minecraft.advancements.AdvancementHolder;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.network.Connection;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
+import net.minecraft.network.protocol.Packet;
+import net.minecraft.network.protocol.PacketFlow;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ClientInformation;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.server.network.CommonListenerCookie;
+import net.minecraft.server.network.ServerGamePacketListenerImpl;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.effect.MobEffectInstance;
@@ -63,6 +75,7 @@ import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 import net.neoforged.neoforge.items.IItemHandler;
 
 import java.util.List;
+import java.util.UUID;
 
 /**
  * In-world checks of what unit tests cannot reach: real block entities, capabilities and
@@ -1293,6 +1306,111 @@ public class BreweryGameTests {
         }
         helper.assertFalse(DrunkManager.isKnockedOut(player), "blackout never ended");
         helper.succeed();
+    }
+
+    /** Drinking the muddy brew from a mixed-up kettle earns "Something's Off". */
+    @GameTest(template = "empty")
+    public static void drinkingMuddyAwardsAdvancement(GameTestHelper helper) {
+        ServerPlayer player = freshPlayer(helper);
+        helper.assertFalse(advancementDone(helper, player, "muddy"), "muddy done before drinking");
+        drink(helper, player, new DrinkData(3, 2, "muddy"));
+        helper.assertTrue(advancementDone(helper, player, "muddy"), "muddy brew gave no advancement");
+        helper.assertFalse(advancementDone(helper, player, "master_brewer"), "muddy brew made a master");
+        helper.succeed();
+    }
+
+    /** A five-star drink makes a master brewer, a four-star one does not. */
+    @GameTest(template = "empty")
+    public static void fiveStarDrinkAwardsMasterBrewer(GameTestHelper helper) {
+        ServerPlayer player = freshPlayer(helper);
+        drink(helper, player, new DrinkData(4, 20, "beer"));
+        helper.assertFalse(advancementDone(helper, player, "master_brewer"), "four stars made a master");
+        drink(helper, player, new DrinkData(5, 20, "beer"));
+        helper.assertTrue(advancementDone(helper, player, "master_brewer"), "five stars gave no advancement");
+        helper.succeed();
+    }
+
+    /** An aged drink earns "Patience"; the young drink of the same recipe does not. */
+    @GameTest(template = "empty")
+    public static void agedDrinkAwardsPatience(GameTestHelper helper) {
+        ServerPlayer player = freshPlayer(helper);
+        drink(helper, player, new DrinkData(3, 40, "whiskey"));
+        helper.assertFalse(advancementDone(helper, player, "aged"), "plain whiskey counted as aged");
+        drink(helper, player, new DrinkData(3, 40, "aged_whiskey"));
+        helper.assertTrue(advancementDone(helper, player, "aged"), "aged whiskey gave no advancement");
+        helper.succeed();
+    }
+
+    /** Overdosing into a blackout earns "Overdone". */
+    @GameTest(template = "empty")
+    public static void passingOutAwardsOverdone(GameTestHelper helper) {
+        ServerPlayer player = freshPlayer(helper);
+        DrunkManager.addDrunk(player, DrunkLevel.PASS_OUT_AT - 1);
+        DrunkManager.knockoutTick(player);
+        helper.assertFalse(advancementDone(helper, player, "passed_out"), "passed_out done while still awake");
+        DrunkManager.addDrunk(player, 1);
+        DrunkManager.knockoutTick(player);
+        helper.assertTrue(advancementDone(helper, player, "passed_out"), "blackout gave no advancement");
+        helper.succeed();
+    }
+
+    /** A hangover earns "The Morning After". */
+    @GameTest(template = "empty")
+    public static void hangoverAwardsMorningAfter(GameTestHelper helper) {
+        ServerPlayer player = freshPlayer(helper);
+        DrunkManager.addDrunk(player, 1);
+        DrunkManager.addHangoverDebt(player, 100_000);
+        DrunkManager.soberTick(player);
+        helper.assertTrue(advancementDone(helper, player, "hangover"), "hangover gave no advancement");
+        helper.succeed();
+    }
+
+    /** "Taster" needs all thirteen drinks: twelve do not finish it, the thirteenth does. */
+    @GameTest(template = "empty")
+    public static void tasterNeedsEveryDrink(GameTestHelper helper) {
+        List<String> stages = List.of("beer", "cider", "kvass", "wine", "mead", "stout", "aged_whiskey",
+                "aged_calvados", "aged_rum", "aged_tequila", "vodka", "absinthe", "firefly_liqueur");
+        ServerPlayer player = freshPlayer(helper);
+        for (int i = 0; i < stages.size() - 1; i++) {
+            drink(helper, player, new DrinkData(3, 20, stages.get(i)));
+        }
+        helper.assertFalse(advancementDone(helper, player, "taster"), "taster done after twelve drinks");
+        drink(helper, player, new DrinkData(3, 20, stages.get(stages.size() - 1)));
+        helper.assertTrue(advancementDone(helper, player, "taster"), "taster not done after all thirteen");
+        helper.succeed();
+    }
+
+    /**
+     * A server-side player with its own advancement book, so no test depends on another. NeoForge's fake
+     * players never earn advancements, so this is a plain {@link ServerPlayer} that is never added to the world.
+     */
+    private static ServerPlayer freshPlayer(GameTestHelper helper) {
+        MinecraftServer server = helper.getLevel().getServer();
+        GameProfile profile = new GameProfile(UUID.randomUUID(), "taster");
+        ServerPlayer player = new ServerPlayer(server, helper.getLevel(), profile, ClientInformation.createDefault());
+        // Granting an advancement and syncing the drunk level send packets, so the player needs a connection
+        // that swallows them.
+        Connection connection = new Connection(PacketFlow.SERVERBOUND);
+        new EmbeddedChannel(connection);
+        new ServerGamePacketListenerImpl(server, connection, player, CommonListenerCookie.createInitial(profile, false)) {
+            @Override
+            public void send(Packet<?> packet) {
+            }
+        };
+        return player;
+    }
+
+    private static void drink(GameTestHelper helper, ServerPlayer player, DrinkData data) {
+        ItemStack bottle = new ItemStack(ModItems.DRINK_BOTTLE.get());
+        bottle.set(ModDataComponents.DRINK_DATA.get(), data);
+        bottle.finishUsingItem(helper.getLevel(), player);
+    }
+
+    private static boolean advancementDone(GameTestHelper helper, ServerPlayer player, String id) {
+        AdvancementHolder holder = helper.getLevel().getServer().getAdvancements()
+                .get(ResourceLocation.fromNamespaceAndPath(CreateBrewery.MOD_ID, id));
+        helper.assertTrue(holder != null, "advancement " + id + " is not loaded");
+        return player.getAdvancements().getOrStartProgress(holder).isDone();
     }
 
     /** A drunk player who walked since the last check is shoved sideways by a stagger. */

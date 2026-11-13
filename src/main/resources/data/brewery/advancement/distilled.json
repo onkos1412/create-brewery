@@ -1,0 +1,29 @@
+{
+  "parent": "brewery:first_brew",
+  "display": {
+    "icon": {
+      "id": "brewery:distillate"
+    },
+    "title": {
+      "translate": "advancements.brewery.distilled.title"
+    },
+    "description": {
+      "translate": "advancements.brewery.distilled.description"
+    },
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": false
+  },
+  "criteria": {
+    "has_distillate": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": {
+        "items": [
+          {
+            "items": "brewery:distillate"
+          }
+        ]
+      }
+    }
+  }
+}

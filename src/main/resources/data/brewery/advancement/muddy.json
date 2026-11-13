@@ -1,0 +1,22 @@
+{
+  "parent": "brewery:first_brew",
+  "display": {
+    "icon": {
+      "id": "minecraft:mud"
+    },
+    "title": {
+      "translate": "advancements.brewery.muddy.title"
+    },
+    "description": {
+      "translate": "advancements.brewery.muddy.description"
+    },
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": false
+  },
+  "criteria": {
+    "drank_muddy": {
+      "trigger": "minecraft:impossible"
+    }
+  }
+}
