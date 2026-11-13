@@ -4,6 +4,7 @@
 
 - Brewer's signature: drinks show who brewed them and on which day.
 - Brewer's book: a personal, owner-only diary of your best results for every drink.
+- Keg and wooden mugs: a keg holds 8 portions of one drink and pours them into mugs, keeping quality and signature; fill it by hand or with Create funnels.
 - Note: drinks signed before and after this update don't stack together.
 
 ## 0.1.0 — first release
