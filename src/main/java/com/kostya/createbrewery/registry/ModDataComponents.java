@@ -1,5 +1,6 @@
 package com.kostya.createbrewery.registry;
 
+import com.kostya.createbrewery.BrewerMark;
 import com.kostya.createbrewery.CreateBrewery;
 import com.kostya.createbrewery.DrinkData;
 import net.minecraft.core.component.DataComponentType;
@@ -21,6 +22,15 @@ public final class ModDataComponents {
     public static final DeferredHolder<DataComponentType<?>, DataComponentType<DrinkData>> DRINK_DATA =
             DATA_COMPONENTS.register("drink_data", () -> DataComponentType.<DrinkData>builder()
                     .persistent(DrinkData.CODEC)
+                    .build());
+
+    /**
+     * Who brewed a drink and on which world day. Synced so client tooltips can show it.
+     */
+    public static final DeferredHolder<DataComponentType<?>, DataComponentType<BrewerMark>> BREWER =
+            DATA_COMPONENTS.register("brewer", () -> DataComponentType.<BrewerMark>builder()
+                    .persistent(BrewerMark.CODEC)
+                    .networkSynchronized(BrewerMark.STREAM_CODEC)
                     .build());
 
     private ModDataComponents() {

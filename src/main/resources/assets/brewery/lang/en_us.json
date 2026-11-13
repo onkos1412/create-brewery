@@ -118,5 +118,6 @@
   "brewery.configuration.secondsPerSoberStep": "Seconds per sobering step",
   "brewery.configuration.effectMultiplier": "Drink effect multiplier",
   "brewery.configuration.drunk": "Drunk mechanics",
-  "brewery.configuration.drinks": "Drinks"
+  "brewery.configuration.drinks": "Drinks",
+  "tooltip.brewery.brewer": "Brewed by %s, day %s"
 }

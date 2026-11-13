@@ -1,5 +1,6 @@
 package com.kostya.createbrewery.item;
 
+import com.kostya.createbrewery.BrewerMark;
 import com.kostya.createbrewery.DrinkData;
 import com.kostya.createbrewery.advancement.BreweryAdvancements;
 import com.kostya.createbrewery.config.BreweryConfig;
@@ -162,6 +163,10 @@ public class DrinkItem extends Item {
             tooltip.add(Component.translatable("drink.brewery." + data.stage()).withStyle(ChatFormatting.GRAY));
             tooltip.add(Component.translatable("tooltip.brewery.drink_data", StarLine.of(data.stars()))
                     .withStyle(ChatFormatting.GRAY));
+        }
+        BrewerMark mark = stack.get(ModDataComponents.BREWER.get());
+        if (mark != null) {
+            tooltip.add(mark.tooltip());
         }
     }
 }

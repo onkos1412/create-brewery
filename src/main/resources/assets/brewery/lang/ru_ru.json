@@ -118,5 +118,6 @@
   "brewery.configuration.secondsPerSoberStep": "Секунд на шаг протрезвления",
   "brewery.configuration.effectMultiplier": "Множитель эффектов напитков",
   "brewery.configuration.drunk": "Опьянение",
-  "brewery.configuration.drinks": "Напитки"
+  "brewery.configuration.drinks": "Напитки",
+  "tooltip.brewery.brewer": "Сварил: %s, день %s"
 }
