@@ -1,6 +1,7 @@
 package com.kostya.createbrewery.drunk;
 
 import com.kostya.createbrewery.advancement.BreweryAdvancements;
+import com.kostya.createbrewery.config.BreweryConfig;
 import net.minecraft.core.particles.ItemParticleOption;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.network.chat.Component;
@@ -62,13 +63,18 @@ public final class DrunkManager {
         }
     }
 
+    /** Whether the sobering step is due on this player tick: once every {@code secondsPerSoberStep} seconds. */
+    public static boolean soberDue(int tickCount) {
+        return tickCount % (SECOND_TICKS * BreweryConfig.secondsPerSoberStep()) == 0;
+    }
+
     public static int getHangoverDebt(Player player) {
         return player.getData(ModAttachments.HANGOVER_DEBT.get());
     }
 
-    /** Adds to the debt that comes due once the player is sober again. */
+    /** Adds to the debt that comes due once the player is sober again. Builds nothing when hangovers are off. */
     public static void addHangoverDebt(Player player, int amount) {
-        if (amount > 0) {
+        if (amount > 0 && BreweryConfig.hangover()) {
             player.setData(ModAttachments.HANGOVER_DEBT.get(), getHangoverDebt(player) + amount);
         }
     }
@@ -77,7 +83,7 @@ public final class DrunkManager {
     private static void settleHangover(Player player) {
         int debt = getHangoverDebt(player);
         player.setData(ModAttachments.HANGOVER_DEBT.get(), 0);
-        if (HangoverRules.hungOver(debt)) {
+        if (BreweryConfig.hangover() && HangoverRules.hungOver(debt)) {
             int ticks = HangoverRules.durationTicks(debt);
             player.addEffect(new MobEffectInstance(MobEffects.DIG_SLOWDOWN, ticks));
             player.addEffect(new MobEffectInstance(MobEffects.HUNGER, ticks));
@@ -120,13 +126,15 @@ public final class DrunkManager {
         int remaining = player.getData(ModAttachments.KNOCKOUT_TICKS.get());
         if (remaining > 0) {
             player.setData(ModAttachments.KNOCKOUT_TICKS.get(), remaining - 1);
-        } else if (getDrunk(player) >= DrunkLevel.PASS_OUT_AT) {
+        } else if (getDrunk(player) >= BreweryConfig.passOutAt()) {
             passOut(player);
         }
     }
 
     private static void passOut(Player player) {
-        levelOf(player).set(DrunkLevel.AFTER_PASS_OUT);
+        // With a threshold at or below AFTER_PASS_OUT the level must still fall under it, or the player
+        // would black out again the moment the blackout ends.
+        levelOf(player).set(Math.min(DrunkLevel.AFTER_PASS_OUT, BreweryConfig.passOutAt() - 1));
         markDirty(player);
         player.setData(ModAttachments.KNOCKOUT_TICKS.get(), KNOCKOUT_TICKS);
         player.stopUsingItem();
@@ -145,6 +153,9 @@ public final class DrunkManager {
      * check after joining only records a position.
      */
     public static void staggerTick(Player player, RandomSource random) {
+        if (!BreweryConfig.stagger()) {
+            return;
+        }
         Optional<Vec3> last = player.getData(ModAttachments.STAGGER_LAST_POS.get());
         player.setData(ModAttachments.STAGGER_LAST_POS.get(), Optional.of(player.position()));
         int level = getDrunk(player);
@@ -170,6 +181,9 @@ public final class DrunkManager {
      * throw up. A knocked-out player never does.
      */
     public static void vomitTick(Player player, RandomSource random) {
+        if (!BreweryConfig.vomit()) {
+            return;
+        }
         int cooldown = Math.max(0, player.getData(ModAttachments.VOMIT_COOLDOWN.get()) - SECOND_TICKS);
         player.setData(ModAttachments.VOMIT_COOLDOWN.get(), cooldown);
         if (isKnockedOut(player)

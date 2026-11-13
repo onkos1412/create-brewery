@@ -2,6 +2,7 @@ package com.kostya.createbrewery.item;
 
 import com.kostya.createbrewery.DrinkData;
 import com.kostya.createbrewery.advancement.BreweryAdvancements;
+import com.kostya.createbrewery.config.BreweryConfig;
 import com.kostya.createbrewery.drunk.DrunkManager;
 import com.kostya.createbrewery.drunk.HangoverRules;
 import com.kostya.createbrewery.recipe.BrewingRecipe;
@@ -133,7 +134,7 @@ public class DrinkItem extends Item {
         float factor = QualityRules.effectDurationFactor(data.stars());
         for (DrinkEffect drinkEffect : BrewingRecipe.profileWithStage(level, data.stage()).effects()
                 .getOrDefault(data.stage(), List.of())) {
-            int ticks = Math.round(drinkEffect.seconds() * 20 * factor);
+            int ticks = Math.round(drinkEffect.seconds() * 20 * factor * (float) BreweryConfig.effectMultiplier());
             if (ticks <= 0) {
                 continue;
             }

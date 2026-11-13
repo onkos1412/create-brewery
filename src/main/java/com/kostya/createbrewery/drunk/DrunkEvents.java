@@ -36,7 +36,10 @@ public final class DrunkEvents {
             return;
         }
         if (player.tickCount % DrunkManager.SECOND_TICKS == 0) {
-            DrunkManager.soberTick(player);
+            // Sobering may be slowed down by the config; staggering and vomiting stay once a second.
+            if (DrunkManager.soberDue(player.tickCount)) {
+                DrunkManager.soberTick(player);
+            }
             DrunkManager.staggerTick(player, player.getRandom());
             DrunkManager.vomitTick(player, player.getRandom());
         }

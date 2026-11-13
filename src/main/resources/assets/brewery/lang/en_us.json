@@ -110,5 +110,13 @@
   "advancements.brewery.hangover.title": "The Morning After",
   "advancements.brewery.hangover.description": "Wake up with a hangover",
   "advancements.brewery.taster.title": "Taster",
-  "advancements.brewery.taster.description": "Taste every finished drink of the mod"
+  "advancements.brewery.taster.description": "Taste every finished drink of the mod",
+  "brewery.configuration.stagger": "Staggering",
+  "brewery.configuration.vomit": "Vomiting",
+  "brewery.configuration.hangover": "Hangover",
+  "brewery.configuration.passOutAt": "Pass-out level",
+  "brewery.configuration.secondsPerSoberStep": "Seconds per sobering step",
+  "brewery.configuration.effectMultiplier": "Drink effect multiplier",
+  "brewery.configuration.drunk": "Drunk mechanics",
+  "brewery.configuration.drinks": "Drinks"
 }

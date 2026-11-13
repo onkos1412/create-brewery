@@ -10,6 +10,7 @@ import com.kostya.createbrewery.block.DistilleryBlockEntity;
 import com.kostya.createbrewery.block.KettleBlockEntity;
 import com.kostya.createbrewery.block.KettleLogic;
 import com.kostya.createbrewery.block.ModBlocks;
+import com.kostya.createbrewery.config.BreweryConfig;
 import com.kostya.createbrewery.drunk.DrunkLevel;
 import com.kostya.createbrewery.drunk.DrunkManager;
 import com.kostya.createbrewery.drunk.ModAttachments;
@@ -64,6 +65,7 @@ import net.minecraft.world.level.block.entity.HopperBlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.LegacyRandomSource;
 import net.minecraft.world.level.material.Fluids;
+import net.neoforged.neoforge.common.ModConfigSpec;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.entity.living.LivingDeathEvent;
 import net.neoforged.neoforge.event.entity.living.LivingEntityUseItemEvent;
@@ -1553,6 +1555,119 @@ public class BreweryGameTests {
         DrunkManager.vomitTick(player, fixedRoll(0.0f));
         helper.assertTrue(player.getFoodData().getFoodLevel() == 20, "knocked-out player vomited");
         helper.assertTrue(DrunkManager.getDrunk(player) == 100, "drunk changed: " + DrunkManager.getDrunk(player));
+        helper.succeed();
+    }
+
+    /** Sets a config value for the length of {@code body}, then puts the default back whatever happens. */
+    private static <T> void withConfig(ModConfigSpec.ConfigValue<T> value, T override, Runnable body) {
+        if (!BreweryConfig.SPEC.isLoaded()) {
+            throw new AssertionError("server config is not loaded");
+        }
+        value.set(override);
+        try {
+            body.run();
+        } finally {
+            value.set(value.getDefault());
+        }
+    }
+
+    @GameTest(template = "empty")
+    public static void staggerCanBeTurnedOff(GameTestHelper helper) {
+        withConfig(BreweryConfig.STAGGER, false, () -> {
+            Player player = helper.makeMockPlayer(GameType.SURVIVAL);
+            player.setOnGround(true);
+            DrunkManager.addDrunk(player, 90);
+            player.setDeltaMovement(0.2, 0, 0);
+            DrunkManager.staggerTick(player, fixedRoll(0.0f));
+            walk(player);
+            DrunkManager.staggerTick(player, fixedRoll(0.0f));
+            helper.assertTrue(player.getDeltaMovement().x == 0.2, "pushed with stagger off: " + player.getDeltaMovement());
+        });
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
+    public static void vomitCanBeTurnedOff(GameTestHelper helper) {
+        withConfig(BreweryConfig.VOMIT, false, () -> {
+            Player player = helper.makeMockPlayer(GameType.SURVIVAL);
+            DrunkManager.addDrunk(player, 100);
+            player.getFoodData().setFoodLevel(20);
+            DrunkManager.vomitTick(player, fixedRoll(0.0f));
+            helper.assertTrue(player.getFoodData().getFoodLevel() == 20, "vomited with vomit off");
+            helper.assertTrue(DrunkManager.getDrunk(player) == 100, "drunk changed: " + DrunkManager.getDrunk(player));
+        });
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
+    public static void hangoverCanBeTurnedOff(GameTestHelper helper) {
+        withConfig(BreweryConfig.HANGOVER, false, () -> {
+            Player player = helper.makeMockPlayer(GameType.SURVIVAL);
+            for (int i = 0; i < 3; i++) {
+                drink(helper, player, 2, 40, "vodka");
+            }
+            helper.assertTrue(DrunkManager.getHangoverDebt(player) == 0,
+                    "debt built up: " + DrunkManager.getHangoverDebt(player));
+            // A debt that is already there (set before the switch) must not settle either.
+            DrunkManager.addHangoverDebt(player, 100_000);
+            player.removeAllEffects();
+            soberUp(player);
+            helper.assertFalse(hungOver(player), "hangover with hangover off");
+        });
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
+    public static void passOutThresholdIsConfigurable(GameTestHelper helper) {
+        withConfig(BreweryConfig.PASS_OUT_AT, 60, () -> {
+            Player player = helper.makeMockPlayer(GameType.SURVIVAL);
+            DrunkManager.addDrunk(player, 59);
+            DrunkManager.knockoutTick(player);
+            helper.assertFalse(DrunkManager.isKnockedOut(player), "passed out below 60");
+            DrunkManager.addDrunk(player, 1);
+            DrunkManager.knockoutTick(player);
+            helper.assertTrue(DrunkManager.isKnockedOut(player), "no blackout at 60");
+            // 60 is not above the threshold any more, so the level must fall below it to avoid a loop.
+            helper.assertTrue(DrunkManager.getDrunk(player) == 59, "level after: " + DrunkManager.getDrunk(player));
+        });
+        withConfig(BreweryConfig.PASS_OUT_AT, 100, () -> {
+            Player player = helper.makeMockPlayer(GameType.SURVIVAL);
+            DrunkManager.addDrunk(player, 99);
+            DrunkManager.knockoutTick(player);
+            helper.assertFalse(DrunkManager.isKnockedOut(player), "passed out at 99 with threshold 100");
+        });
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
+    public static void soberStepFollowsConfig(GameTestHelper helper) {
+        helper.assertTrue(DrunkManager.soberDue(20) && !DrunkManager.soberDue(40 + 1), "default step");
+        withConfig(BreweryConfig.SECONDS_PER_SOBER_STEP, 3, () -> {
+            helper.assertFalse(DrunkManager.soberDue(20), "due after one second");
+            helper.assertFalse(DrunkManager.soberDue(40), "due after two seconds");
+            helper.assertTrue(DrunkManager.soberDue(60), "not due after three seconds");
+        });
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
+    public static void effectMultiplierScalesDuration(GameTestHelper helper) {
+        // Five-star vodka gives fire resistance for 90 seconds.
+        Player player = helper.makeMockPlayer(GameType.SURVIVAL);
+        drink(helper, player, 5, 40, "vodka");
+        MobEffectInstance normal = player.getEffect(MobEffects.FIRE_RESISTANCE);
+        helper.assertTrue(normal != null && normal.getDuration() == 1800, "default " + normal);
+        withConfig(BreweryConfig.EFFECT_MULTIPLIER, 2.0, () -> {
+            Player doubled = helper.makeMockPlayer(GameType.SURVIVAL);
+            drink(helper, doubled, 5, 40, "vodka");
+            MobEffectInstance effect = doubled.getEffect(MobEffects.FIRE_RESISTANCE);
+            helper.assertTrue(effect != null && effect.getDuration() == 3600, "doubled " + effect);
+        });
+        withConfig(BreweryConfig.EFFECT_MULTIPLIER, 0.0, () -> {
+            Player none = helper.makeMockPlayer(GameType.SURVIVAL);
+            drink(helper, none, 5, 40, "vodka");
+            helper.assertFalse(none.hasEffect(MobEffects.FIRE_RESISTANCE), "effect with multiplier 0");
+        });
         helper.succeed();
     }
 

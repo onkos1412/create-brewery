@@ -110,5 +110,13 @@
   "advancements.brewery.hangover.title": "Утро после",
   "advancements.brewery.hangover.description": "Проснитесь с похмельем",
   "advancements.brewery.taster.title": "Дегустатор",
-  "advancements.brewery.taster.description": "Попробуйте каждый готовый напиток мода"
+  "advancements.brewery.taster.description": "Попробуйте каждый готовый напиток мода",
+  "brewery.configuration.stagger": "Шатающаяся походка",
+  "brewery.configuration.vomit": "Рвота",
+  "brewery.configuration.hangover": "Похмелье",
+  "brewery.configuration.passOutAt": "Порог отключки",
+  "brewery.configuration.secondsPerSoberStep": "Секунд на шаг протрезвления",
+  "brewery.configuration.effectMultiplier": "Множитель эффектов напитков",
+  "brewery.configuration.drunk": "Опьянение",
+  "brewery.configuration.drinks": "Напитки"
 }
