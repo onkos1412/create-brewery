@@ -52,6 +52,10 @@ public class DistillateItem extends Item {
             player.getInventory().removeItem(glass, 1);
             ItemStack bottle = new ItemStack(ModItems.DRINK_BOTTLE.get());
             bottle.set(ModDataComponents.DRINK_DATA.get(), data);
+            BrewerMark mark = stack.get(ModDataComponents.BREWER.get());
+            if (mark != null) {
+                bottle.set(ModDataComponents.BREWER.get(), mark);
+            }
             stack.shrink(1);
             if (!player.getInventory().add(bottle)) {
                 player.drop(bottle, false);

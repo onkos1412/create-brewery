@@ -2026,6 +2026,24 @@ public class BreweryGameTests {
         helper.succeed();
     }
 
+    /** Vodka poured by hand from the distillate keeps who brewed it. */
+    @GameTest(template = "empty")
+    public static void handBottledDistillateKeepsMark(GameTestHelper helper) {
+        BrewerMark kostya = new BrewerMark("Kostya", 7);
+        Player player = helper.makeMockPlayer(GameType.SURVIVAL);
+        ItemStack vodka = new ItemStack(ModItems.DISTILLATE.get());
+        vodka.set(ModDataComponents.DRINK_DATA.get(), new DrinkData(4, 40, "vodka"));
+        vodka.set(ModDataComponents.BREWER.get(), kostya);
+        player.setItemInHand(InteractionHand.MAIN_HAND, vodka);
+        player.getInventory().add(new ItemStack(Items.GLASS_BOTTLE));
+
+        vodka.getItem().use(helper.getLevel(), player, InteractionHand.MAIN_HAND);
+        ItemStack bottle = findBottle(helper, player);
+        helper.assertTrue(kostya.equals(bottle.get(ModDataComponents.BREWER.get())),
+                "hand-poured mark " + bottle.get(ModDataComponents.BREWER.get()));
+        helper.succeed();
+    }
+
     /** Owner and wort mark are saved; a save from before marks existed loads with neither. */
     @GameTest(template = "empty", timeoutTicks = 400)
     public static void kettleOwnerSurvivesSaveLoad(GameTestHelper helper) {
