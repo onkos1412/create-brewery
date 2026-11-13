@@ -17,8 +17,14 @@ import com.kostya.createbrewery.drunk.DrunkLevel;
 import com.kostya.createbrewery.drunk.DrunkManager;
 import com.kostya.createbrewery.drunk.ModAttachments;
 import com.kostya.createbrewery.drunk.VomitRules;
+import com.kostya.createbrewery.journal.BarrelRecord;
+import com.kostya.createbrewery.journal.BreweryJournalData;
+import com.kostya.createbrewery.journal.DrinkJournal;
+import com.kostya.createbrewery.journal.KettleRecord;
+import com.kostya.createbrewery.journal.StillRecord;
 import com.kostya.createbrewery.recipe.BrewingRecipe;
 import com.kostya.createbrewery.recipe.BrewingRecipeSerializer;
+import com.kostya.createbrewery.recipe.DrinkProfile;
 import com.kostya.createbrewery.recipe.MixRules;
 import com.kostya.createbrewery.registry.ModDataComponents;
 import com.kostya.createbrewery.registry.ModFluids;
@@ -40,6 +46,7 @@ import net.minecraft.core.Direction;
 import net.minecraft.network.Connection;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.PacketFlow;
 import net.minecraft.resources.ResourceLocation;
@@ -79,6 +86,8 @@ import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 import net.neoforged.neoforge.items.IItemHandler;
 
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -2107,7 +2116,172 @@ public class BreweryGameTests {
                 .thenSucceed();
     }
 
-private static KettleBlockEntity placeHeatedKettle(GameTestHelper helper) {
+/** The kettle owner's book gets this brew's drink, mix, heat and stars. */
+    @GameTest(template = "empty", timeoutTicks = 400)
+    public static void ownersKettleRecordsDrink(GameTestHelper helper) {
+        KettleBlockEntity kettle = placeHeatedKettle(helper);
+        UUID owner = UUID.randomUUID();
+        kettle.setOwner(owner, "Kostya");
+
+        helper.startSequence()
+                .thenWaitUntil(() -> helper.assertTrue(kettle.getWortAmount() >= 1000, "kettle brewed no wort"))
+                .thenExecute(() -> {
+                    Map<String, DrinkJournal> book = BreweryJournalData.get(helper.getLevel().getServer()).journalOf(owner);
+                    DrinkJournal journal = book.get(kettle.getWortDrink());
+                    helper.assertTrue(journal != null && journal.kettle().isPresent(), "book " + book);
+                    KettleRecord record = journal.kettle().get();
+                    helper.assertTrue(record.stars() == kettle.getWortStars(),
+                            "recorded " + record.stars() + ", wort " + kettle.getWortStars());
+                    helper.assertTrue(record.mix().equals(Map.of("minecraft:wheat", 2)), "mix " + record.mix());
+                    helper.assertTrue(record.heat() == KettleLogic.HEAT_HEATED, "heat " + record.heat());
+                })
+                .thenSucceed();
+    }
+
+    /** Muddy brew is nobody's achievement. */
+    @GameTest(template = "empty", timeoutTicks = 400)
+    public static void muddyBrewRecordsNothing(GameTestHelper helper) {
+        KettleBlockEntity kettle = placeKettle(helper, Items.ROTTEN_FLESH);
+        UUID owner = UUID.randomUUID();
+        kettle.setOwner(owner, "Kostya");
+
+        helper.startSequence()
+                .thenWaitUntil(() -> helper.assertTrue(kettle.getWortAmount() == 1000, "kettle brewed no wort"))
+                .thenExecute(() -> {
+                    helper.assertTrue("muddy".equals(kettle.getWortDrink()), "brewed " + kettle.getWortDrink());
+                    Map<String, DrinkJournal> book = BreweryJournalData.get(helper.getLevel().getServer()).journalOf(owner);
+                    helper.assertTrue(book.isEmpty(), "muddy brew recorded: " + book);
+                })
+                .thenSucceed();
+    }
+
+    /** A kettle nobody owns credits no one: the whole book is unchanged. Alone in its batch so nothing else writes. */
+    @GameTest(template = "empty", timeoutTicks = 400, batch = "journal_ownerless")
+    public static void ownerlessKettleRecordsNothing(GameTestHelper helper) {
+        CompoundTag before = journalSnapshot(helper);
+        KettleBlockEntity kettle = placeHeatedKettle(helper);
+
+        helper.startSequence()
+                .thenWaitUntil(() -> helper.assertTrue(kettle.getWortAmount() >= 1000, "kettle brewed no wort"))
+                .thenExecute(() -> helper.assertTrue(before.equals(journalSnapshot(helper)),
+                        "ownerless brew changed the book"))
+                .thenSucceed();
+    }
+
+    /** Distilling credits the mark's owner; a mark without an owner credits nobody. Alone in its batch. */
+    @GameTest(template = "empty", timeoutTicks = 800, batch = "journal_still")
+    public static void distilleryCreditsMarkOwner(GameTestHelper helper) {
+        UUID owner = UUID.randomUUID();
+        helper.setBlock(DISTILLERY.below(), Blocks.CAMPFIRE);
+        helper.setBlock(DISTILLERY, ModBlocks.DISTILLERY.get());
+        DistilleryBlockEntity still = helper.getBlockEntity(DISTILLERY);
+        driveStill(helper, DISTILLERY, 96);
+        CompoundTag before = journalSnapshot(helper);
+        fluids(helper, DISTILLERY).fill(KettleBlockEntity.wortStack(1000, 5, "potato_mash", new BrewerMark("Kostya", 7)),
+                IFluidHandler.FluidAction.EXECUTE);
+
+        helper.startSequence()
+                .thenWaitUntil(() -> helper.assertFalse(still.getOutput().getStackInSlot(0).isEmpty(),
+                        "no unowned distillate; rpm=" + still.getRpm()))
+                .thenExecute(() -> {
+                    helper.assertTrue(before.equals(journalSnapshot(helper)), "ownerless mark changed the book");
+                    still.getOutput().setStackInSlot(0, ItemStack.EMPTY);
+                    fluids(helper, DISTILLERY).fill(KettleBlockEntity.wortStack(1000, 5, "potato_mash",
+                            new BrewerMark("Kostya", 7, Optional.of(owner))), IFluidHandler.FluidAction.EXECUTE);
+                })
+                .thenWaitUntil(() -> helper.assertFalse(still.getOutput().getStackInSlot(0).isEmpty(),
+                        "no owned distillate; rpm=" + still.getRpm()))
+                .thenExecute(() -> {
+                    ItemStack distillate = still.getOutput().getStackInSlot(0);
+                    Map<String, DrinkJournal> book = BreweryJournalData.get(helper.getLevel().getServer()).journalOf(owner);
+                    DrinkJournal journal = book.get("potato_mash");
+                    helper.assertTrue(journal != null && journal.still().isPresent(), "book " + book);
+                    StillRecord record = journal.still().get();
+                    helper.assertTrue(record.stars() == data(distillate).stars(),
+                            "recorded " + record.stars() + ", made " + data(distillate).stars());
+                    helper.assertTrue(record.rpm() == Math.round(Math.abs(still.getRpm())), "rpm " + record.rpm());
+                })
+                .thenSucceed();
+    }
+
+    /** Aging credits the mark's owner with the barrel's wood. */
+    @GameTest(template = "empty", timeoutTicks = 300, batch = "aging_journal")
+    public static void barrelCreditsMarkOwner(GameTestHelper helper) {
+        UUID owner = UUID.randomUUID();
+        helper.setBlock(BARREL, ModBlocks.BARREL.get());
+        BarrelBlockEntity barrel = helper.getBlockEntity(BARREL);
+        ItemStack whiskey = new ItemStack(ModItems.DISTILLATE.get());
+        whiskey.set(ModDataComponents.DRINK_DATA.get(), new DrinkData(5, 40, "whiskey"));
+        whiskey.set(ModDataComponents.BREWER.get(), new BrewerMark("Kostya", 7, Optional.of(owner)));
+        barrel.getInput().setStackInSlot(0, whiskey);
+        barrel.getInput().setStackInSlot(1, new ItemStack(Items.OAK_LOG));
+        barrel.startAging();
+        long period = barrel.getRequiredTicks();
+
+        helper.startSequence()
+                .thenExecute(() -> helper.getLevel().setDayTime(helper.getLevel().getDayTime() + period))
+                .thenWaitUntil(() -> helper.assertFalse(barrel.getOutput().getStackInSlot(0).isEmpty(), "not finished"))
+                .thenExecute(() -> {
+                    String drink = BrewingRecipe.profileDistilledTo(helper.getLevel(), "whiskey").id();
+                    Map<String, DrinkJournal> book = BreweryJournalData.get(helper.getLevel().getServer()).journalOf(owner);
+                    DrinkJournal journal = book.get(drink);
+                    helper.assertTrue(journal != null && journal.barrel().isPresent(), "book " + book);
+                    BarrelRecord record = journal.barrel().get();
+                    helper.assertTrue("minecraft:oak_log".equals(record.wood()), "wood " + record.wood());
+                    helper.assertTrue(record.days() == period / AgingRules.TICKS_PER_DAY, "days " + record.days());
+                    int stars = data(barrel.getOutput().getStackInSlot(0)).stars();
+                    helper.assertTrue(record.stars() == stars, "recorded " + record.stars() + ", aged " + stars);
+                })
+                .thenSucceed();
+    }
+
+    /** A worse brew does not overwrite the best one in the book. */
+    @GameTest(template = "empty", timeoutTicks = 400)
+    public static void worseRunKeepsBestRecord(GameTestHelper helper) {
+        UUID owner = UUID.randomUUID();
+        BreweryJournalData journalData = BreweryJournalData.get(helper.getLevel().getServer());
+        KettleRecord best = new KettleRecord(Map.of("minecraft:wheat", 2), KettleLogic.HEAT_HEATED, 5);
+        journalData.recordKettle(owner, DrinkProfile.BEER.id(), best);
+        KettleBlockEntity kettle = placeHeatedKettle(helper);
+        helper.setBlock(KETTLE.below(), Blocks.SOUL_CAMPFIRE);
+        kettle.setOwner(owner, "Kostya");
+
+        helper.startSequence()
+                .thenWaitUntil(() -> helper.assertTrue(kettle.getWortAmount() == 1000, "kettle brewed no wort"))
+                .thenExecute(() -> {
+                    helper.assertTrue(DrinkProfile.BEER.id().equals(kettle.getWortDrink()), "brewed " + kettle.getWortDrink());
+                    helper.assertTrue(kettle.getWortStars() < 5, "overheated brew got " + kettle.getWortStars());
+                    DrinkJournal journal = journalData.journalOf(owner).get(DrinkProfile.BEER.id());
+                    helper.assertTrue(journal != null && best.equals(journal.kettle().orElse(null)),
+                            "book " + journal);
+                })
+                .thenSucceed();
+    }
+
+    /** The book saves and loads back unchanged. */
+    @GameTest(template = "empty")
+    public static void journalSurvivesSaveLoad(GameTestHelper helper) {
+        var registries = helper.getLevel().registryAccess();
+        UUID owner = UUID.randomUUID();
+        BreweryJournalData journalData = new BreweryJournalData();
+        journalData.recordKettle(owner, "beer", new KettleRecord(Map.of("minecraft:wheat", 2), KettleLogic.HEAT_HEATED, 4));
+        journalData.recordStill(owner, "potato_mash", new StillRecord(96, 5));
+        journalData.recordBarrel(owner, "beer", new BarrelRecord("minecraft:oak_log", 3, 5));
+
+        CompoundTag tag = journalData.save(new CompoundTag(), registries);
+        BreweryJournalData loaded = BreweryJournalData.load(tag, registries);
+        helper.assertFalse(journalData.journalOf(owner).isEmpty(), "nothing was recorded");
+        helper.assertTrue(journalData.journalOf(owner).equals(loaded.journalOf(owner)),
+                "loaded " + loaded.journalOf(owner) + ", saved " + journalData.journalOf(owner));
+        helper.succeed();
+    }
+
+    private static CompoundTag journalSnapshot(GameTestHelper helper) {
+        return BreweryJournalData.get(helper.getLevel().getServer())
+                .save(new CompoundTag(), helper.getLevel().registryAccess());
+    }
+
+    private static KettleBlockEntity placeHeatedKettle(GameTestHelper helper) {
         return placeKettle(helper, Items.WHEAT);
     }
 

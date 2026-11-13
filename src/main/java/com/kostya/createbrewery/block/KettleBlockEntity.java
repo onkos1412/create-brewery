@@ -2,6 +2,8 @@ package com.kostya.createbrewery.block;
 
 import com.kostya.createbrewery.BrewerMark;
 import com.kostya.createbrewery.DrinkData;
+import com.kostya.createbrewery.journal.BreweryJournalData;
+import com.kostya.createbrewery.journal.KettleRecord;
 import com.kostya.createbrewery.recipe.BrewingRecipe;
 import com.kostya.createbrewery.recipe.DrinkProfile;
 import com.kostya.createbrewery.recipe.MixRules;
@@ -35,6 +37,7 @@ import net.neoforged.neoforge.items.ItemStackHandler;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -380,7 +383,13 @@ public class KettleBlockEntity extends BlockEntity {
         wortStars = wortAmount > 0 ? Math.min(wortStars, stars) : stars;
         // The first brew in the tank signs the lot; later batches only top it up.
         if (wortAmount == 0) {
-            wortMark = ownerName == null ? null : new BrewerMark(ownerName, BrewerMark.dayOf(level.getDayTime()));
+            wortMark = ownerName == null ? null
+                    : new BrewerMark(ownerName, BrewerMark.dayOf(level.getDayTime()), Optional.ofNullable(ownerId));
+        }
+        // The owner's book keeps this brew's own result, not the tank's weakest.
+        if (ownerId != null && !DrinkProfile.MUDDY.id().equals(brew.drink()) && level.getServer() != null) {
+            BreweryJournalData.get(level.getServer()).recordKettle(ownerId, brew.drink(),
+                    new KettleRecord(KettleRecord.mixOf(contents), heatLevel, stars));
         }
         wortDrink = brew.drink();
         waterAmount -= brew.amount();
