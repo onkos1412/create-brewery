@@ -116,9 +116,6 @@ import java.util.UUID;
 /**
  * In-world checks of what unit tests cannot reach: real block entities, capabilities and
  * Create's kinetics. Run with {@code gradlew runGameTestServer}.
- *
- * <p>PORT: the 1.21.1 tests come back slice by slice; the ones not ported yet are parked in
- * {@code port/todo/java/main/com/kostya/createbrewery/gametest/BreweryGameTests.java}.
  */
 @GameTestHolder(CreateBrewery.MOD_ID)
 @PrefixGameTestTemplate(false)

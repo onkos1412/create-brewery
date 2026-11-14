@@ -2,6 +2,7 @@ package com.kostya.createbrewery;
 
 import com.kostya.createbrewery.block.ModBlocks;
 import com.kostya.createbrewery.block.ModMenus;
+import com.kostya.createbrewery.client.BreweryClient;
 import com.kostya.createbrewery.config.BreweryConfig;
 import com.kostya.createbrewery.network.ModNetwork;
 import com.kostya.createbrewery.recipe.BrewingRecipeSerializer;
@@ -12,10 +13,12 @@ import com.kostya.createbrewery.registry.ModFluids;
 import com.kostya.createbrewery.registry.ModItems;
 import com.mojang.logging.LogUtils;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.eventbus.api.IEventBus;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.config.ModConfig;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
+import net.minecraftforge.fml.loading.FMLEnvironment;
 import net.minecraftforge.registries.DeferredRegister;
 import org.slf4j.Logger;
 
@@ -30,14 +33,18 @@ public class CreateBrewery {
     public static final Logger LOGGER = LogUtils.getLogger();
 
     // The constructor for the mod class is the first code that is run when your mod is loaded.
-    // Content registries come back here as the port brings each slice over from port/todo.
     // Forge 47.4 hands the loading context to the constructor, as NeoForge does with the bus and container.
     public CreateBrewery(FMLJavaModLoadingContext context) {
         IEventBus modEventBus = context.getModEventBus();
         contentRegistries().forEach(registry -> registry.register(modEventBus));
-        // The channel carries the drunk sync now; Task 5 adds the brewer's book payload to it.
+        // The channel carries the drunk sync and the brewer's book payload.
         ModNetwork.register();
         context.registerConfig(ModConfig.Type.SERVER, BreweryConfig.SPEC);
+        // 1.21.1's client-only @Mod(dist = CLIENT) entry point: the class is named only behind the dist check,
+        // so the dedicated server never loads it.
+        if (FMLEnvironment.dist == Dist.CLIENT) {
+            BreweryClient.init(context);
+        }
         LOGGER.info("Create Brewery: {} content registries wired", contentRegistries().size());
     }
 

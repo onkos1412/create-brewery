@@ -8,29 +8,27 @@ import com.kostya.createbrewery.block.KettleBlockEntity;
 import com.kostya.createbrewery.block.KettleScreen;
 import com.kostya.createbrewery.block.ModBlocks;
 import com.kostya.createbrewery.block.ModMenus;
-import com.kostya.createbrewery.recipe.ModRecipeTypes;
-import com.kostya.createbrewery.registry.ModDataComponents;
-import com.kostya.createbrewery.registry.ModItems;
-import net.createmod.ponder.foundation.PonderIndex;
 import com.kostya.createbrewery.recipe.BrewingRecipe;
+import com.kostya.createbrewery.recipe.ModRecipeTypes;
+import com.kostya.createbrewery.registry.ModItems;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.RecipeBookCategories;
+import net.minecraft.client.gui.screens.MenuScreens;
 import net.minecraft.client.renderer.item.ItemProperties;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.fml.event.lifecycle.FMLClientSetupEvent;
-import net.neoforged.neoforge.client.event.EntityRenderersEvent;
-import net.neoforged.neoforge.client.event.RegisterColorHandlersEvent;
-import net.neoforged.neoforge.client.event.RegisterMenuScreensEvent;
-import net.neoforged.neoforge.client.event.RegisterRecipeBookCategoriesEvent;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.client.event.EntityRenderersEvent;
+import net.minecraftforge.client.event.RegisterColorHandlersEvent;
+import net.minecraftforge.client.event.RegisterRecipeBookCategoriesEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod;
+import net.minecraftforge.fml.event.lifecycle.FMLClientSetupEvent;
 
 import java.util.Map;
 
 /**
- * Client-only screen registration.
+ * Client-only screen registration. Mod-bus events, physical client only.
  */
-@EventBusSubscriber(modid = CreateBrewery.MOD_ID, value = Dist.CLIENT)
+@Mod.EventBusSubscriber(modid = CreateBrewery.MOD_ID, value = Dist.CLIENT, bus = Mod.EventBusSubscriber.Bus.MOD)
 public final class ModClientSetup {
     /** Values of the {@code brewery:drink} property, matching the overrides in drink_bottle.json. */
     private static final Map<String, Float> BOTTLE_ART = Map.ofEntries(
@@ -67,7 +65,7 @@ public final class ModClientSetup {
         event.register((stack, tintIndex) -> 0xFF000000 | KettleBlockEntity.EMPTY_COLOR, ModBlocks.KETTLE_ITEM.get());
         // The mug's liquid layer is grey art tinted with the colour of the drink inside.
         event.register((stack, tintIndex) -> {
-            DrinkData data = stack.get(ModDataComponents.DRINK_DATA.get());
+            DrinkData data = DrinkData.get(stack);
             var level = Minecraft.getInstance().level;
             if (tintIndex != 1 || data == null || level == null) {
                 return 0xFFFFFFFF;
@@ -81,23 +79,24 @@ public final class ModClientSetup {
         event.registerBlockEntityRenderer(ModBlocks.DISTILLERY_BLOCK_ENTITY.get(), DistilleryRenderer::new);
     }
 
-    /** Lets the bottle's item model pick its art from the drink inside. */
+    /**
+     * Lets the bottle's item model pick its art from the drink inside. Also the menu screens: 1.20.1 has no
+     * {@code RegisterMenuScreensEvent}, so they go through {@link MenuScreens#register} on the main thread.
+     * The Ponder plugin is added earlier, from {@link BreweryClient#init}.
+     */
     @SubscribeEvent
     public static void registerItemProperties(FMLClientSetupEvent event) {
-        PonderIndex.addPlugin(new BreweryPonder());
         event.enqueueWork(DistilleryRenderer::registerVisual);
         event.enqueueWork(() -> ItemProperties.register(ModItems.DRINK_BOTTLE.get(), CreateBrewery.id("drink"),
                 (stack, level, entity, seed) -> {
-                    DrinkData data = stack.get(ModDataComponents.DRINK_DATA.get());
+                    DrinkData data = DrinkData.get(stack);
                     return data == null ? 0f : BOTTLE_ART.getOrDefault(data.stage(), 0f);
                 }));
-    }
-
-    @SubscribeEvent
-    public static void registerScreens(RegisterMenuScreensEvent event) {
-        event.register(ModMenus.KETTLE.get(), KettleScreen::new);
-        event.register(ModMenus.DISTILLERY.get(), DistilleryScreen::new);
-        event.register(ModMenus.BARREL.get(), BarrelScreen::new);
+        event.enqueueWork(() -> {
+            MenuScreens.register(ModMenus.KETTLE.get(), KettleScreen::new);
+            MenuScreens.register(ModMenus.DISTILLERY.get(), DistilleryScreen::new);
+            MenuScreens.register(ModMenus.BARREL.get(), BarrelScreen::new);
+        });
     }
 
     @SubscribeEvent

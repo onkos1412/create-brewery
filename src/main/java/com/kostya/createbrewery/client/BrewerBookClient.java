@@ -1,6 +1,7 @@
 package com.kostya.createbrewery.client;
 
 import com.kostya.createbrewery.network.OpenBrewerBookPayload;
+import net.minecraft.client.Minecraft;
 
 /**
  * Client side of the brewer's book: opens its screen from the server's payload. Client only: reached from
@@ -11,7 +12,6 @@ public final class BrewerBookClient {
     }
 
     public static void open(OpenBrewerBookPayload payload) {
-        // PORT: Task 6 - the screen comes back with client/**:
-        // Minecraft.getInstance().setScreen(new BrewerBookScreen(payload));
+        Minecraft.getInstance().setScreen(new BrewerBookScreen(payload));
     }
 }

@@ -89,6 +89,8 @@ public class DistilleryScreen extends AbstractContainerScreen<DistilleryMenu> {
 
     @Override
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
+        // 1.20.1's Screen#render does not dim the world behind the screen; the screen asks for it.
+        renderBackground(graphics);
         super.render(graphics, mouseX, mouseY, partialTick);
         if (MachineWidgets.inside(mouseX, mouseY, leftPos + TANK_X, topPos + TANK_Y,
                 MachineWidgets.TANK_WIDTH, TANK_HEIGHT)) {

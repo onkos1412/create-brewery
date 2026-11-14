@@ -139,13 +139,15 @@ public class BrewerBookScreen extends Screen {
     }
 
     @Override
-    public void renderBackground(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
-        super.renderBackground(graphics, mouseX, mouseY, partialTick);
+    public void renderBackground(GuiGraphics graphics) {
+        super.renderBackground(graphics);
         graphics.blit(TEXTURE, left, top, 0, 0, BOOK_WIDTH, BOOK_HEIGHT, TEX_WIDTH, TEX_HEIGHT);
     }
 
     @Override
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
+        // 1.20.1's Screen#render does not draw the background on its own.
+        renderBackground(graphics);
         super.render(graphics, mouseX, mouseY, partialTick);
         hovered = ItemStack.EMPTY;
         if (!book.readable()) {
@@ -369,12 +371,12 @@ public class BrewerBookScreen extends Screen {
     }
 
     @Override
-    public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
+    public boolean mouseScrolled(double mouseX, double mouseY, double scrollY) {
         if (scrollY != 0) {
             turn(scrollY > 0 ? -1 : 1);
             return true;
         }
-        return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY);
+        return super.mouseScrolled(mouseX, mouseY, scrollY);
     }
 
     @Override
