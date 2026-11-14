@@ -1,0 +1,45 @@
+{
+  "schemaVersion": 1,
+  "id": "${mod_id}",
+  "version": "${mod_version}",
+  "name": "${mod_name}",
+  "description": "Brew, distill and age drinks with Create machines.\nAny mix brews in the kettle - find the recipes yourself. Quality from 1 to 5 stars, drink effects, drunkenness, staggering, throwing up and hangovers. Perfect automation gives perfect drinks.",
+  "authors": [
+    "Kostya"
+  ],
+  "contact": {
+    "homepage": "https://github.com/onkos1412/create-brewery",
+    "sources": "https://github.com/onkos1412/create-brewery",
+    "issues": "https://github.com/onkos1412/create-brewery/issues"
+  },
+  "license": "${mod_license}",
+  "icon": "brewery_logo.png",
+  "environment": "*",
+  "entrypoints": {
+    "main": [
+      "com.kostya.createbrewery.CreateBrewery"
+    ],
+    "server": [
+      "com.kostya.createbrewery.gametest.GameTestNamespaces"
+    ],
+    "fabric-gametest": [
+      "com.kostya.createbrewery.gametest.BootGameTests"
+    ]
+  },
+  "mixins": [
+    "brewery.mixins.json"
+  ],
+  "depends": {
+    "minecraft": "${minecraft_dependency}",
+    "fabricloader": "${loader_dependency}",
+    "fabric-api": "*",
+    "create": "${create_dependency}"
+  },
+  "suggests": {
+    "jei": "*",
+    "modmenu": "*"
+  },
+  "custom": {
+    "credits": "Inspired by the BreweryX plugin. Built on Create by the Creators of Create."
+  }
+}
