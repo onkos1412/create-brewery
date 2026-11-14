@@ -1,14 +1,14 @@
 package com.kostya.createbrewery.block;
 
 import com.kostya.createbrewery.barrel.AgingRules;
-import net.minecraft.network.RegistryFriendlyByteBuf;
+import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.ContainerData;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
-import net.neoforged.neoforge.items.SlotItemHandler;
+import net.minecraftforge.items.SlotItemHandler;
 
 public class BarrelMenu extends AbstractContainerMenu {
     private static final int BOTTLE_SLOT = 3;
@@ -19,19 +19,19 @@ public class BarrelMenu extends AbstractContainerMenu {
     private final BarrelBlockEntity barrel;
     private final ContainerData data = new Data();
 
-    public BarrelMenu(int containerId, Inventory inventory, RegistryFriendlyByteBuf buffer) {
+    public BarrelMenu(int containerId, Inventory inventory, FriendlyByteBuf buffer) {
         this(containerId, inventory, find(inventory, buffer.readBlockPos()));
     }
 
     public BarrelMenu(int containerId, Inventory inventory, BarrelBlockEntity barrel) {
         super(ModMenus.BARREL.get(), containerId);
         this.barrel = barrel;
-        var handler = barrel == null ? new net.neoforged.neoforge.items.ItemStackHandler(5) : barrel.getInput();
-        var drinks = barrel == null ? new net.neoforged.neoforge.items.ItemStackHandler(4) : barrel.getOutput();
+        var handler = barrel == null ? new net.minecraftforge.items.ItemStackHandler(5) : barrel.getInput();
+        var drinks = barrel == null ? new net.minecraftforge.items.ItemStackHandler(4) : barrel.getOutput();
         addSlot(new BatchSlot(handler, 0, 44, 35, 0));
         addSlot(new SlotItemHandler(handler, 1, 80, 35));
         addSlot(new DrinkSlot(drinks, 0, 116, 35));
-        addSlot(new SlotItemHandler(barrel == null ? new net.neoforged.neoforge.items.ItemStackHandler(1)
+        addSlot(new SlotItemHandler(barrel == null ? new net.minecraftforge.items.ItemStackHandler(1)
                 : barrel.getBottles(), 0, 152, 35));
         addSlot(new BatchSlot(handler, 2, 26, 35, 1));
         addSlot(new BatchSlot(handler, 3, 26, 17, 2));
@@ -85,7 +85,7 @@ public class BarrelMenu extends AbstractContainerMenu {
     private final class BatchSlot extends SlotItemHandler {
         private final int batch;
 
-        BatchSlot(net.neoforged.neoforge.items.IItemHandler handler, int index, int x, int y, int batch) {
+        BatchSlot(net.minecraftforge.items.IItemHandler handler, int index, int x, int y, int batch) {
             super(handler, index, x, y);
             this.batch = batch;
         }
@@ -100,7 +100,7 @@ public class BarrelMenu extends AbstractContainerMenu {
     private final class DrinkSlot extends SlotItemHandler {
         private final int drinkIndex;
 
-        DrinkSlot(net.neoforged.neoforge.items.IItemHandler handler, int index, int x, int y) {
+        DrinkSlot(net.minecraftforge.items.IItemHandler handler, int index, int x, int y) {
             super(handler, index, x, y);
             drinkIndex = index;
         }

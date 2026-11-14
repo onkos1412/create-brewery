@@ -4,15 +4,11 @@ import com.kostya.createbrewery.BrewerMark;
 import com.kostya.createbrewery.DrinkData;
 import com.kostya.createbrewery.barrel.AgingRules;
 import com.kostya.createbrewery.barrel.BarrelLogic;
-import com.kostya.createbrewery.journal.BarrelRecord;
-import com.kostya.createbrewery.journal.BreweryJournalData;
 import com.kostya.createbrewery.recipe.BrewingRecipe;
 import com.kostya.createbrewery.recipe.DrinkProfile;
-import com.kostya.createbrewery.registry.ModDataComponents;
 import com.kostya.createbrewery.registry.ModItems;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.core.HolderLookup;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.Containers;
@@ -21,8 +17,12 @@ import net.minecraft.world.item.Items;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
-import net.neoforged.neoforge.items.IItemHandler;
-import net.neoforged.neoforge.items.ItemStackHandler;
+import net.minecraftforge.common.capabilities.Capability;
+import net.minecraftforge.common.capabilities.ForgeCapabilities;
+import net.minecraftforge.common.util.LazyOptional;
+import net.minecraftforge.items.IItemHandler;
+import net.minecraftforge.items.ItemStackHandler;
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
@@ -217,14 +217,28 @@ public class BarrelBlockEntity extends BlockEntity {
         }
     }
 
+    private final LazyOptional<IItemHandler> itemCapability = LazyOptional.of(() -> automationItems);
+
     public BarrelBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlocks.BARREL_BLOCK_ENTITY.get(), pos, state);
+    }
+
+    /** Funnels on any barrel of a group reach the group's store (see {@link #automationItems}). */
+    @Override
+    public <T> @NotNull LazyOptional<T> getCapability(@NotNull Capability<T> cap, @Nullable Direction side) {
+        return cap == ForgeCapabilities.ITEM_HANDLER ? itemCapability.cast() : super.getCapability(cap, side);
+    }
+
+    @Override
+    public void invalidateCaps() {
+        super.invalidateCaps();
+        itemCapability.invalidate();
     }
 
     /** What this distillate ages into, or {@code null} when it does not belong in a barrel. */
     @Nullable
     private String agedStage(ItemStack distillate) {
-        DrinkData data = distillate.get(ModDataComponents.DRINK_DATA.get());
+        DrinkData data = DrinkData.get(distillate);
         if (data != null && data.isSpoiled()) {
             return null;
         }
@@ -233,7 +247,7 @@ public class BarrelBlockEntity extends BlockEntity {
     }
 
     private DrinkProfile profileOf(ItemStack product) {
-        DrinkData data = product.get(ModDataComponents.DRINK_DATA.get());
+        DrinkData data = DrinkData.get(product);
         if (data == null || level == null) {
             return DrinkProfile.BEER;
         }
@@ -291,7 +305,7 @@ public class BarrelBlockEntity extends BlockEntity {
     /** Picks the group's root: a running batch wins, then whoever holds the most, and folds the rest into it. */
     private void regroup() {
         List<BarrelBlockEntity> members = members();
-        BarrelBlockEntity best = members.getFirst();
+        BarrelBlockEntity best = members.get(0);
         for (BarrelBlockEntity member : members) {
             if (member.rootScore() > best.rootScore()
                     || member.rootScore() == best.rootScore() && member.worldPosition.asLong() < best.worldPosition.asLong()) {
@@ -448,7 +462,7 @@ public class BarrelBlockEntity extends BlockEntity {
 
     /** A bottle of something that matures here without distilling, like young wine. */
     private boolean isYoungDrink(ItemStack stack) {
-        DrinkData data = stack.get(ModDataComponents.DRINK_DATA.get());
+        DrinkData data = DrinkData.get(stack);
         if (!stack.is(ModItems.DRINK_BOTTLE.get()) || data == null || level == null) {
             return false;
         }
@@ -538,11 +552,11 @@ public class BarrelBlockEntity extends BlockEntity {
         overAgedPeriods = periods;
         for (int slot = 0; slot < output.getSlots(); slot++) {
             ItemStack drink = output.getStackInSlot(slot);
-            DrinkData data = drink.get(ModDataComponents.DRINK_DATA.get());
+            DrinkData data = DrinkData.get(drink);
             if (data != null) {
                 ItemStack worse = drink.copy();
                 int stars = (int) Math.max(DrinkData.MIN_STARS, data.stars() - lost);
-                worse.set(ModDataComponents.DRINK_DATA.get(), new DrinkData(stars, data.alcohol(), data.stage()));
+                DrinkData.set(worse, new DrinkData(stars, data.alcohol(), data.stage()));
                 output.setStackInSlot(slot, worse);
             }
         }
@@ -583,21 +597,22 @@ public class BarrelBlockEntity extends BlockEntity {
 
     /** Turns a whole stack into finished drinks. */
     private void finish(ItemStack batch, DrinkProfile profile, int outputSlot) {
-        DrinkData data = batch.getOrDefault(ModDataComponents.DRINK_DATA.get(),
+        DrinkData data = DrinkData.getOrDefault(batch,
                 new DrinkData(DrinkData.MAX_STARS, DrinkData.DEFAULT_ALCOHOL, "distillate"));
         BarrelLogic.Result result = BarrelLogic.process(data.stars(), data.alcohol(), woodId, profile.wood(),
                 batch.getCount() * 1000, getElapsedTicks(), profile.agingDays());
         boolean young = batch.is(ModItems.DRINK_BOTTLE.get());
         ItemStack aged = new ItemStack(ModItems.DRINK_BOTTLE.get(), batch.getCount());
-        aged.set(ModDataComponents.DRINK_DATA.get(), new DrinkData(result.stars(),
+        DrinkData.set(aged, new DrinkData(result.stars(),
                 young ? profile.distilledAlcohol() : result.alcohol(), profile.aged()));
-        BrewerMark mark = batch.get(ModDataComponents.BREWER.get());
+        BrewerMark mark = BrewerMark.get(batch);
         if (mark != null) {
-            aged.set(ModDataComponents.BREWER.get(), mark);
-            if (mark.owner().isPresent() && level.getServer() != null) {
-                BreweryJournalData.get(level.getServer()).recordBarrel(mark.owner().get(), profile.id(),
-                        new BarrelRecord(woodId, (int) (getElapsedTicks() / AgingRules.TICKS_PER_DAY), result.stars()));
-            }
+            BrewerMark.set(aged, mark);
+            // PORT: Task 5 - the journal comes back with the brewer's book:
+            // if (mark.owner().isPresent() && level.getServer() != null) {
+            //     BreweryJournalData.get(level.getServer()).recordBarrel(mark.owner().get(), profile.id(),
+            //             new BarrelRecord(woodId, (int) (getElapsedTicks() / AgingRules.TICKS_PER_DAY), result.stars()));
+            // }
         }
         output.setStackInSlot(outputSlot, aged);
         if (young) {
@@ -608,8 +623,8 @@ public class BarrelBlockEntity extends BlockEntity {
     }
 
     @Override
-    protected void saveAdditional(CompoundTag tag, HolderLookup.Provider registries) {
-        super.saveAdditional(tag, registries);
+    protected void saveAdditional(CompoundTag tag) {
+        super.saveAdditional(tag);
         tag.putLong("StartedAt", startedAt);
         tag.putLong("FinishedAt", finishedAt);
         tag.putLong("LastDayTime", lastDayTime);
@@ -619,14 +634,14 @@ public class BarrelBlockEntity extends BlockEntity {
         tag.putInt("FinishedDays", finishedDays);
         tag.putString("Wood", woodId);
         tag.putBoolean("AutoStart", autoStart);
-        tag.put("Input", input.serializeNBT(registries));
-        tag.put("Output", output.serializeNBT(registries));
-        tag.put("Bottles", bottles.serializeNBT(registries));
+        tag.put("Input", input.serializeNBT());
+        tag.put("Output", output.serializeNBT());
+        tag.put("Bottles", bottles.serializeNBT());
     }
 
     /** Barrels saved before they grew have fewer slots; loading must not shrink them. */
-    private static void load(ItemStackHandler handler, int size, CompoundTag tag, HolderLookup.Provider registries) {
-        handler.deserializeNBT(registries, tag);
+    private static void load(ItemStackHandler handler, int size, CompoundTag tag) {
+        handler.deserializeNBT(tag);
         if (handler.getSlots() < size) {
             ItemStack[] kept = new ItemStack[handler.getSlots()];
             for (int slot = 0; slot < kept.length; slot++) {
@@ -640,8 +655,8 @@ public class BarrelBlockEntity extends BlockEntity {
     }
 
     @Override
-    protected void loadAdditional(CompoundTag tag, HolderLookup.Provider registries) {
-        super.loadAdditional(tag, registries);
+    public void load(CompoundTag tag) {
+        super.load(tag);
         startedAt = tag.contains("StartedAt") ? tag.getLong("StartedAt") : -1L;
         finishedAt = tag.contains("FinishedAt") ? tag.getLong("FinishedAt") : -1L;
         // Barrels saved before the clocks existed catch up from when their batch started.
@@ -653,13 +668,13 @@ public class BarrelBlockEntity extends BlockEntity {
         woodId = tag.getString("Wood");
         autoStart = tag.getBoolean("AutoStart");
         if (tag.contains("Input")) {
-            load(input, 5, tag.getCompound("Input"), registries);
+            load(input, 5, tag.getCompound("Input"));
         }
         if (tag.contains("Output")) {
-            load(output, BATCH_SLOTS.length, tag.getCompound("Output"), registries);
+            load(output, BATCH_SLOTS.length, tag.getCompound("Output"));
         }
         if (tag.contains("Bottles")) {
-            bottles.deserializeNBT(registries, tag.getCompound("Bottles"));
+            bottles.deserializeNBT(tag.getCompound("Bottles"));
         }
     }
 }

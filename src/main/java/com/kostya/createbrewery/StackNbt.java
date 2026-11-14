@@ -1,12 +1,15 @@
 package com.kostya.createbrewery;
 
+import com.mojang.logging.LogUtils;
 import com.mojang.serialization.Codec;
+import com.mojang.serialization.DataResult;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.NbtOps;
 import net.minecraft.nbt.Tag;
 import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.fluids.FluidStack;
 import org.jetbrains.annotations.Nullable;
+import org.slf4j.Logger;
 
 /**
  * Codec-backed values in item and fluid stack NBT: what replaces 1.21.1's data components.
@@ -15,16 +18,21 @@ import org.jetbrains.annotations.Nullable;
  * Create's pipes and tanks compare fluid NBT, and bottles stack only when their NBT is equal.
  */
 public final class StackNbt {
+    private static final Logger LOGGER = LogUtils.getLogger();
+
     private StackNbt() {
     }
 
-    /** The value under {@code key}, or {@code null} when it is absent or unreadable. */
+    /** The value under {@code key}, or {@code null} when it is absent or unreadable (which is logged). */
     @Nullable
     public static <T> T read(@Nullable CompoundTag tag, String key, Codec<T> codec) {
         if (tag == null || !tag.contains(key)) {
             return null;
         }
-        return codec.parse(NbtOps.INSTANCE, tag.get(key)).result().orElse(null);
+        Tag value = tag.get(key);
+        DataResult<T> result = codec.parse(NbtOps.INSTANCE, value);
+        result.error().ifPresent(error -> LOGGER.warn("Ignoring unreadable {} {}: {}", key, value, error.message()));
+        return result.result().orElse(null);
     }
 
     /** Stores {@code value} under {@code key}; {@code null} removes it. */

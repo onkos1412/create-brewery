@@ -5,7 +5,7 @@ import net.minecraft.core.Direction;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.InteractionHand;
-import net.minecraft.world.ItemInteractionResult;
+import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -46,7 +46,7 @@ public class SpoutBlock extends Block implements EntityBlock {
     }
 
     @Override
-    protected VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
+    public VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
         return switch (state.getValue(FACING)) {
             case EAST -> Block.box(0, 1, 3, 13, 13, 13);
             case SOUTH -> Block.box(3, 1, 0, 13, 13, 13);
@@ -77,19 +77,21 @@ public class SpoutBlock extends Block implements EntityBlock {
         return new SpoutBlockEntity(pos, state);
     }
 
+    /** 1.21.1's {@code PASS_TO_DEFAULT_BLOCK_INTERACTION} is {@code PASS} here, so the held item's own use runs. */
     @Override
-    protected ItemInteractionResult useItemOn(ItemStack stack, BlockState state, Level level, BlockPos pos,
-                                              Player player, InteractionHand hand, BlockHitResult hit) {
+    public InteractionResult use(BlockState state, Level level, BlockPos pos, Player player, InteractionHand hand,
+                                 BlockHitResult hit) {
+        ItemStack stack = player.getItemInHand(hand);
         if (!stack.is(Items.GLASS_BOTTLE)) {
-            return ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
+            return InteractionResult.PASS;
         }
         if (level.isClientSide()) {
-            return ItemInteractionResult.SUCCESS;
+            return InteractionResult.SUCCESS;
         }
 
         ItemStack bottle = pour(level, pos);
         if (bottle.isEmpty()) {
-            return ItemInteractionResult.FAIL;
+            return InteractionResult.FAIL;
         }
 
         if (!player.getAbilities().instabuild) {
@@ -99,17 +101,20 @@ public class SpoutBlock extends Block implements EntityBlock {
             player.drop(bottle, false);
         }
         level.playSound(null, pos, SoundEvents.BOTTLE_FILL, SoundSource.BLOCKS, 1.0f, 1.0f);
-        return ItemInteractionResult.SUCCESS;
+        return InteractionResult.SUCCESS;
     }
 
     /** Takes one filled bottle from a neighbouring machine: barrel first, then still, then kettle. */
     static ItemStack pour(Level level, BlockPos pos) {
         BarrelBlockEntity barrel = findBarrel(level, pos);
         ItemStack bottle = barrel == null ? ItemStack.EMPTY : barrel.takeFinishedBottle();
-        if (bottle.isEmpty() && findDistillery(level, pos) instanceof DistilleryBlockEntity still) {
+        // Java 17 has no pattern match on an expression of the pattern's own type, so plain null checks.
+        DistilleryBlockEntity still = bottle.isEmpty() ? findDistillery(level, pos) : null;
+        if (still != null) {
             bottle = still.takeFinishedBottle();
         }
-        if (bottle.isEmpty() && findKettle(level, pos) instanceof KettleBlockEntity kettle) {
+        KettleBlockEntity kettle = bottle.isEmpty() ? findKettle(level, pos) : null;
+        if (kettle != null) {
             bottle = kettle.bottleWort();
         }
         return bottle;
@@ -130,7 +135,7 @@ public class SpoutBlock extends Block implements EntityBlock {
     }
 
     @Override
-    protected void onRemove(BlockState state, Level level, BlockPos pos, BlockState newState, boolean movedByPiston) {
+    public void onRemove(BlockState state, Level level, BlockPos pos, BlockState newState, boolean movedByPiston) {
         if (!state.is(newState.getBlock()) && level.getBlockEntity(pos) instanceof SpoutBlockEntity spout) {
             ModCapabilities.dropContents(level, pos, spout.getItems());
         }
@@ -171,10 +176,5 @@ public class SpoutBlock extends Block implements EntityBlock {
             }
         }
         return null;
-    }
-
-    @Override
-    protected com.mojang.serialization.MapCodec<? extends Block> codec() {
-        return simpleCodec(SpoutBlock::new);
     }
 }

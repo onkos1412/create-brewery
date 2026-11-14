@@ -1,13 +1,18 @@
 package com.kostya.createbrewery.block;
 
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.HolderLookup;
+import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
-import net.neoforged.neoforge.items.ItemStackHandler;
+import net.minecraftforge.common.capabilities.Capability;
+import net.minecraftforge.common.capabilities.ForgeCapabilities;
+import net.minecraftforge.common.util.LazyOptional;
+import net.minecraftforge.items.ItemStackHandler;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 /**
  * The spout's automatic side: empty bottles fed into slot 0 are filled from the machine
@@ -36,6 +41,8 @@ public class SpoutBlockEntity extends BlockEntity {
         }
     };
 
+    private final LazyOptional<ItemStackHandler> itemCapability = LazyOptional.of(() -> items);
+
     public SpoutBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlocks.SPOUT_BLOCK_ENTITY.get(), pos, state);
     }
@@ -58,16 +65,27 @@ public class SpoutBlockEntity extends BlockEntity {
     }
 
     @Override
-    protected void saveAdditional(CompoundTag tag, HolderLookup.Provider registries) {
-        super.saveAdditional(tag, registries);
-        tag.put("Items", items.serializeNBT(registries));
+    public <T> @NotNull LazyOptional<T> getCapability(@NotNull Capability<T> cap, @Nullable Direction side) {
+        return cap == ForgeCapabilities.ITEM_HANDLER ? itemCapability.cast() : super.getCapability(cap, side);
     }
 
     @Override
-    protected void loadAdditional(CompoundTag tag, HolderLookup.Provider registries) {
-        super.loadAdditional(tag, registries);
+    public void invalidateCaps() {
+        super.invalidateCaps();
+        itemCapability.invalidate();
+    }
+
+    @Override
+    protected void saveAdditional(CompoundTag tag) {
+        super.saveAdditional(tag);
+        tag.put("Items", items.serializeNBT());
+    }
+
+    @Override
+    public void load(CompoundTag tag) {
+        super.load(tag);
         if (tag.contains("Items")) {
-            items.deserializeNBT(registries, tag.getCompound("Items"));
+            items.deserializeNBT(tag.getCompound("Items"));
         }
     }
 }

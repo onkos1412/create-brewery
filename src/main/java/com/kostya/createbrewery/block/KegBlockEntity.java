@@ -4,13 +4,11 @@ import com.kostya.createbrewery.BrewerMark;
 import com.kostya.createbrewery.DrinkData;
 import com.kostya.createbrewery.keg.KegRules;
 import com.kostya.createbrewery.quality.StarLine;
-import com.kostya.createbrewery.registry.ModDataComponents;
 import com.kostya.createbrewery.registry.ModItems;
 import com.simibubi.create.api.equipment.goggles.IHaveGoggleInformation;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.Packet;
@@ -21,7 +19,11 @@ import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
-import net.neoforged.neoforge.items.IItemHandler;
+import net.minecraftforge.common.capabilities.Capability;
+import net.minecraftforge.common.capabilities.ForgeCapabilities;
+import net.minecraftforge.common.util.LazyOptional;
+import net.minecraftforge.items.IItemHandler;
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
@@ -41,6 +43,8 @@ public class KegBlockEntity extends BlockEntity implements IHaveGoggleInformatio
 
     private final IItemHandler input = new Input();
     private final IItemHandler output = new Output();
+    private final LazyOptional<IItemHandler> inputCapability = LazyOptional.of(() -> input);
+    private final LazyOptional<IItemHandler> outputCapability = LazyOptional.of(() -> output);
 
     public KegBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlocks.KEG_BLOCK_ENTITY.get(), pos, state);
@@ -99,13 +103,29 @@ public class KegBlockEntity extends BlockEntity implements IHaveGoggleInformatio
         return side == Direction.DOWN ? output : input;
     }
 
+    /** As {@link #getItemHandler}: below only takes the empties out, every other side (and none) pours in. */
+    @Override
+    public <T> @NotNull LazyOptional<T> getCapability(@NotNull Capability<T> cap, @Nullable Direction side) {
+        if (cap == ForgeCapabilities.ITEM_HANDLER) {
+            return (side == Direction.DOWN ? outputCapability : inputCapability).cast();
+        }
+        return super.getCapability(cap, side);
+    }
+
+    @Override
+    public void invalidateCaps() {
+        super.invalidateCaps();
+        inputCapability.invalidate();
+        outputCapability.invalidate();
+    }
+
     /** Whether a bottle would be taken by hand: the same drink, with room left. */
     public boolean accepts(ItemStack bottle) {
         return canTake(bottle, false);
     }
 
     private boolean canTake(ItemStack bottle, boolean keepEmpty) {
-        if (!bottle.is(ModItems.DRINK_BOTTLE.get()) || !bottle.has(ModDataComponents.DRINK_DATA.get())) {
+        if (!bottle.is(ModItems.DRINK_BOTTLE.get()) || !DrinkData.has(bottle)) {
             return false;
         }
         return KegRules.accepts(portions, sameDrink(bottle), keepEmpty ? empties : 0);
@@ -113,17 +133,17 @@ public class KegBlockEntity extends BlockEntity implements IHaveGoggleInformatio
 
     /** The same drink: equal quality, strength and stage, and the same signature or none on both. */
     private boolean sameDrink(ItemStack bottle) {
-        return Objects.equals(drink.get(ModDataComponents.DRINK_DATA.get()), bottle.get(ModDataComponents.DRINK_DATA.get()))
-                && Objects.equals(drink.get(ModDataComponents.BREWER.get()), bottle.get(ModDataComponents.BREWER.get()));
+        return Objects.equals(DrinkData.get(drink), DrinkData.get(bottle))
+                && Objects.equals(BrewerMark.get(drink), BrewerMark.get(bottle));
     }
 
     /** A clean bottle carrying only what makes the drink, so a renamed bottle passes no name on to every portion. */
     private static ItemStack portion(ItemStack bottle) {
         ItemStack portion = new ItemStack(ModItems.DRINK_BOTTLE.get());
-        portion.set(ModDataComponents.DRINK_DATA.get(), bottle.get(ModDataComponents.DRINK_DATA.get()));
-        BrewerMark mark = bottle.get(ModDataComponents.BREWER.get());
+        DrinkData.set(portion, DrinkData.get(bottle));
+        BrewerMark mark = BrewerMark.get(bottle);
         if (mark != null) {
-            portion.set(ModDataComponents.BREWER.get(), mark);
+            BrewerMark.set(portion, mark);
         }
         return portion;
     }
@@ -151,7 +171,7 @@ public class KegBlockEntity extends BlockEntity implements IHaveGoggleInformatio
                     .withStyle(ChatFormatting.GRAY)));
             return true;
         }
-        DrinkData data = drink.get(ModDataComponents.DRINK_DATA.get());
+        DrinkData data = DrinkData.get(drink);
         if (data != null) {
             tooltip.add(Component.literal(INDENT).append(Component.translatable("drink.brewery." + data.stage())
                     .withStyle(ChatFormatting.GRAY)));
@@ -159,7 +179,7 @@ public class KegBlockEntity extends BlockEntity implements IHaveGoggleInformatio
         }
         tooltip.add(Component.literal(INDENT).append(Component.translatable("gui.brewery.keg.portions",
                 portions, KegRules.CAPACITY).withStyle(ChatFormatting.GOLD)));
-        BrewerMark mark = drink.get(ModDataComponents.BREWER.get());
+        BrewerMark mark = BrewerMark.get(drink);
         if (mark != null) {
             tooltip.add(Component.literal(INDENT).append(mark.tooltip()));
         }
@@ -167,19 +187,19 @@ public class KegBlockEntity extends BlockEntity implements IHaveGoggleInformatio
     }
 
     @Override
-    protected void saveAdditional(CompoundTag tag, HolderLookup.Provider registries) {
-        super.saveAdditional(tag, registries);
+    protected void saveAdditional(CompoundTag tag) {
+        super.saveAdditional(tag);
         if (!drink.isEmpty()) {
-            tag.put("Drink", drink.save(registries));
+            tag.put("Drink", drink.save(new CompoundTag()));
         }
         tag.putInt("Portions", portions);
         tag.putInt("Empties", empties);
     }
 
     @Override
-    protected void loadAdditional(CompoundTag tag, HolderLookup.Provider registries) {
-        super.loadAdditional(tag, registries);
-        drink = tag.contains("Drink") ? ItemStack.parseOptional(registries, tag.getCompound("Drink")) : ItemStack.EMPTY;
+    public void load(CompoundTag tag) {
+        super.load(tag);
+        drink = tag.contains("Drink") ? ItemStack.of(tag.getCompound("Drink")) : ItemStack.EMPTY;
         portions = Math.max(0, Math.min(KegRules.CAPACITY, tag.getInt("Portions")));
         empties = Math.max(0, Math.min(KegRules.EMPTIES, tag.getInt("Empties")));
         if (drink.isEmpty()) {
@@ -191,8 +211,8 @@ public class KegBlockEntity extends BlockEntity implements IHaveGoggleInformatio
     }
 
     @Override
-    public CompoundTag getUpdateTag(HolderLookup.Provider registries) {
-        return saveWithoutMetadata(registries);
+    public CompoundTag getUpdateTag() {
+        return saveWithoutMetadata();
     }
 
     @Override

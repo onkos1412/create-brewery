@@ -4,16 +4,16 @@ import com.kostya.createbrewery.BrewerMark;
 import com.kostya.createbrewery.DrinkData;
 import com.kostya.createbrewery.recipe.BrewingRecipe;
 import com.kostya.createbrewery.recipe.DrinkProfile;
-import com.kostya.createbrewery.registry.ModDataComponents;
 import com.kostya.createbrewery.registry.ModFluids;
 import com.kostya.createbrewery.registry.ModItems;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.Level;
-import net.neoforged.neoforge.fluids.FluidStack;
-import net.neoforged.neoforge.fluids.capability.IFluidHandlerItem;
-import net.neoforged.neoforge.server.ServerLifecycleHooks;
+import net.minecraftforge.fluids.FluidStack;
+import net.minecraftforge.fluids.capability.IFluidHandlerItem;
+import net.minecraftforge.server.ServerLifecycleHooks;
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 /** Turns wort into a bottled drink, whichever machine does the pouring. */
@@ -27,9 +27,9 @@ public final class WortBottling {
     public static ItemStack bottle(Level level, int stars, String drink, @Nullable BrewerMark mark) {
         ItemStack bottle = new ItemStack(ModItems.DRINK_BOTTLE.get());
         DrinkProfile profile = BrewingRecipe.profileOf(level, drink);
-        bottle.set(ModDataComponents.DRINK_DATA.get(), new DrinkData(stars, profile.alcohol(), drink));
+        DrinkData.set(bottle, new DrinkData(stars, profile.alcohol(), drink));
         if (mark != null) {
-            bottle.set(ModDataComponents.BREWER.get(), mark);
+            BrewerMark.set(bottle, mark);
         }
         return bottle;
     }
@@ -53,7 +53,7 @@ public final class WortBottling {
         }
 
         @Override
-        public FluidStack getFluidInTank(int tank) {
+        public @NotNull FluidStack getFluidInTank(int tank) {
             return FluidStack.EMPTY;
         }
 
@@ -64,7 +64,7 @@ public final class WortBottling {
 
         @Override
         public boolean isFluidValid(int tank, FluidStack stack) {
-            return stack.is(ModFluids.WORT.get());
+            return stack.getFluid().isSame(ModFluids.WORT.get());
         }
 
         /**
@@ -83,8 +83,8 @@ public final class WortBottling {
             if (server == null || container.getCount() != 1 || resource.getAmount() < WORT_PER_BOTTLE) {
                 return 0;
             }
-            DrinkData data = resource.get(ModDataComponents.DRINK_DATA.get());
-            BrewerMark mark = resource.get(ModDataComponents.BREWER.get());
+            DrinkData data = DrinkData.get(resource);
+            BrewerMark mark = BrewerMark.get(resource);
             container = data == null
                     ? bottle(server.overworld(), DrinkData.MAX_STARS, DrinkProfile.BEER.id(), mark)
                     : bottle(server.overworld(), data.stars(), data.stage(), mark);

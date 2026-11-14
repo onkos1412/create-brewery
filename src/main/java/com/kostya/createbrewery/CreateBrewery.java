@@ -1,5 +1,7 @@
 package com.kostya.createbrewery;
 
+import com.kostya.createbrewery.block.ModBlocks;
+import com.kostya.createbrewery.block.ModMenus;
 import com.kostya.createbrewery.config.BreweryConfig;
 import com.kostya.createbrewery.recipe.BrewingRecipeSerializer;
 import com.kostya.createbrewery.recipe.ModRecipeTypes;
@@ -55,7 +57,10 @@ public class CreateBrewery {
                 // 1.21.1's ModDataComponents.DATA_COMPONENTS is gone: the data lives in stack NBT (see StackNbt).
                 ModRecipeTypes.RECIPE_TYPES,
                 BrewingRecipeSerializer.SERIALIZERS,
-                // PORT: Task 3 - ModBlocks.BLOCKS, ModBlocks.BLOCK_ITEMS, ModBlocks.BLOCK_ENTITIES, ModMenus.MENUS.
+                ModBlocks.BLOCKS,
+                ModBlocks.BLOCK_ITEMS,
+                ModBlocks.BLOCK_ENTITIES,
+                ModMenus.MENUS,
                 ModCreativeTabs.TABS
                 // PORT: Task 4 - drunk player data (1.21.1: ModAttachments.ATTACHMENTS).
         );

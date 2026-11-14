@@ -39,15 +39,6 @@ public final class ModItems {
     public static final RegistryObject<Item> DRINK_MUG = ITEMS.register("drink_mug",
             () -> new DrinkMugItem(new Item.Properties().stacksTo(1)));
 
-    /**
-     * PORT: Task 3 - placeholder for the kettle's block item, which comes back with the machines
-     * ({@code ModBlocks.KETTLE_ITEM}). The advancement tree's root shows and asks for {@code brewery:kettle}, so without
-     * an item of that id no {@code brewery:} advancement loads. Task 3 deletes this (registering both would crash on
-     * the duplicate id).
-     */
-    public static final RegistryObject<Item> KETTLE_PLACEHOLDER = ITEMS.register("kettle",
-            () -> new Item(new Item.Properties()));
-
     private ModItems() {
     }
 

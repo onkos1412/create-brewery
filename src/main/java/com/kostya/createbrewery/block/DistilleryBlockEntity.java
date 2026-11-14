@@ -3,25 +3,25 @@ package com.kostya.createbrewery.block;
 import com.kostya.createbrewery.BrewerMark;
 import com.kostya.createbrewery.DrinkData;
 import com.kostya.createbrewery.distillery.DistilleryLogic;
-import com.kostya.createbrewery.journal.BreweryJournalData;
-import com.kostya.createbrewery.journal.StillRecord;
 import com.kostya.createbrewery.recipe.BrewingRecipe;
 import com.kostya.createbrewery.recipe.DrinkProfile;
-import com.kostya.createbrewery.registry.ModDataComponents;
 import com.kostya.createbrewery.registry.ModFluids;
 import com.kostya.createbrewery.registry.ModItems;
 import com.simibubi.create.content.kinetics.base.KineticBlockEntity;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.NbtOps;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
-import net.neoforged.neoforge.fluids.FluidStack;
-import net.neoforged.neoforge.fluids.capability.IFluidHandler;
-import net.neoforged.neoforge.items.ItemStackHandler;
+import net.minecraftforge.common.capabilities.Capability;
+import net.minecraftforge.common.capabilities.ForgeCapabilities;
+import net.minecraftforge.common.util.LazyOptional;
+import net.minecraftforge.fluids.FluidStack;
+import net.minecraftforge.fluids.capability.IFluidHandler;
+import net.minecraftforge.items.ItemStackHandler;
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 /** The distillery: a Create kinetic machine, driven through the shaft in its back. */
@@ -58,7 +58,7 @@ public class DistilleryBlockEntity extends KineticBlockEntity {
         }
 
         @Override
-        public FluidStack getFluidInTank(int tank) {
+        public @NotNull FluidStack getFluidInTank(int tank) {
             return wortAmount > 0 ? KettleBlockEntity.wortStack(wortAmount, inputStars, wortDrink, inputMark) : FluidStack.EMPTY;
         }
 
@@ -69,7 +69,7 @@ public class DistilleryBlockEntity extends KineticBlockEntity {
 
         @Override
         public boolean isFluidValid(int tank, FluidStack stack) {
-            return stack.is(ModFluids.WORT.get());
+            return stack.getFluid().isSame(ModFluids.WORT.get());
         }
 
         @Override
@@ -77,7 +77,7 @@ public class DistilleryBlockEntity extends KineticBlockEntity {
             if (!isFluidValid(0, resource)) {
                 return 0;
             }
-            DrinkData data = resource.get(ModDataComponents.DRINK_DATA.get());
+            DrinkData data = DrinkData.get(resource);
             String drink = data == null ? DrinkProfile.BEER.id() : data.stage();
             if (!canTake(drink)) {
                 return 0;
@@ -87,7 +87,7 @@ public class DistilleryBlockEntity extends KineticBlockEntity {
                 int stars = data == null ? DrinkData.MAX_STARS : data.stars();
                 inputStars = wortAmount > 0 ? Math.min(inputStars, stars) : stars;
                 if (wortAmount == 0) {
-                    inputMark = resource.get(ModDataComponents.BREWER.get());
+                    inputMark = BrewerMark.get(resource);
                 }
                 wortDrink = drink;
                 wortAmount += accepted;
@@ -121,8 +121,36 @@ public class DistilleryBlockEntity extends KineticBlockEntity {
         }
     };
 
+    private final LazyOptional<IFluidHandler> fluidCapability = LazyOptional.of(() -> fluidHandler);
+    private final LazyOptional<ItemStackHandler> itemCapability = LazyOptional.of(() -> output);
+
     public DistilleryBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlocks.DISTILLERY_BLOCK_ENTITY.get(), pos, state);
+    }
+
+    /** Pipes fill and drain the wort from any side; funnels take the distillate. */
+    @Override
+    public <T> @NotNull LazyOptional<T> getCapability(@NotNull Capability<T> cap, @Nullable Direction side) {
+        LazyOptional<T> machine = getMachineCapability(cap);
+        return machine.isPresent() ? machine : super.getCapability(cap, side);
+    }
+
+    /** The wort tank and the distillate slot, which the column above hands on as well. */
+    <T> LazyOptional<T> getMachineCapability(Capability<T> cap) {
+        if (cap == ForgeCapabilities.FLUID_HANDLER) {
+            return fluidCapability.cast();
+        }
+        if (cap == ForgeCapabilities.ITEM_HANDLER) {
+            return itemCapability.cast();
+        }
+        return LazyOptional.empty();
+    }
+
+    @Override
+    public void invalidateCaps() {
+        super.invalidateCaps();
+        fluidCapability.invalidate();
+        itemCapability.invalidate();
     }
 
     public IFluidHandler getFluidHandler() {
@@ -149,16 +177,16 @@ public class DistilleryBlockEntity extends KineticBlockEntity {
         if (distillate.isEmpty() || level == null) {
             return ItemStack.EMPTY;
         }
-        DrinkData data = distillate.get(ModDataComponents.DRINK_DATA.get());
+        DrinkData data = DrinkData.get(distillate);
         if (data == null || !data.isSpoiled() && BrewingRecipe.profileDistilledTo(level, data.stage()).canAge()) {
             return ItemStack.EMPTY;
         }
-        BrewerMark mark = distillate.get(ModDataComponents.BREWER.get());
+        BrewerMark mark = BrewerMark.get(distillate);
         output.extractItem(0, 1, false);
         ItemStack bottle = new ItemStack(ModItems.DRINK_BOTTLE.get());
-        bottle.set(ModDataComponents.DRINK_DATA.get(), data);
+        DrinkData.set(bottle, data);
         if (mark != null) {
-            bottle.set(ModDataComponents.BREWER.get(), mark);
+            BrewerMark.set(bottle, mark);
         }
         return bottle;
     }
@@ -247,15 +275,16 @@ public class DistilleryBlockEntity extends KineticBlockEntity {
         }
 
         ItemStack distillate = new ItemStack(ModItems.DISTILLATE.get());
-        distillate.set(ModDataComponents.DRINK_DATA.get(), result.spoiled()
+        DrinkData.set(distillate, result.spoiled()
                 ? new DrinkData(DrinkData.MIN_STARS, SPOILED_ALCOHOL, DrinkData.SPOILED_STAGE)
                 : new DrinkData(result.stars(), drink.distilledAlcohol(), drink.distilled()));
         if (inputMark != null) {
-            distillate.set(ModDataComponents.BREWER.get(), inputMark);
-            if (!result.spoiled() && inputMark.owner().isPresent() && level.getServer() != null) {
-                BreweryJournalData.get(level.getServer()).recordStill(inputMark.owner().get(), wortDrink,
-                        new StillRecord(Math.round(Math.abs(rpm)), result.stars()));
-            }
+            BrewerMark.set(distillate, inputMark);
+            // PORT: Task 5 - the journal comes back with the brewer's book:
+            // if (!result.spoiled() && inputMark.owner().isPresent() && level.getServer() != null) {
+            //     BreweryJournalData.get(level.getServer()).recordStill(inputMark.owner().get(), wortDrink,
+            //             new StillRecord(Math.round(Math.abs(rpm)), result.stars()));
+            // }
         }
         output.setStackInSlot(0, distillate);
         wortAmount = 0;
@@ -265,21 +294,21 @@ public class DistilleryBlockEntity extends KineticBlockEntity {
     }
 
     @Override
-    protected void write(CompoundTag tag, HolderLookup.Provider registries, boolean clientPacket) {
-        super.write(tag, registries, clientPacket);
+    protected void write(CompoundTag tag, boolean clientPacket) {
+        super.write(tag, clientPacket);
         tag.putInt("Wort", wortAmount);
         tag.putInt("InputStars", inputStars);
         tag.putString("WortDrink", wortDrink);
         if (inputMark != null) {
-            BrewerMark.CODEC.encodeStart(NbtOps.INSTANCE, inputMark).ifSuccess(mark -> tag.put("InputBrewer", mark));
+            BrewerMark.CODEC.encodeStart(NbtOps.INSTANCE, inputMark).result().ifPresent(mark -> tag.put("InputBrewer", mark));
         }
         tag.putInt("Progress", progressTicks);
-        tag.put("Output", output.serializeNBT(registries));
+        tag.put("Output", output.serializeNBT());
     }
 
     @Override
-    protected void read(CompoundTag tag, HolderLookup.Provider registries, boolean clientPacket) {
-        super.read(tag, registries, clientPacket);
+    protected void read(CompoundTag tag, boolean clientPacket) {
+        super.read(tag, clientPacket);
         wortAmount = tag.getInt("Wort");
         inputStars = tag.contains("InputStars") ? tag.getInt("InputStars") : DrinkData.MAX_STARS;
         wortDrink = tag.contains("WortDrink") ? tag.getString("WortDrink") : DrinkProfile.BEER.id();
@@ -288,7 +317,7 @@ public class DistilleryBlockEntity extends KineticBlockEntity {
                 : null;
         progressTicks = tag.getInt("Progress");
         if (tag.contains("Output")) {
-            output.deserializeNBT(registries, tag.getCompound("Output"));
+            output.deserializeNBT(tag.getCompound("Output"));
         }
     }
 }

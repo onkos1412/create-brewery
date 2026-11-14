@@ -2,7 +2,7 @@ package com.kostya.createbrewery.block;
 
 import com.kostya.createbrewery.BrewerMark;
 import com.kostya.createbrewery.keg.KegRules;
-import com.kostya.createbrewery.registry.ModDataComponents;
+import com.kostya.createbrewery.DrinkData;
 import com.kostya.createbrewery.registry.ModItems;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -10,7 +10,7 @@ import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.Containers;
 import net.minecraft.world.InteractionHand;
-import net.minecraft.world.ItemInteractionResult;
+import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.ItemUtils;
@@ -60,7 +60,7 @@ public class KegBlock extends Block implements EntityBlock {
     }
 
     @Override
-    protected VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
+    public VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
         return state.getValue(FACING).getAxis() == Direction.Axis.Z ? ALONG_Z : ALONG_X;
     }
 
@@ -70,57 +70,59 @@ public class KegBlock extends Block implements EntityBlock {
         return new KegBlockEntity(pos, state);
     }
 
+    /** 1.21.1's {@code PASS_TO_DEFAULT_BLOCK_INTERACTION} is {@code PASS} here, so the held item's own use runs. */
     @Override
-    protected ItemInteractionResult useItemOn(ItemStack stack, BlockState state, Level level, BlockPos pos,
-                                              Player player, InteractionHand hand, BlockHitResult hit) {
+    public InteractionResult use(BlockState state, Level level, BlockPos pos, Player player, InteractionHand hand,
+                                 BlockHitResult hit) {
+        ItemStack stack = player.getItemInHand(hand);
         if (stack.is(ModItems.MUG.get())) {
             return pourMug(stack, level, pos, player, hand);
         }
         if (!stack.is(ModItems.DRINK_BOTTLE.get())) {
-            return ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
+            return InteractionResult.PASS;
         }
         if (!(level.getBlockEntity(pos) instanceof KegBlockEntity keg) || !keg.accepts(stack)) {
-            return ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
+            return InteractionResult.PASS;
         }
         if (level.isClientSide()) {
-            return ItemInteractionResult.SUCCESS;
+            return InteractionResult.SUCCESS;
         }
         if (!keg.pourIn(stack, false)) {
-            return ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
+            return InteractionResult.PASS;
         }
         // Like filling a cauldron: the bottle comes back empty, and a creative player keeps theirs.
         player.setItemInHand(hand, ItemUtils.createFilledResult(stack, player, new ItemStack(Items.GLASS_BOTTLE)));
         level.playSound(null, pos, SoundEvents.BOTTLE_EMPTY, SoundSource.BLOCKS, 1.0f, 1.0f);
-        return ItemInteractionResult.SUCCESS;
+        return InteractionResult.SUCCESS;
     }
 
     /** An empty mug takes one portion: a mug of the same drink, quality and signature included. */
-    private static ItemInteractionResult pourMug(ItemStack mug, Level level, BlockPos pos, Player player,
+    private static InteractionResult pourMug(ItemStack mug, Level level, BlockPos pos, Player player,
                                                  InteractionHand hand) {
         if (!(level.getBlockEntity(pos) instanceof KegBlockEntity keg) || keg.getPortions() <= 0) {
-            return ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
+            return InteractionResult.PASS;
         }
         if (level.isClientSide()) {
-            return ItemInteractionResult.SUCCESS;
+            return InteractionResult.SUCCESS;
         }
         ItemStack poured = keg.pourOut();
         if (poured.isEmpty()) {
-            return ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
+            return InteractionResult.PASS;
         }
         ItemStack filled = new ItemStack(ModItems.DRINK_MUG.get());
-        filled.set(ModDataComponents.DRINK_DATA.get(), poured.get(ModDataComponents.DRINK_DATA.get()));
-        BrewerMark mark = poured.get(ModDataComponents.BREWER.get());
+        DrinkData.set(filled, DrinkData.get(poured));
+        BrewerMark mark = BrewerMark.get(poured);
         if (mark != null) {
-            filled.set(ModDataComponents.BREWER.get(), mark);
+            BrewerMark.set(filled, mark);
         }
         player.setItemInHand(hand, ItemUtils.createFilledResult(mug, player, filled, false));
         level.playSound(null, pos, SoundEvents.BOTTLE_FILL, SoundSource.BLOCKS, 1.0f, 1.0f);
-        return ItemInteractionResult.SUCCESS;
+        return InteractionResult.SUCCESS;
     }
 
     /** A broken keg spills its portions as bottles, and the empty glass it kept. */
     @Override
-    protected void onRemove(BlockState state, Level level, BlockPos pos, BlockState newState, boolean movedByPiston) {
+    public void onRemove(BlockState state, Level level, BlockPos pos, BlockState newState, boolean movedByPiston) {
         if (!state.is(newState.getBlock()) && level.getBlockEntity(pos) instanceof KegBlockEntity keg) {
             Containers.dropItemStack(level, pos.getX(), pos.getY(), pos.getZ(),
                     keg.getDrink().copyWithCount(keg.getPortions()));
@@ -128,10 +130,5 @@ public class KegBlock extends Block implements EntityBlock {
                     new ItemStack(Items.GLASS_BOTTLE, keg.getEmpties()));
         }
         super.onRemove(state, level, pos, newState, movedByPiston);
-    }
-
-    @Override
-    protected com.mojang.serialization.MapCodec<? extends Block> codec() {
-        return simpleCodec(KegBlock::new);
     }
 }

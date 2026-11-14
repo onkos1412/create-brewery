@@ -2,17 +2,14 @@ package com.kostya.createbrewery.block;
 
 import com.kostya.createbrewery.BrewerMark;
 import com.kostya.createbrewery.DrinkData;
-import com.kostya.createbrewery.journal.BreweryJournalData;
-import com.kostya.createbrewery.journal.KettleRecord;
 import com.kostya.createbrewery.recipe.BrewingRecipe;
 import com.kostya.createbrewery.recipe.DrinkProfile;
 import com.kostya.createbrewery.recipe.MixRules;
 import com.kostya.createbrewery.recipe.ModRecipeTypes;
-import com.kostya.createbrewery.registry.ModDataComponents;
 import com.kostya.createbrewery.registry.ModFluids;
 import com.simibubi.create.content.processing.burner.BlazeBurnerBlock;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.HolderLookup;
+import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
@@ -24,16 +21,19 @@ import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.game.ClientGamePacketListener;
 import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.crafting.RecipeHolder;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.material.Fluids;
-import net.neoforged.neoforge.fluids.FluidStack;
-import net.neoforged.neoforge.fluids.capability.IFluidHandler;
-import net.neoforged.neoforge.items.ItemStackHandler;
+import net.minecraftforge.common.capabilities.Capability;
+import net.minecraftforge.common.capabilities.ForgeCapabilities;
+import net.minecraftforge.common.util.LazyOptional;
+import net.minecraftforge.fluids.FluidStack;
+import net.minecraftforge.fluids.capability.IFluidHandler;
+import net.minecraftforge.items.ItemStackHandler;
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
@@ -78,7 +78,7 @@ public class KettleBlockEntity extends BlockEntity {
         }
 
         @Override
-        public FluidStack getFluidInTank(int tank) {
+        public @NotNull FluidStack getFluidInTank(int tank) {
             if (tank == 0) {
                 return waterAmount > 0 ? new FluidStack(Fluids.WATER, waterAmount) : FluidStack.EMPTY;
             }
@@ -92,12 +92,12 @@ public class KettleBlockEntity extends BlockEntity {
 
         @Override
         public boolean isFluidValid(int tank, FluidStack stack) {
-            return tank == 0 && stack.is(Fluids.WATER);
+            return tank == 0 && stack.getFluid().isSame(Fluids.WATER);
         }
 
         @Override
         public int fill(FluidStack resource, FluidAction action) {
-            if (!resource.is(Fluids.WATER)) {
+            if (!resource.getFluid().isSame(Fluids.WATER)) {
                 return 0;
             }
             return action.execute()
@@ -107,7 +107,7 @@ public class KettleBlockEntity extends BlockEntity {
 
         @Override
         public FluidStack drain(FluidStack resource, FluidAction action) {
-            return resource.is(ModFluids.WORT.get()) ? drain(resource.getAmount(), action) : FluidStack.EMPTY;
+            return resource.getFluid().isSame(ModFluids.WORT.get()) ? drain(resource.getAmount(), action) : FluidStack.EMPTY;
         }
 
         @Override
@@ -119,6 +119,9 @@ public class KettleBlockEntity extends BlockEntity {
             return drained > 0 ? wortStack(drained, stars, wortDrink, mark) : FluidStack.EMPTY;
         }
     };
+
+    private final LazyOptional<IFluidHandler> fluidCapability = LazyOptional.of(() -> fluidHandler);
+    private final LazyOptional<ItemStackHandler> itemCapability = LazyOptional.of(() -> input);
 
     private int waterAmount;
     private int wortAmount;
@@ -190,9 +193,9 @@ public class KettleBlockEntity extends BlockEntity {
     /** Wort carries its quality, drink and brewer on the stack, so they survive Create's pipes. */
     public static FluidStack wortStack(int amount, int stars, String drink, @Nullable BrewerMark mark) {
         FluidStack stack = new FluidStack(ModFluids.WORT.get(), amount);
-        stack.set(ModDataComponents.DRINK_DATA.get(), new DrinkData(stars, 0, drink));
+        DrinkData.set(stack, new DrinkData(stars, 0, drink));
         if (mark != null) {
-            stack.set(ModDataComponents.BREWER.get(), mark);
+            BrewerMark.set(stack, mark);
         }
         return stack;
     }
@@ -237,9 +240,28 @@ public class KettleBlockEntity extends BlockEntity {
         return waterAmount > 0 ? WATER_COLOR : EMPTY_COLOR;
     }
 
+    /** Pipes and funnels reach the tanks and the ingredient slots from every side. */
     @Override
-    public CompoundTag getUpdateTag(HolderLookup.Provider registries) {
-        return saveWithoutMetadata(registries);
+    public <T> @NotNull LazyOptional<T> getCapability(@NotNull Capability<T> cap, @Nullable Direction side) {
+        if (cap == ForgeCapabilities.FLUID_HANDLER) {
+            return fluidCapability.cast();
+        }
+        if (cap == ForgeCapabilities.ITEM_HANDLER) {
+            return itemCapability.cast();
+        }
+        return super.getCapability(cap, side);
+    }
+
+    @Override
+    public void invalidateCaps() {
+        super.invalidateCaps();
+        fluidCapability.invalidate();
+        itemCapability.invalidate();
+    }
+
+    @Override
+    public CompoundTag getUpdateTag() {
+        return saveWithoutMetadata();
     }
 
     @Override
@@ -249,8 +271,8 @@ public class KettleBlockEntity extends BlockEntity {
 
     /** A client just learned what is inside: the surface was baked with the old colour. */
     @Override
-    public void onDataPacket(Connection connection, ClientboundBlockEntityDataPacket packet, HolderLookup.Provider registries) {
-        super.onDataPacket(connection, packet, registries);
+    public void onDataPacket(Connection connection, ClientboundBlockEntityDataPacket packet) {
+        super.onDataPacket(connection, packet);
         if (level != null) {
             level.sendBlockUpdated(worldPosition, getBlockState(), getBlockState(), Block.UPDATE_IMMEDIATE);
         }
@@ -387,10 +409,11 @@ public class KettleBlockEntity extends BlockEntity {
                     : new BrewerMark(ownerName, BrewerMark.dayOf(level.getDayTime()), Optional.ofNullable(ownerId));
         }
         // The owner's book keeps this brew's own result, not the tank's weakest.
-        if (ownerId != null && !DrinkProfile.MUDDY.id().equals(brew.drink()) && level.getServer() != null) {
-            BreweryJournalData.get(level.getServer()).recordKettle(ownerId, brew.drink(),
-                    new KettleRecord(KettleRecord.mixOf(contents), heatLevel, stars));
-        }
+        // PORT: Task 5 - the journal comes back with the brewer's book:
+        // if (ownerId != null && !DrinkProfile.MUDDY.id().equals(brew.drink()) && level.getServer() != null) {
+        //     BreweryJournalData.get(level.getServer()).recordKettle(ownerId, brew.drink(),
+        //             new KettleRecord(KettleRecord.mixOf(contents), heatLevel, stars));
+        // }
         wortDrink = brew.drink();
         waterAmount -= brew.amount();
         wortAmount += brew.amount();
@@ -410,17 +433,17 @@ public class KettleBlockEntity extends BlockEntity {
 
     /** Brews the mix by the recipe it resembles most, or into muddy brew when it resembles none. */
     private Brew chooseBrew(List<String> mix) {
-        List<RecipeHolder<BrewingRecipe>> recipes = level.getRecipeManager().getAllRecipesFor(ModRecipeTypes.BREWING.get());
+        List<BrewingRecipe> recipes = level.getRecipeManager().getAllRecipesFor(ModRecipeTypes.BREWING.get());
         List<MixRules.Candidate> candidates = recipes.stream()
-                .map(holder -> new MixRules.Candidate(holder.id().toString(), holder.value().inputs(),
-                        holder.value().idealHeatLevel()))
+                .map(recipe -> new MixRules.Candidate(recipe.getId().toString(), recipe.inputs(),
+                        recipe.idealHeatLevel()))
                 .toList();
         MixRules.Choice choice = MixRules.best(candidates, mix, heatLevel);
         if (choice.index() < 0) {
             return new Brew(DrinkProfile.MUDDY.id(), null, choice.score());
         }
-        RecipeHolder<BrewingRecipe> holder = recipes.get(choice.index());
-        return new Brew(holder.id().toString(), holder.value(), choice.score());
+        BrewingRecipe recipe = recipes.get(choice.index());
+        return new Brew(recipe.getId().toString(), recipe, choice.score());
     }
 
     /**
@@ -484,15 +507,15 @@ public class KettleBlockEntity extends BlockEntity {
     // ---- persistence ---------------------------------------------------------------
 
     @Override
-    protected void saveAdditional(CompoundTag tag, HolderLookup.Provider registries) {
-        super.saveAdditional(tag, registries);
-        tag.put("Input", input.serializeNBT(registries));
+    protected void saveAdditional(CompoundTag tag) {
+        super.saveAdditional(tag);
+        tag.put("Input", input.serializeNBT());
         tag.putInt("Water", waterAmount);
         tag.putInt("Wort", wortAmount);
         tag.putInt("WortStars", wortStars);
         tag.putString("WortDrink", wortDrink);
         if (wortMark != null) {
-            BrewerMark.CODEC.encodeStart(NbtOps.INSTANCE, wortMark).ifSuccess(mark -> tag.put("WortBrewer", mark));
+            BrewerMark.CODEC.encodeStart(NbtOps.INSTANCE, wortMark).result().ifPresent(mark -> tag.put("WortBrewer", mark));
         }
         if (ownerId != null) {
             tag.putUUID("OwnerId", ownerId);
@@ -506,10 +529,10 @@ public class KettleBlockEntity extends BlockEntity {
     }
 
     @Override
-    protected void loadAdditional(CompoundTag tag, HolderLookup.Provider registries) {
-        super.loadAdditional(tag, registries);
+    public void load(CompoundTag tag) {
+        super.load(tag);
         if (tag.contains("Input")) {
-            input.deserializeNBT(registries, tag.getCompound("Input"));
+            input.deserializeNBT(tag.getCompound("Input"));
         }
         waterAmount = tag.getInt("Water");
         wortAmount = tag.getInt("Wort");

@@ -3,6 +3,8 @@ package com.kostya.createbrewery.block;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.MenuProvider;
 import net.minecraft.world.SimpleMenuProvider;
@@ -25,6 +27,7 @@ import net.minecraft.world.level.block.state.properties.DirectionProperty;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.VoxelShape;
+import net.minecraftforge.network.NetworkHooks;
 import org.jetbrains.annotations.Nullable;
 
 /**
@@ -75,24 +78,19 @@ public class BarrelBlock extends BaseEntityBlock {
     }
 
     @Override
-    protected BlockState updateShape(BlockState state, Direction direction, BlockState neighbour, LevelAccessor level,
+    public BlockState updateShape(BlockState state, Direction direction, BlockState neighbour, LevelAccessor level,
                                      BlockPos pos, BlockPos neighbourPos) {
         return direction.getAxis() == state.getValue(FACING).getAxis() ? connected(state, level, pos) : state;
     }
 
     @Override
-    protected VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
+    public VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
         return SHAPE;
     }
 
     @Override
-    protected RenderShape getRenderShape(BlockState state) {
+    public RenderShape getRenderShape(BlockState state) {
         return RenderShape.MODEL;
-    }
-
-    @Override
-    protected com.mojang.serialization.MapCodec<? extends BaseEntityBlock> codec() {
-        return simpleCodec(BarrelBlock::new);
     }
 
     @Nullable
@@ -116,17 +114,17 @@ public class BarrelBlock extends BaseEntityBlock {
     }
 
     @Override
-    protected InteractionResult useWithoutItem(BlockState state, Level level, BlockPos pos,
-                                                Player player, BlockHitResult hit) {
-        if (!level.isClientSide() && level.getBlockEntity(pos) instanceof BarrelBlockEntity barrel) {
+    public InteractionResult use(BlockState state, Level level, BlockPos pos, Player player, InteractionHand hand,
+                                 BlockHitResult hit) {
+        if (player instanceof ServerPlayer serverPlayer && level.getBlockEntity(pos) instanceof BarrelBlockEntity barrel) {
             BarrelBlockEntity root = barrel.root();
-            player.openMenu(menuProvider(root), root.getBlockPos());
+            NetworkHooks.openScreen(serverPlayer, menuProvider(root), root.getBlockPos());
         }
         return InteractionResult.sidedSuccess(level.isClientSide());
     }
 
     @Override
-    protected void onPlace(BlockState state, Level level, BlockPos pos, BlockState oldState, boolean movedByPiston) {
+    public void onPlace(BlockState state, Level level, BlockPos pos, BlockState oldState, boolean movedByPiston) {
         super.onPlace(state, level, pos, oldState, movedByPiston);
         if (!state.is(oldState.getBlock())) {
             BarrelBlockEntity.regroupAround(level, pos, state.getValue(FACING));
@@ -134,7 +132,7 @@ public class BarrelBlock extends BaseEntityBlock {
     }
 
     @Override
-    protected void onRemove(BlockState state, Level level, BlockPos pos, BlockState newState, boolean movedByPiston) {
+    public void onRemove(BlockState state, Level level, BlockPos pos, BlockState newState, boolean movedByPiston) {
         if (!state.is(newState.getBlock()) && level.getBlockEntity(pos) instanceof BarrelBlockEntity barrel) {
             barrel.leaveGroup(state.getValue(FACING));
             ModCapabilities.dropContents(level, pos, barrel.getInput(), barrel.getOutput(), barrel.getBottles());

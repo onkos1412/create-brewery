@@ -2,6 +2,7 @@ package com.kostya.createbrewery.registry;
 
 import com.kostya.createbrewery.CreateBrewery;
 import com.kostya.createbrewery.DrinkData;
+import com.kostya.createbrewery.block.ModBlocks;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.CreativeModeTab;
@@ -42,12 +43,11 @@ public final class ModCreativeTabs {
                     .title(Component.translatable("itemGroup.brewery"))
                     .icon(() -> new ItemStack(ModItems.DRINK_BOTTLE.get()))
                     .displayItems((parameters, output) -> {
-                        // PORT: Task 3 - the machines' block items go first, as on 1.21.1:
-                        // output.accept(ModBlocks.KETTLE_ITEM.get());
-                        // output.accept(ModBlocks.SPOUT_ITEM.get());
-                        // output.accept(ModBlocks.DISTILLERY_ITEM.get());
-                        // output.accept(ModBlocks.BARREL_ITEM.get());
-                        // output.accept(ModBlocks.KEG_ITEM.get());
+                        output.accept(ModBlocks.KETTLE_ITEM.get());
+                        output.accept(ModBlocks.SPOUT_ITEM.get());
+                        output.accept(ModBlocks.DISTILLERY_ITEM.get());
+                        output.accept(ModBlocks.BARREL_ITEM.get());
+                        output.accept(ModBlocks.KEG_ITEM.get());
                         output.accept(ModItems.DISTILLATE.get());
                         output.accept(ModItems.MUG.get());
                         output.accept(ModItems.BREWER_BOOK.get());
