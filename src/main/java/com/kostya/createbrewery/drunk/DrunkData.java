@@ -1,26 +1,16 @@
 package com.kostya.createbrewery.drunk;
 
-import com.kostya.createbrewery.CreateBrewery;
-import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.Vec3;
-import net.minecraftforge.common.capabilities.AutoRegisterCapability;
-import net.minecraftforge.common.capabilities.Capability;
-import net.minecraftforge.common.capabilities.CapabilityManager;
-import net.minecraftforge.common.capabilities.CapabilityToken;
-import net.minecraftforge.common.capabilities.ICapabilitySerializable;
-import net.minecraftforge.common.util.LazyOptional;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 
 import java.util.Optional;
 
 /**
- * A player's drunk state, attached to every player as a Forge capability.
+ * A player's drunk state, held by every player (a field added by {@code PlayerMixin}; Forge attached it as a
+ * capability).
  *
- * <p>1.21.1 kept these values in five NeoForge data attachments; this one capability holds them all
+ * <p>1.21.1 kept these values in five NeoForge data attachments; this one object holds them all
  * and keeps the same persistence:
  * <ul>
  *     <li>{@code drunk_level}, {@code knockout_ticks}: saved, and synced to the owning client
@@ -30,16 +20,15 @@ import java.util.Optional;
  * </ul>
  * None of them was {@code copyOnDeath}, so a respawned player starts from defaults, while a clone
  * that is not a death (leaving the End) carries over the saved values (see
- * {@link DrunkEvents#onClone}), as NeoForge does for serializable attachments.
+ * {@link DrunkEvents#onCopyFrom}), as NeoForge does for serializable attachments.
+ *
+ * <p>The saved values live in the player's NBT under {@link #NBT_KEY} (Forge kept them under {@code ForgeCaps}
+ * with the same id; loader saves are not shared).
  */
-@AutoRegisterCapability
 public final class DrunkData {
 
-    public static final Capability<DrunkData> CAPABILITY = CapabilityManager.get(new CapabilityToken<>() {
-    });
-
-    /** Where the capability is attached; the saved values live under {@code ForgeCaps} with this key. */
-    public static final ResourceLocation ID = CreateBrewery.id("drunk");
+    /** The key in the player's saved data that holds {@link #save()}. */
+    public static final String NBT_KEY = "brewery:drunk";
 
     private static final String LEVEL_KEY = "drunk_level";
     private static final String KNOCKOUT_KEY = "knockout_ticks";
@@ -59,12 +48,9 @@ public final class DrunkData {
     private int syncedLevel = -1;
     private int syncedKnockoutTicks = -1;
 
-    /**
-     * The player's drunk data. A player whose capabilities are gone (removed after death) reads as a
-     * fresh, sober player, as an absent attachment did; writes to it are dropped.
-     */
+    /** The player's drunk data, which every player carries from creation (see {@link Holder}). */
     public static DrunkData of(Player player) {
-        return player.getCapability(CAPABILITY).orElseGet(DrunkData::new);
+        return ((Holder) player).brewery$drunkData();
     }
 
     public DrunkLevel level() {
@@ -133,24 +119,8 @@ public final class DrunkData {
         load(other.save());
     }
 
-    /** Attaches one {@link DrunkData} to a player and saves it with the player. */
-    static final class Provider implements ICapabilitySerializable<CompoundTag> {
-        private final DrunkData data = new DrunkData();
-        private final LazyOptional<DrunkData> optional = LazyOptional.of(() -> data);
-
-        @Override
-        public @NotNull <T> LazyOptional<T> getCapability(@NotNull Capability<T> cap, @Nullable Direction side) {
-            return CAPABILITY.orEmpty(cap, optional);
-        }
-
-        @Override
-        public CompoundTag serializeNBT() {
-            return data.save();
-        }
-
-        @Override
-        public void deserializeNBT(CompoundTag tag) {
-            data.load(tag);
-        }
+    /** Implemented by every {@link Player} through {@code PlayerMixin}: the player's own drunk data. */
+    public interface Holder {
+        DrunkData brewery$drunkData();
     }
 }

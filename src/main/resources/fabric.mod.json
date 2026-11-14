@@ -19,6 +19,9 @@
     "main": [
       "com.kostya.createbrewery.CreateBrewery"
     ],
+    "client": [
+      "com.kostya.createbrewery.client.CreateBreweryClient"
+    ],
     "server": [
       "com.kostya.createbrewery.gametest.GameTestNamespaces"
     ],

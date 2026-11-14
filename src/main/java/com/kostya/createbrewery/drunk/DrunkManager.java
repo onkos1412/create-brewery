@@ -3,7 +3,6 @@ package com.kostya.createbrewery.drunk;
 import com.kostya.createbrewery.advancement.BreweryAdvancements;
 import com.kostya.createbrewery.config.BreweryConfig;
 import com.kostya.createbrewery.network.DrunkSyncPacket;
-import com.kostya.createbrewery.network.ModNetwork;
 import net.minecraft.core.particles.ItemParticleOption;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.network.chat.Component;
@@ -23,7 +22,7 @@ import net.minecraft.world.phys.Vec3;
 import java.util.Optional;
 
 /**
- * Read/write access to a player's drunk level, hiding the capability plumbing ({@link DrunkData}).
+ * Read/write access to a player's drunk level, hiding the per-player plumbing ({@link DrunkData}).
  */
 public final class DrunkManager {
 
@@ -218,8 +217,8 @@ public final class DrunkManager {
     }
 
     private static void markDirty(Player player) {
-        // 1.21.1 nudged the attachment holder here so NeoForge synced the new level; the capability is
-        // saved with the player anyway, so only the owning client needs telling.
+        // 1.21.1 nudged the attachment holder here so NeoForge synced the new level; the data is saved with
+        // the player anyway, so only the owning client needs telling.
         sync(player);
     }
 
@@ -236,7 +235,7 @@ public final class DrunkManager {
         if (player instanceof ServerPlayer serverPlayer && serverPlayer.connection != null) {
             DrunkData data = DrunkData.of(player);
             if (data.markSynced(force)) {
-                ModNetwork.sendTo(serverPlayer, new DrunkSyncPacket(data.level().get(), data.knockoutTicks()));
+                new DrunkSyncPacket(data.level().get(), data.knockoutTicks()).sendTo(serverPlayer);
             }
         }
     }

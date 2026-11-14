@@ -1,11 +1,9 @@
 package com.kostya.createbrewery.drunk;
 
-import com.kostya.createbrewery.CreateBrewery;
+import io.github.fabricators_of_create.porting_lib.event.client.CameraSetupCallback;
+import net.fabricmc.api.EnvType;
+import net.fabricmc.api.Environment;
 import net.minecraft.client.Minecraft;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.client.event.ViewportEvent;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
-import net.minecraftforge.fml.common.Mod;
 
 /**
  * Client-side drunk visuals: the camera rolls and drifts while the player is drunk,
@@ -14,27 +12,33 @@ import net.minecraftforge.fml.common.Mod;
  * <p>The sway is driven by the level's continuous game time in seconds, not by the
  * per-tick partial tick, so it moves smoothly instead of jittering in place.
  *
- * <p>Client only: nothing in common code names this class.
+ * <p>Client only: registered from the client entrypoint, and nothing in common code names this class. Forge's
+ * {@code ViewportEvent.ComputeCameraAngles} is Porting Lib's {@link CameraSetupCallback}.
  */
-@Mod.EventBusSubscriber(modid = CreateBrewery.MOD_ID, value = Dist.CLIENT)
+@Environment(EnvType.CLIENT)
 public final class DrunkScreenEffect {
 
     private DrunkScreenEffect() {
     }
 
-    @SubscribeEvent
-    public static void onComputeCameraAngles(ViewportEvent.ComputeCameraAngles event) {
+    public static void register() {
+        CameraSetupCallback.EVENT.register(DrunkScreenEffect::onComputeCameraAngles);
+    }
+
+    private static boolean onComputeCameraAngles(CameraSetupCallback.CameraInfo info) {
         float strength = currentStrength();
         if (strength <= 0f) {
-            return;
+            return false;
         }
 
-        float seconds = currentTimeSeconds(event.getPartialTick());
+        float seconds = currentTimeSeconds(info.partialTicks);
         DrunkCamera.Angles angles = DrunkCamera.angles(seconds, strength);
 
-        event.setRoll(event.getRoll() + angles.roll());
-        event.setPitch(event.getPitch() + angles.pitch());
-        event.setYaw(event.getYaw() + angles.yaw());
+        info.roll += angles.roll();
+        info.pitch += angles.pitch();
+        info.yaw += angles.yaw();
+        // Other listeners still get their turn.
+        return false;
     }
 
     /** Continuous client time in seconds, advanced every frame. */

@@ -5,7 +5,9 @@
   "compatibilityLevel": "JAVA_17",
   "refmap": "brewery.refmap.json",
   "mixins": [
-    "GenericItemFillingMixin"
+    "GenericItemFillingMixin",
+    "LivingEntityMixin",
+    "PlayerMixin"
   ],
   "client": [],
   "injectors": {

@@ -4,6 +4,8 @@ import com.kostya.createbrewery.BrewerMark;
 import com.kostya.createbrewery.DrinkData;
 import com.kostya.createbrewery.advancement.BreweryAdvancements;
 import com.kostya.createbrewery.config.BreweryConfig;
+import com.kostya.createbrewery.drunk.DrunkManager;
+import com.kostya.createbrewery.drunk.HangoverRules;
 import com.kostya.createbrewery.recipe.BrewingRecipe;
 import com.kostya.createbrewery.recipe.DrinkEffect;
 import com.kostya.createbrewery.recipe.DrinkProfile;
@@ -91,15 +93,14 @@ public class DrinkItem extends Item implements DrinkData.Carrier {
                         BreweryAdvancements.award(serverPlayer, "toast", "toasted");
                     }
                 }
-                // PORT(Task 4): drunkenness comes back with drunk/DrunkManager:
-                // // Alcohol is stored on the product, while quality remains a separate value.
-                // int drunk = data.alcohol() / 5;
-                // DrunkManager.addDrunk(player, drunk);
-                // // A drink too weak to raise the drunk level builds no debt either.
-                // if (drunk > 0) {
-                //     DrunkManager.addHangoverDebt(player, ToastRules.hangoverDebt(
-                //             HangoverRules.debtFor(data.alcohol(), data.stars(), spoiledOrMuddy), toastBonus));
-                // }
+                // Alcohol is stored on the product, while quality remains a separate value.
+                int drunk = data.alcohol() / 5;
+                DrunkManager.addDrunk(player, drunk);
+                // A drink too weak to raise the drunk level builds no debt either.
+                if (drunk > 0) {
+                    DrunkManager.addHangoverDebt(player, ToastRules.hangoverDebt(
+                            HangoverRules.debtFor(data.alcohol(), data.stars(), spoiledOrMuddy), toastBonus));
+                }
                 if (data.isSpoiled()) {
                     player.addEffect(new MobEffectInstance(MobEffects.CONFUSION, 400));
                     player.addEffect(new MobEffectInstance(MobEffects.POISON, 300));

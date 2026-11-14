@@ -4,6 +4,7 @@ import com.kostya.createbrewery.block.ModBlocks;
 import com.kostya.createbrewery.block.ModCapabilities;
 import com.kostya.createbrewery.block.ModMenus;
 import com.kostya.createbrewery.config.BreweryConfig;
+import com.kostya.createbrewery.drunk.DrunkEvents;
 import com.kostya.createbrewery.recipe.BrewingRecipeSerializer;
 import com.kostya.createbrewery.recipe.ModRecipeTypes;
 import com.kostya.createbrewery.registry.ModCreativeTabs;
@@ -43,6 +44,9 @@ public class CreateBrewery implements ModInitializer {
         ModMenus.register();
         // The machines' Transfer API storages (Forge's capabilities) and the distillery's stress impact.
         ModCapabilities.register();
+        // 1.21.1's ModAttachments are gone: every player carries its DrunkData (PlayerMixin), and the drunk
+        // gameplay (sobering, clone rules, client sync, slurred chat, blackout) hooks Fabric API callbacks here.
+        DrunkEvents.register();
         loadMixinTargets();
         // brewery-server.toml, as on Forge: Forge Config API Port ships with Create Fabric.
         ForgeConfigRegistry.INSTANCE.register(MOD_ID, ModConfig.Type.SERVER, BreweryConfig.SPEC);
