@@ -13,6 +13,9 @@ import sys
 
 from PIL import Image, ImageDraw
 
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+import vessels  # noqa: E402  (the drink, mug and book sprites)
+
 ROOT = pathlib.Path(__file__).resolve().parent.parent / "src/main/resources/assets/brewery"
 BLOCK = ROOT / "textures/block"
 ITEM = ROOT / "textures/item"
@@ -97,119 +100,18 @@ def write_keg_textures():
     save(drink, BLOCK, "keg_liquid")
 
 
-def bottle(glass, liquid, label, shoulders):
-    """A 16x16 item sprite. `shoulders` makes the squarer whiskey bottle."""
-    outline = rgb("#1d1a18")
-    img = tex()
-    p = img.putpixel
-    # Neck and stopper.
-    for y in range(1, 5):
-        for x in (7, 8):
-            p((x, y), rgb(glass))
-        p((6, y), outline)
-        p((9, y), outline)
-    for x in (6, 7, 8, 9):
-        p((x, 0), rgb(OAK[3]))
-    p((7, 1), rgb(OAK[4]))
-    p((8, 1), rgb(OAK[2]))
-    half = 4 if shoulders else 3
-    start = 6 if shoulders else 7
-    # Shoulder.
-    for x in range(8 - half, 8 + half):
-        p((x, start - 1), outline)
-    p((7, 5), rgb(glass))
-    p((8, 5), rgb(glass))
-    # Body.
-    for y in range(start, 15):
-        p((8 - half - 1, y), outline)
-        p((8 + half, y), outline)
-        for x in range(8 - half, 8 + half):
-            column = x - (8 - half)
-            color = liquid[0] if column == 0 else liquid[2] if column >= 2 * half - 2 else liquid[1]
-            p((x, y), rgb(color))
-    for x in range(8 - half, 8 + half):
-        p((x, 15), outline)
-        p((x, start), rgb(glass))
-    # Glass glint.
-    for y in range(start + 1, 11):
-        p((8 - half, y), rgb("#fff4d8", 255))
-    # Label.
-    if label:
-        for y in range(10, 14):
-            for x in range(8 - half + 1, 8 + half - 1):
-                p((x, y), rgb(label[0]))
-        for x in range(8 - half + 1, 8 + half - 1):
-            p((x, 10), rgb(label[1]))
-            p((x, 13), rgb(label[1]))
-    return img
-
-
 def write_item_textures():
-    amber = ["#d98f20", "#b86f14", "#8c4f0c"]
-    save(bottle("#8c6a3c", ["#a56f24", "#7d4f18", "#5c3810"], ("#e8dcc0", "#b02a20"), False), ITEM, "beer_bottle")
-    save(bottle("#c9b48c", amber, ("#1d2a3a", "#efcf6a"), True), ITEM, "whiskey_bottle")
-    save(bottle("#a9b878", ["#d8d066", "#b8ae48", "#8f8834"], ("#e8dcc0", "#3f7a30"), False), ITEM, "cider_bottle")
-    save(bottle("#b5a98c", ["#cdbb8a", "#a8966a", "#857550"], None, False), ITEM, "mash_bottle")
-    save(bottle("#c9a070", ["#c9702a", "#a4551c", "#7c3e12"], ("#2a4a26", "#efcf6a"), True), ITEM, "calvados_bottle")
-    save(bottle("#dfe9ee", ["#f4f9fb", "#e2eef3", "#c4d6de"], ("#b02a20", "#f4f0e4"), True), ITEM, "vodka_bottle")
-    save(bottle("#8c5a3c", ["#7a3a18", "#5c2a10", "#3f1c0a"], ("#e8dcc0", "#1d1a18"), True), ITEM, "rum_bottle")
-    save(bottle("#7a4a5a", ["#9c2440", "#7a1a30", "#5a1022"], ("#f0e8d8", "#7a1a30"), False), ITEM, "wine_bottle")
-    save(bottle("#d8b870", ["#f2c84a", "#d8a830", "#b08820"], ("#3a2a14", "#f2c84a"), False), ITEM, "mead_bottle")
-    save(bottle("#6a7040", ["#7a8a30", "#5c6a20", "#3f4a14"], None, False), ITEM, "spoiled_bottle")
-    save(bottle("#7a4a2a", ["#8a4a20", "#6b3a1a", "#4c2810"], ("#e8dcc0", "#6b3a1a"), False), ITEM, "kvass_bottle")
-    save(bottle("#2a2018", ["#3e2514", "#2e1a0e", "#1c0f06"], ("#e8dcc0", "#2e1a0e"), False), ITEM, "stout_bottle")
-    save(bottle("#d8c88a", ["#ecd88a", "#d4b865", "#a88f45"], ("#2a4a26", "#efcf6a"), True), ITEM, "tequila_bottle")
-    save(bottle("#a8c878", ["#9fd05a", "#7fa83a", "#5a8024"], ("#1d2a1a", "#d8e8a0"), True), ITEM, "absinthe_bottle")
-    save(bottle("#c9a050", ["#f6c040", "#f0a830", "#c07c1c"], ("#2a1a3a", "#f6e070"), True), ITEM, "firefly_bottle")
-    save(bottle("#dfe9e6", ["#f3e7c0", "#e6d49a", "#cbb676"], None, True), ITEM, "distillate")
-    save(brewer_book(), ITEM, "brewer_book")
+    # Every drink has its own vessel; see tools/vessels.py.
+    for name, sprite in vessels.drinks().items():
+        save(sprite, ITEM, name)
+    save(vessels.book(), ITEM, "brewer_book")
     write_mug_textures()
 
 
-def mug_body():
-    """A wooden mug with a handle on the right; the dark band under the rim is where the drink shows."""
-    outline = rgb("#1d1a18")
-    img = tex()
-    p = img.putpixel
-    for y in range(4, 15):
-        for x in range(3, 11):
-            p((x, y), rgb(OAK[3] if x < 5 else OAK[2] if x < 9 else OAK[1]))
-    for y in (6, 12):
-        for x in range(3, 11):
-            p((x, y), rgb(IRON[3]))
-    for x in range(3, 11):
-        p((x, 4), rgb("#2a1a0c"))
-        p((x, 5), rgb("#2a1a0c"))
-    for y in range(3, 16):
-        p((2, y), outline)
-        p((11, y), outline)
-    for x in range(2, 12):
-        p((x, 3), outline)
-        p((x, 15), outline)
-    # Handle.
-    for y in range(6, 12):
-        p((13, y), outline)
-    for x in (12, 13):
-        p((x, 6), outline)
-        p((x, 11), outline)
-    for y in range(7, 11):
-        p((12, y), rgb(OAK[4]))
-    return img
-
-
-def mug_liquid():
-    """The drink in the mug, in grey so the item colour handler can tint it."""
-    img = tex()
-    for y, shade in ((4, "#ffffff"), (5, "#c8c8c8")):
-        for x in range(3, 11):
-            img.putpixel((x, y), rgb(shade))
-    return img
-
-
 def write_mug_textures():
-    save(mug_body(), ITEM, "mug")
-    save(mug_body(), ITEM, "drink_mug")
-    save(mug_liquid(), ITEM, "drink_mug_liquid")
+    save(vessels.mug(), ITEM, "mug")
+    save(vessels.mug(), ITEM, "drink_mug")
+    save(vessels.mug_liquid(), ITEM, "drink_mug_liquid")
 
 EFFECT = ROOT / "textures/mob_effect"
 
@@ -256,60 +158,6 @@ def toast_icon():
 
 def write_effect_icons():
     save(toast_icon(), EFFECT, "toast")
-
-
-def brewer_book():
-    """A brown leather book seen from the front: spine on the left, page edges on the right, a brass clasp
-    and a small amber bottle tooled into the cover."""
-    outline = rgb("#1d1a18")
-    leather = ["#3a2010", "#5a3418", "#7a4a22", "#94602e"]
-    paper = ["#e8dcc0", "#cbb88f"]
-    img = tex()
-    p = img.putpixel
-    # Cover, lit from the top left.
-    for y in range(2, 14):
-        for x in range(3, 13):
-            shade = 3 if y == 2 or x == 3 else 1 if y == 13 or x == 12 else 2
-            p((x, y), rgb(leather[shade]))
-    # Spine, darker and banded.
-    for y in range(2, 14):
-        p((2, y), rgb(leather[0]))
-        p((3, y), rgb(leather[1]))
-    for y in (4, 11):
-        p((2, y), rgb(BRASS[2]))
-        p((3, y), rgb(BRASS[3]))
-    # Page edges peeking out at the fore-edge and the foot.
-    for y in range(2, 14):
-        p((13, y), rgb(paper[0] if y % 2 else paper[1]))
-    for x in range(4, 14):
-        p((x, 14), rgb(paper[1] if x % 2 else paper[0]))
-    # Outline.
-    for x in range(2, 14):
-        p((x, 1), outline)
-    for y in range(1, 15):
-        p((1, y), outline)
-        p((14, y), outline)
-    for x in range(1, 15):
-        p((x, 15), outline)
-    p((2, 14), outline)
-    p((3, 14), outline)
-    # Brass clasp across the fore-edge.
-    for x in (12, 13, 14):
-        p((x, 7), rgb(BRASS[4]))
-        p((x, 8), rgb(BRASS[2]))
-    p((11, 7), rgb(BRASS[5]))
-    p((11, 8), rgb(BRASS[3]))
-    # Amber bottle emblem.
-    amber = ["#f2b840", "#d98f20", "#8c4f0c"]
-    for y in (4, 5):
-        p((7, y), rgb(amber[0]))
-        p((8, y), rgb(amber[1]))
-    for y in range(6, 11):
-        for x in range(6, 10):
-            p((x, y), rgb(amber[0] if x == 6 else amber[2] if x == 9 else amber[1]))
-    p((7, 3), rgb(OAK[4]))
-    p((8, 3), rgb(OAK[3]))
-    return img
 
 
 # ---- models ------------------------------------------------------------------------
