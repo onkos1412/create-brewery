@@ -2,37 +2,84 @@ package com.kostya.createbrewery.drunk;
 
 import com.kostya.createbrewery.CreateBrewery;
 import net.minecraft.network.chat.Component;
-import net.minecraft.core.component.DataComponents;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
-import net.minecraft.world.item.alchemy.PotionContents;
+import net.minecraft.world.item.alchemy.PotionUtils;
 import net.minecraft.world.item.alchemy.Potions;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.ServerChatEvent;
-import net.neoforged.neoforge.event.entity.living.LivingDeathEvent;
-import net.neoforged.neoforge.event.entity.living.LivingEntityUseItemEvent;
-import net.neoforged.neoforge.event.entity.player.AttackEntityEvent;
-import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
-import net.neoforged.neoforge.event.tick.PlayerTickEvent;
+import net.minecraftforge.event.AttachCapabilitiesEvent;
+import net.minecraftforge.event.ServerChatEvent;
+import net.minecraftforge.event.TickEvent;
+import net.minecraftforge.event.entity.living.LivingDeathEvent;
+import net.minecraftforge.event.entity.living.LivingEntityUseItemEvent;
+import net.minecraftforge.event.entity.player.AttackEntityEvent;
+import net.minecraftforge.event.entity.player.PlayerEvent;
+import net.minecraftforge.event.entity.player.PlayerInteractEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod;
 
 import java.util.Random;
 
 /**
- * Gameplay events for the drunk system: sobering over time and resetting on death.
+ * Gameplay events for the drunk system: sobering over time and resetting on death. On 1.20.1 this also
+ * attaches the {@link DrunkData} capability, carries it over a clone that is not a death, and syncs it to
+ * the client when the client gets a new player, which NeoForge's attachments did on their own.
  */
-@EventBusSubscriber(modid = CreateBrewery.MOD_ID)
+@Mod.EventBusSubscriber(modid = CreateBrewery.MOD_ID)
 public final class DrunkEvents {
 
     private DrunkEvents() {
     }
 
     @SubscribeEvent
-    public static void onPlayerTick(PlayerTickEvent.Post event) {
-        Player player = event.getEntity();
-        if (player.level().isClientSide()) {
+    public static void onAttachCapabilities(AttachCapabilitiesEvent<Entity> event) {
+        if (event.getObject() instanceof Player) {
+            event.addCapability(DrunkData.ID, new DrunkData.Provider());
+        }
+    }
+
+    /**
+     * NeoForge copied serializable attachments to the new player unless the clone was a death and the
+     * attachment was {@code copyOnDeath}; none of the drunk ones was. So: a death starts from defaults, while
+     * leaving the End keeps the saved values (level, blackout, hangover debt), and never the stagger position
+     * or vomit cooldown.
+     */
+    @SubscribeEvent
+    public static void onClone(PlayerEvent.Clone event) {
+        if (event.isWasDeath()) {
+            return;
+        }
+        Player original = event.getOriginal();
+        original.reviveCaps();
+        try {
+            DrunkData.of(event.getEntity()).copySavedFrom(DrunkData.of(original));
+        } finally {
+            original.invalidateCaps();
+        }
+    }
+
+    // A client gets a new player object on login, respawn and dimension change, so it is told again.
+    @SubscribeEvent
+    public static void onLogin(PlayerEvent.PlayerLoggedInEvent event) {
+        DrunkManager.sync(event.getEntity(), true);
+    }
+
+    @SubscribeEvent
+    public static void onRespawn(PlayerEvent.PlayerRespawnEvent event) {
+        DrunkManager.sync(event.getEntity(), true);
+    }
+
+    @SubscribeEvent
+    public static void onChangeDimension(PlayerEvent.PlayerChangedDimensionEvent event) {
+        DrunkManager.sync(event.getEntity(), true);
+    }
+
+    @SubscribeEvent
+    public static void onPlayerTick(TickEvent.PlayerTickEvent event) {
+        Player player = event.player;
+        if (event.phase != TickEvent.Phase.END || player.level().isClientSide()) {
             return;
         }
         if (player.tickCount % DrunkManager.SECOND_TICKS == 0) {
@@ -90,7 +137,7 @@ public final class DrunkEvents {
     }
 
     private static boolean isWaterBottle(ItemStack stack) {
-        return stack.is(Items.POTION) && stack.getOrDefault(DataComponents.POTION_CONTENTS, PotionContents.EMPTY).is(Potions.WATER);
+        return stack.is(Items.POTION) && PotionUtils.getPotion(stack) == Potions.WATER;
     }
 
     @SubscribeEvent

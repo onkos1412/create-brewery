@@ -2,6 +2,8 @@ package com.kostya.createbrewery.drunk;
 
 import com.kostya.createbrewery.advancement.BreweryAdvancements;
 import com.kostya.createbrewery.config.BreweryConfig;
+import com.kostya.createbrewery.network.DrunkSyncPacket;
+import com.kostya.createbrewery.network.ModNetwork;
 import net.minecraft.core.particles.ItemParticleOption;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.network.chat.Component;
@@ -21,7 +23,7 @@ import net.minecraft.world.phys.Vec3;
 import java.util.Optional;
 
 /**
- * Read/write access to a player's drunk level, hiding the attachment plumbing.
+ * Read/write access to a player's drunk level, hiding the capability plumbing ({@link DrunkData}).
  */
 public final class DrunkManager {
 
@@ -69,20 +71,20 @@ public final class DrunkManager {
     }
 
     public static int getHangoverDebt(Player player) {
-        return player.getData(ModAttachments.HANGOVER_DEBT.get());
+        return DrunkData.of(player).hangoverDebt();
     }
 
     /** Adds to the debt that comes due once the player is sober again. Builds nothing when hangovers are off. */
     public static void addHangoverDebt(Player player, int amount) {
         if (amount > 0 && BreweryConfig.hangover()) {
-            player.setData(ModAttachments.HANGOVER_DEBT.get(), getHangoverDebt(player) + amount);
+            DrunkData.of(player).setHangoverDebt(getHangoverDebt(player) + amount);
         }
     }
 
     /** Runs once, on the step into sobriety: a big enough debt becomes a hangover, then the debt is wiped. */
     private static void settleHangover(Player player) {
         int debt = getHangoverDebt(player);
-        player.setData(ModAttachments.HANGOVER_DEBT.get(), 0);
+        DrunkData.of(player).setHangoverDebt(0);
         if (BreweryConfig.hangover() && HangoverRules.hungOver(debt)) {
             int ticks = HangoverRules.durationTicks(debt);
             player.addEffect(new MobEffectInstance(MobEffects.DIG_SLOWDOWN, ticks));
@@ -111,21 +113,22 @@ public final class DrunkManager {
     /** Back to sober, used on death and respawn. */
     public static void reset(Player player) {
         levelOf(player).reset();
+        DrunkData.of(player).setKnockoutTicks(0);
+        DrunkData.of(player).setHangoverDebt(0);
+        DrunkData.of(player).setVomitCooldown(0);
         markDirty(player);
-        player.setData(ModAttachments.KNOCKOUT_TICKS.get(), 0);
-        player.setData(ModAttachments.HANGOVER_DEBT.get(), 0);
-        player.setData(ModAttachments.VOMIT_COOLDOWN.get(), 0);
     }
 
     public static boolean isKnockedOut(Player player) {
-        return player.getData(ModAttachments.KNOCKOUT_TICKS.get()) > 0;
+        return DrunkData.of(player).knockoutTicks() > 0;
     }
 
     /** One server tick of the blackout: counts a running one down, or starts one on overdose. */
     public static void knockoutTick(Player player) {
-        int remaining = player.getData(ModAttachments.KNOCKOUT_TICKS.get());
+        int remaining = DrunkData.of(player).knockoutTicks();
         if (remaining > 0) {
-            player.setData(ModAttachments.KNOCKOUT_TICKS.get(), remaining - 1);
+            DrunkData.of(player).setKnockoutTicks(remaining - 1);
+            sync(player);
         } else if (getDrunk(player) >= BreweryConfig.passOutAt()) {
             passOut(player);
         }
@@ -135,8 +138,8 @@ public final class DrunkManager {
         // With a threshold at or below AFTER_PASS_OUT the level must still fall under it, or the player
         // would black out again the moment the blackout ends.
         levelOf(player).set(Math.min(DrunkLevel.AFTER_PASS_OUT, BreweryConfig.passOutAt() - 1));
+        DrunkData.of(player).setKnockoutTicks(KNOCKOUT_TICKS);
         markDirty(player);
-        player.setData(ModAttachments.KNOCKOUT_TICKS.get(), KNOCKOUT_TICKS);
         player.stopUsingItem();
         player.addEffect(new MobEffectInstance(MobEffects.BLINDNESS, KNOCKOUT_TICKS + 20));
         player.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, KNOCKOUT_TICKS, 6));
@@ -153,8 +156,8 @@ public final class DrunkManager {
      * check after joining only records a position.
      */
     public static void staggerTick(Player player, RandomSource random) {
-        Optional<Vec3> last = player.getData(ModAttachments.STAGGER_LAST_POS.get());
-        player.setData(ModAttachments.STAGGER_LAST_POS.get(), Optional.of(player.position()));
+        Optional<Vec3> last = DrunkData.of(player).staggerLastPos();
+        DrunkData.of(player).setStaggerLastPos(Optional.of(player.position()));
         if (!BreweryConfig.stagger()) {
             return;
         }
@@ -184,13 +187,13 @@ public final class DrunkManager {
         if (!BreweryConfig.vomit()) {
             return;
         }
-        int cooldown = Math.max(0, player.getData(ModAttachments.VOMIT_COOLDOWN.get()) - SECOND_TICKS);
-        player.setData(ModAttachments.VOMIT_COOLDOWN.get(), cooldown);
+        int cooldown = Math.max(0, DrunkData.of(player).vomitCooldown() - SECOND_TICKS);
+        DrunkData.of(player).setVomitCooldown(cooldown);
         if (isKnockedOut(player)
                 || !VomitRules.shouldVomit(getDrunk(player), getHangoverDebt(player), cooldown, random.nextFloat())) {
             return;
         }
-        player.setData(ModAttachments.VOMIT_COOLDOWN.get(), VomitRules.COOLDOWN_TICKS);
+        DrunkData.of(player).setVomitCooldown(VomitRules.COOLDOWN_TICKS);
         FoodData food = player.getFoodData();
         food.setFoodLevel(Math.max(0, food.getFoodLevel() - VomitRules.FOOD_LOST));
         player.addEffect(new MobEffectInstance(MobEffects.CONFUSION, 100));
@@ -211,12 +214,30 @@ public final class DrunkManager {
     }
 
     private static DrunkLevel levelOf(Player player) {
-        return player.getData(ModAttachments.DRUNK_LEVEL.get());
+        return DrunkData.of(player).level();
     }
 
     private static void markDirty(Player player) {
-        // Attachment values are mutable, so nudge the holder so NeoForge syncs and saves
-        // the new contents to the client and the save file.
-        player.setData(ModAttachments.DRUNK_LEVEL.get(), levelOf(player));
+        // 1.21.1 nudged the attachment holder here so NeoForge synced the new level; the capability is
+        // saved with the player anyway, so only the owning client needs telling.
+        sync(player);
+    }
+
+    /**
+     * Sends the drunk level and the blackout to the owning client when either changed since the last send
+     * (1.21.1 synced both attachments on every change). Players without a connection (mock players) are skipped.
+     */
+    public static void sync(Player player) {
+        sync(player, false);
+    }
+
+    /** As {@link #sync(Player)}; {@code force} sends even unchanged values, for a client that has a new player. */
+    public static void sync(Player player, boolean force) {
+        if (player instanceof ServerPlayer serverPlayer && serverPlayer.connection != null) {
+            DrunkData data = DrunkData.of(player);
+            if (data.markSynced(force)) {
+                ModNetwork.sendTo(serverPlayer, new DrunkSyncPacket(data.level().get(), data.knockoutTicks()));
+            }
+        }
     }
 }

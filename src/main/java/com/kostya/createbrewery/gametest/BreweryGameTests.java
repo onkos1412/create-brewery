@@ -17,6 +17,18 @@ import com.kostya.createbrewery.block.ModBlocks;
 import com.kostya.createbrewery.block.WortBottling;
 import com.kostya.createbrewery.config.BreweryConfig;
 import com.kostya.createbrewery.keg.KegRules;
+import com.kostya.createbrewery.drunk.DrunkData;
+import com.kostya.createbrewery.drunk.DrunkLevel;
+import com.kostya.createbrewery.drunk.DrunkManager;
+import com.kostya.createbrewery.drunk.VomitRules;
+import net.minecraft.util.RandomSource;
+import net.minecraft.world.item.alchemy.PotionUtils;
+import net.minecraft.world.item.alchemy.Potions;
+import net.minecraft.world.level.levelgen.LegacyRandomSource;
+import net.minecraftforge.common.MinecraftForge;
+import net.minecraftforge.event.entity.living.LivingDeathEvent;
+import net.minecraftforge.event.entity.living.LivingEntityUseItemEvent;
+import net.minecraftforge.event.entity.player.PlayerEvent;
 import com.kostya.createbrewery.recipe.BrewingRecipe;
 import com.kostya.createbrewery.recipe.BrewingRecipeSerializer;
 import com.kostya.createbrewery.recipe.MixRules;
@@ -2254,5 +2266,508 @@ public class BreweryGameTests {
         ItemStack bottle = new ItemStack(ModItems.DRINK_BOTTLE.get());
         DrinkData.set(bottle, new DrinkData(stars, alcohol, stage));
         bottle.getItem().finishUsingItem(bottle, helper.getLevel(), player);
+    }
+
+    // ---- drunkenness (Task 4) ----
+
+    /** A drunk, blacked-out, indebted player that has staggered and thrown up, so every value is set. */
+    private static ServerPlayer drunkardWithEverySet(GameTestHelper helper) {
+        ServerPlayer player = freshPlayer(helper);
+        DrunkManager.addDrunk(player, 70);
+        DrunkData data = DrunkData.of(player);
+        data.setKnockoutTicks(123);
+        data.setHangoverDebt(456);
+        data.setStaggerLastPos(Optional.of(new Vec3(1, 2, 3)));
+        data.setVomitCooldown(300);
+        return player;
+    }
+
+    /**
+     * Review focus 5, relog: as 1.21.1's attachments, the drunk level, blackout and hangover debt are saved
+     * with the player; the stagger position and the vomit cooldown are not.
+     */
+    @GameTest(template = "empty")
+    public static void drunkDataSurvivesRelog(GameTestHelper helper) {
+        ServerPlayer before = drunkardWithEverySet(helper);
+        CompoundTag saved = before.saveWithoutId(new CompoundTag());
+        ServerPlayer after = freshPlayerWithId(helper, before.getUUID());
+        after.load(saved);
+        DrunkData data = DrunkData.of(after);
+        helper.assertTrue(data.level().get() == 70, "level " + data.level().get());
+        helper.assertTrue(data.knockoutTicks() == 123, "knockout " + data.knockoutTicks());
+        helper.assertTrue(data.hangoverDebt() == 456, "debt " + data.hangoverDebt());
+        helper.assertTrue(data.staggerLastPos().isEmpty(), "stagger position was saved");
+        helper.assertTrue(data.vomitCooldown() == 0, "vomit cooldown was saved: " + data.vomitCooldown());
+        helper.succeed();
+    }
+
+    /**
+     * Review focus 5, respawn: no drunk attachment was copyOnDeath on 1.21.1, so a death clone starts sober,
+     * while a clone that is not a death (leaving the End) keeps exactly the saved values.
+     */
+    @GameTest(template = "empty")
+    public static void drunkDataFollowsCloneRules(GameTestHelper helper) {
+        ServerPlayer leavingEnd = drunkardWithEverySet(helper);
+        ServerPlayer returned = freshPlayerWithId(helper, leavingEnd.getUUID());
+        MinecraftForge.EVENT_BUS.post(new PlayerEvent.Clone(returned, leavingEnd, false));
+        DrunkData kept = DrunkData.of(returned);
+        helper.assertTrue(kept.level().get() == 70 && kept.knockoutTicks() == 123 && kept.hangoverDebt() == 456,
+                "end return lost saved values: " + kept.save());
+        helper.assertTrue(kept.staggerLastPos().isEmpty() && kept.vomitCooldown() == 0,
+                "end return copied unsaved values");
+
+        ServerPlayer died = drunkardWithEverySet(helper);
+        ServerPlayer respawned = freshPlayerWithId(helper, died.getUUID());
+        MinecraftForge.EVENT_BUS.post(new PlayerEvent.Clone(respawned, died, true));
+        DrunkData fresh = DrunkData.of(respawned);
+        helper.assertTrue(fresh.level().get() == 0 && fresh.knockoutTicks() == 0 && fresh.hangoverDebt() == 0,
+                "death copied drunk data: " + fresh.save());
+        helper.succeed();
+    }
+
+    /** Death itself sobers the player completely, before any respawn (1.21.1's onDeath reset). */
+    @GameTest(template = "empty")
+    public static void deathSobersCompletely(GameTestHelper helper) {
+        ServerPlayer player = drunkardWithEverySet(helper);
+        MinecraftForge.EVENT_BUS.post(new LivingDeathEvent(player, player.damageSources().generic()));
+        DrunkData data = DrunkData.of(player);
+        helper.assertTrue(data.level().get() == 0 && data.knockoutTicks() == 0 && data.hangoverDebt() == 0
+                && data.vomitCooldown() == 0, "death left drunk data: " + data.save() + " vomit " + data.vomitCooldown());
+        helper.succeed();
+    }
+    /** Bad drinks bite, good ones do not, and the empty bottle always comes back. */
+    @GameTest(template = "empty")
+    public static void drinkingAppliesQualityEffects(GameTestHelper helper) {
+        for (int stars : new int[] {1, 2, 3}) {
+            Player player = helper.makeMockPlayer();
+            ItemStack bottle = new ItemStack(ModItems.DRINK_BOTTLE.get());
+            DrinkData.set(bottle, new DrinkData(stars, 40, "whiskey"));
+            player.setItemInHand(InteractionHand.MAIN_HAND, bottle);
+
+            ItemStack left = bottle.getItem().finishUsingItem(bottle, helper.getLevel(), player);
+
+            helper.assertTrue(left.is(Items.GLASS_BOTTLE), "empty bottle lost, got " + left);
+            helper.assertTrue(DrunkManager.getDrunk(player) == 8, "drunk " + DrunkManager.getDrunk(player));
+            helper.assertTrue(player.hasEffect(MobEffects.CONFUSION) == (stars <= 2), stars + " stars nausea");
+            helper.assertTrue(player.hasEffect(MobEffects.POISON) == (stars == 1), stars + " stars poison");
+        }
+        helper.succeed();
+    }
+
+    /** Overdosing blacks the player out for a fixed time, then leaves them drunk but awake. */
+    @GameTest(template = "empty")
+    public static void overdosePassesOutThenRecovers(GameTestHelper helper) {
+        Player player = helper.makeMockPlayer();
+        DrunkManager.addDrunk(player, DrunkLevel.PASS_OUT_AT - 1);
+        DrunkManager.knockoutTick(player);
+        helper.assertFalse(DrunkManager.isKnockedOut(player), "passed out below the limit");
+
+        DrunkManager.addDrunk(player, 1);
+        DrunkManager.knockoutTick(player);
+        helper.assertTrue(DrunkManager.isKnockedOut(player), "overdose did not knock the player out");
+        helper.assertTrue(player.hasEffect(MobEffects.BLINDNESS), "no blackout effect");
+        helper.assertTrue(DrunkManager.getDrunk(player) == DrunkLevel.AFTER_PASS_OUT,
+                "level after passing out: " + DrunkManager.getDrunk(player));
+
+        for (int tick = 0; tick < DrunkManager.KNOCKOUT_TICKS; tick++) {
+            DrunkManager.knockoutTick(player);
+        }
+        helper.assertFalse(DrunkManager.isKnockedOut(player), "blackout never ended");
+        helper.succeed();
+    }
+
+    /** Overdosing into a blackout earns "Overdone". */
+    @GameTest(template = "empty")
+    public static void passingOutAwardsOverdone(GameTestHelper helper) {
+        ServerPlayer player = freshPlayer(helper);
+        DrunkManager.addDrunk(player, DrunkLevel.PASS_OUT_AT - 1);
+        DrunkManager.knockoutTick(player);
+        helper.assertFalse(advancementDone(helper, player, "passed_out"), "passed_out done while still awake");
+        DrunkManager.addDrunk(player, 1);
+        DrunkManager.knockoutTick(player);
+        helper.assertTrue(advancementDone(helper, player, "passed_out"), "blackout gave no advancement");
+        helper.succeed();
+    }
+
+    /** A hangover earns "The Morning After". */
+    @GameTest(template = "empty")
+    public static void hangoverAwardsMorningAfter(GameTestHelper helper) {
+        ServerPlayer player = freshPlayer(helper);
+        DrunkManager.addDrunk(player, 1);
+        DrunkManager.addHangoverDebt(player, 100_000);
+        DrunkManager.soberTick(player);
+        helper.assertTrue(advancementDone(helper, player, "hangover"), "hangover gave no advancement");
+        helper.succeed();
+    }
+
+    /** A drunk player who walked since the last check is shoved sideways by a stagger. */
+    @GameTest(template = "empty")
+    public static void drunkWalkerIsPushed(GameTestHelper helper) {
+        Player player = helper.makeMockPlayer();
+        player.setOnGround(true);
+        DrunkManager.addDrunk(player, 90);
+        player.setDeltaMovement(0, 0, 0);
+        DrunkManager.staggerTick(player, fixedRoll(0.0f));
+        helper.assertTrue(player.getDeltaMovement().x == 0, "first check pushed: " + player.getDeltaMovement());
+        walk(player);
+        DrunkManager.staggerTick(player, fixedRoll(0.0f));
+        helper.assertTrue(Math.abs(player.getDeltaMovement().x) > 0.05,
+                "walker was not pushed: " + player.getDeltaMovement());
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
+    public static void standingStillIsNotPushed(GameTestHelper helper) {
+        Player player = helper.makeMockPlayer();
+        player.setOnGround(true);
+        DrunkManager.addDrunk(player, 90);
+        player.setDeltaMovement(0.2, 0, 0);
+        DrunkManager.staggerTick(player, fixedRoll(0.0f));
+        DrunkManager.staggerTick(player, fixedRoll(0.0f));
+        helper.assertTrue(player.getDeltaMovement().x == 0.2,
+                "standing player was pushed: " + player.getDeltaMovement());
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
+    public static void sneakingIsNotPushed(GameTestHelper helper) {
+        Player player = helper.makeMockPlayer();
+        player.setOnGround(true);
+        DrunkManager.addDrunk(player, 90);
+        player.setShiftKeyDown(true);
+        player.setDeltaMovement(0.2, 0, 0);
+        DrunkManager.staggerTick(player, fixedRoll(0.0f));
+        walk(player);
+        DrunkManager.staggerTick(player, fixedRoll(0.0f));
+        helper.assertTrue(player.getDeltaMovement().x == 0.2, "sneaking player was pushed: " + player.getDeltaMovement());
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
+    public static void airbornePlayerIsNotPushed(GameTestHelper helper) {
+        Player player = helper.makeMockPlayer();
+        player.setOnGround(false);
+        DrunkManager.addDrunk(player, 90);
+        player.setDeltaMovement(0.2, 0, 0);
+        DrunkManager.staggerTick(player, fixedRoll(0.0f));
+        walk(player);
+        DrunkManager.staggerTick(player, fixedRoll(0.0f));
+        helper.assertTrue(player.getDeltaMovement().x == 0.2, "airborne player was pushed: " + player.getDeltaMovement());
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
+    public static void knockedOutPlayerIsNotPushed(GameTestHelper helper) {
+        Player player = helper.makeMockPlayer();
+        player.setOnGround(true);
+        DrunkManager.addDrunk(player, 90);
+        DrunkData.of(player).setKnockoutTicks(100);
+        player.setDeltaMovement(0.2, 0, 0);
+        DrunkManager.staggerTick(player, fixedRoll(0.0f));
+        walk(player);
+        DrunkManager.staggerTick(player, fixedRoll(0.0f));
+        helper.assertTrue(player.getDeltaMovement().x == 0.2, "knocked-out player was pushed: " + player.getDeltaMovement());
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
+    public static void unluckyRollIsNotPushed(GameTestHelper helper) {
+        Player player = helper.makeMockPlayer();
+        player.setOnGround(true);
+        DrunkManager.addDrunk(player, 90);
+        player.setDeltaMovement(0.2, 0, 0);
+        DrunkManager.staggerTick(player, fixedRoll(0.99f));
+        walk(player);
+        DrunkManager.staggerTick(player, fixedRoll(0.99f));
+        helper.assertTrue(player.getDeltaMovement().x == 0.2, "pushed on a high roll: " + player.getDeltaMovement());
+        helper.succeed();
+    }
+
+    /** Dying wipes the vomit cooldown too, so the respawned player can throw up at once. */
+    @GameTest(template = "empty")
+    public static void deathClearsVomitCooldown(GameTestHelper helper) {
+        Player player = helper.makeMockPlayer();
+        DrunkManager.addDrunk(player, 100);
+        player.getFoodData().setFoodLevel(20);
+        DrunkManager.vomitTick(player, fixedRoll(0.0f));
+        helper.assertTrue(player.getFoodData().getFoodLevel() == 16, "first bout: " + player.getFoodData().getFoodLevel());
+        DrunkManager.reset(player);
+        DrunkManager.addDrunk(player, 100);
+        DrunkManager.vomitTick(player, fixedRoll(0.0f));
+        helper.assertTrue(player.getFoodData().getFoodLevel() == 12, "cooldown survived death: " + player.getFoodData().getFoodLevel());
+        helper.succeed();
+    }
+
+    /** A heavily drunk player whose roll comes up throws up: food and drunkenness drop, nausea starts. */
+    @GameTest(template = "empty")
+    public static void heavyDrinkerThrowsUp(GameTestHelper helper) {
+        Player player = helper.makeMockPlayer();
+        DrunkManager.addDrunk(player, 85);
+        player.getFoodData().setFoodLevel(20);
+        DrunkManager.vomitTick(player, fixedRoll(0.0f));
+        helper.assertTrue(player.getFoodData().getFoodLevel() == 16, "food: " + player.getFoodData().getFoodLevel());
+        helper.assertTrue(DrunkManager.getDrunk(player) == 70, "drunk: " + DrunkManager.getDrunk(player));
+        helper.assertTrue(player.hasEffect(MobEffects.CONFUSION), "no nausea");
+        helper.succeed();
+    }
+
+    /** Right after throwing up a player is safe for thirty seconds, then can do it again. */
+    @GameTest(template = "empty")
+    public static void vomitingHasACooldown(GameTestHelper helper) {
+        Player player = helper.makeMockPlayer();
+        DrunkManager.addDrunk(player, 100);
+        player.getFoodData().setFoodLevel(20);
+        DrunkManager.vomitTick(player, fixedRoll(0.0f));
+        helper.assertTrue(player.getFoodData().getFoodLevel() == 16, "first bout: " + player.getFoodData().getFoodLevel());
+        DrunkManager.addDrunk(player, 100);
+        DrunkManager.vomitTick(player, fixedRoll(0.0f));
+        helper.assertTrue(player.getFoodData().getFoodLevel() == 16, "vomited during the cooldown");
+        for (int second = 0; second < VomitRules.COOLDOWN_TICKS / 20; second++) {
+            DrunkManager.vomitTick(player, fixedRoll(0.99f));
+        }
+        DrunkManager.addDrunk(player, 100);
+        DrunkManager.vomitTick(player, fixedRoll(0.0f));
+        helper.assertTrue(player.getFoodData().getFoodLevel() == 12, "no second bout: " + player.getFoodData().getFoodLevel());
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
+    public static void knockedOutPlayerDoesNotVomit(GameTestHelper helper) {
+        Player player = helper.makeMockPlayer();
+        DrunkManager.addDrunk(player, 100);
+        player.getFoodData().setFoodLevel(20);
+        DrunkData.of(player).setKnockoutTicks(100);
+        DrunkManager.vomitTick(player, fixedRoll(0.0f));
+        helper.assertTrue(player.getFoodData().getFoodLevel() == 20, "knocked-out player vomited");
+        helper.assertTrue(DrunkManager.getDrunk(player) == 100, "drunk changed: " + DrunkManager.getDrunk(player));
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
+    public static void staggerCanBeTurnedOff(GameTestHelper helper) {
+        withConfig(BreweryConfig.STAGGER, false, () -> {
+            Player player = helper.makeMockPlayer();
+            player.setOnGround(true);
+            DrunkManager.addDrunk(player, 90);
+            player.setDeltaMovement(0.2, 0, 0);
+            DrunkManager.staggerTick(player, fixedRoll(0.0f));
+            walk(player);
+            DrunkManager.staggerTick(player, fixedRoll(0.0f));
+            helper.assertTrue(player.getDeltaMovement().x == 0.2, "pushed with stagger off: " + player.getDeltaMovement());
+        });
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
+    public static void vomitCanBeTurnedOff(GameTestHelper helper) {
+        withConfig(BreweryConfig.VOMIT, false, () -> {
+            Player player = helper.makeMockPlayer();
+            DrunkManager.addDrunk(player, 100);
+            player.getFoodData().setFoodLevel(20);
+            DrunkManager.vomitTick(player, fixedRoll(0.0f));
+            helper.assertTrue(player.getFoodData().getFoodLevel() == 20, "vomited with vomit off");
+            helper.assertTrue(DrunkManager.getDrunk(player) == 100, "drunk changed: " + DrunkManager.getDrunk(player));
+        });
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
+    public static void hangoverCanBeTurnedOff(GameTestHelper helper) {
+        withConfig(BreweryConfig.HANGOVER, false, () -> {
+            Player player = helper.makeMockPlayer();
+            for (int i = 0; i < 3; i++) {
+                drink(helper, player, 2, 40, "vodka");
+            }
+            helper.assertTrue(DrunkManager.getHangoverDebt(player) == 0,
+                    "debt built up: " + DrunkManager.getHangoverDebt(player));
+            // A debt that already existed before the switch (set directly, as addHangoverDebt is gated) must not
+            // settle into a hangover either, and is wiped when the player sobers up.
+            DrunkData.of(player).setHangoverDebt(100_000);
+            DrunkManager.addDrunk(player, 10);
+            player.removeAllEffects();
+            soberUp(player);
+            helper.assertFalse(hungOver(player), "hangover with hangover off");
+            helper.assertTrue(DrunkManager.getHangoverDebt(player) == 0,
+                    "debt not wiped: " + DrunkManager.getHangoverDebt(player));
+        });
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
+    public static void passOutThresholdIsConfigurable(GameTestHelper helper) {
+        withConfig(BreweryConfig.PASS_OUT_AT, 60, () -> {
+            Player player = helper.makeMockPlayer();
+            DrunkManager.addDrunk(player, 59);
+            DrunkManager.knockoutTick(player);
+            helper.assertFalse(DrunkManager.isKnockedOut(player), "passed out below 60");
+            DrunkManager.addDrunk(player, 1);
+            DrunkManager.knockoutTick(player);
+            helper.assertTrue(DrunkManager.isKnockedOut(player), "no blackout at 60");
+            // 60 is not above the threshold any more, so the level must fall below it to avoid a loop.
+            helper.assertTrue(DrunkManager.getDrunk(player) == 59, "level after: " + DrunkManager.getDrunk(player));
+        });
+        withConfig(BreweryConfig.PASS_OUT_AT, 100, () -> {
+            Player player = helper.makeMockPlayer();
+            DrunkManager.addDrunk(player, 99);
+            DrunkManager.knockoutTick(player);
+            helper.assertFalse(DrunkManager.isKnockedOut(player), "passed out at 99 with threshold 100");
+        });
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
+    public static void soberStepFollowsConfig(GameTestHelper helper) {
+        helper.assertTrue(DrunkManager.soberDue(20) && !DrunkManager.soberDue(40 + 1), "default step");
+        withConfig(BreweryConfig.SECONDS_PER_SOBER_STEP, 3, () -> {
+            helper.assertFalse(DrunkManager.soberDue(20), "due after one second");
+            helper.assertFalse(DrunkManager.soberDue(40), "due after two seconds");
+            helper.assertTrue(DrunkManager.soberDue(60), "not due after three seconds");
+        });
+        helper.succeed();
+    }
+
+    /** Moves the player a block along x, as a second of walking would. */
+    private static void walk(Player player) {
+        player.setPos(player.getX() + 1, player.getY(), player.getZ());
+    }
+
+    /** A random source whose every float is {@code value}, so the stagger roll and angle are known. */
+    private static RandomSource fixedRoll(float value) {
+        return new LegacyRandomSource(0L) {
+            @Override
+            public float nextFloat() {
+                return value;
+            }
+        };
+    }
+
+    private static void soberUp(Player player) {
+        for (int i = 0; i < DrunkLevel.MAX + 1; i++) {
+            DrunkManager.soberTick(player);
+        }
+    }
+
+    private static boolean hungOver(Player player) {
+        return player.hasEffect(MobEffects.DIG_SLOWDOWN) && player.hasEffect(MobEffects.HUNGER);
+    }
+
+    /** Three poor vodkas: nothing while drunk, then fatigue and hunger the moment the player sobers up. */
+    @GameTest(template = "empty")
+    public static void badDrinksLeaveAHangover(GameTestHelper helper) {
+        Player player = helper.makeMockPlayer();
+        for (int i = 0; i < 3; i++) {
+            drink(helper, player, 2, 40, "vodka");
+        }
+        player.removeAllEffects();
+        helper.assertFalse(hungOver(player), "hangover while still drunk");
+        soberUp(player);
+        helper.assertTrue(DrunkManager.getDrunk(player) == 0, "still drunk");
+        MobEffectInstance fatigue = player.getEffect(MobEffects.DIG_SLOWDOWN);
+        helper.assertTrue(fatigue != null && fatigue.getDuration() == 6000 && fatigue.getAmplifier() == 0,
+                "fatigue " + fatigue);
+        helper.assertTrue(player.hasEffect(MobEffects.HUNGER), "no hunger");
+        helper.assertTrue(DrunkManager.getHangoverDebt(player) == 0, "debt kept: " + DrunkManager.getHangoverDebt(player));
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
+    public static void goodDrinksLeaveNoHangover(GameTestHelper helper) {
+        Player player = helper.makeMockPlayer();
+        for (int i = 0; i < 3; i++) {
+            drink(helper, player, 5, 40, "vodka");
+        }
+        player.removeAllEffects();
+        soberUp(player);
+        helper.assertFalse(player.hasEffect(MobEffects.DIG_SLOWDOWN), "fatigue after good drinks");
+        helper.assertFalse(player.hasEffect(MobEffects.HUNGER), "hunger after good drinks");
+        helper.assertTrue(DrunkManager.getHangoverDebt(player) == 0, "debt kept: " + DrunkManager.getHangoverDebt(player));
+        helper.succeed();
+    }
+
+    /** A bottle of water ends a hangover but leaves unrelated effects alone. */
+    @GameTest(template = "empty")
+    public static void waterCuresHangover(GameTestHelper helper) {
+        ItemStack water = PotionUtils.setPotion(new ItemStack(Items.POTION), Potions.WATER);
+        Player sick = helper.makeMockPlayer();
+        sick.addEffect(new MobEffectInstance(MobEffects.DIG_SLOWDOWN, 3000));
+        sick.addEffect(new MobEffectInstance(MobEffects.HUNGER, 3000));
+        MinecraftForge.EVENT_BUS.post(new LivingEntityUseItemEvent.Finish(sick, water, 0, water));
+        helper.assertFalse(hungOver(sick), "water did not cure the hangover");
+        helper.assertFalse(sick.hasEffect(MobEffects.DIG_SLOWDOWN), "fatigue stayed");
+        helper.assertFalse(sick.hasEffect(MobEffects.HUNGER), "hunger stayed");
+
+        Player other = helper.makeMockPlayer();
+        other.addEffect(new MobEffectInstance(MobEffects.DIG_SLOWDOWN, 3000));
+        MinecraftForge.EVENT_BUS.post(new LivingEntityUseItemEvent.Finish(other, water, 0, water));
+        helper.assertTrue(other.hasEffect(MobEffects.DIG_SLOWDOWN), "water stripped a foreign effect");
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
+    public static void hangoverDebtAccumulatesUntilSober(GameTestHelper helper) {
+        Player player = helper.makeMockPlayer();
+        drink(helper, player, 2, 40, "vodka");
+        helper.assertTrue(DrunkManager.getHangoverDebt(player) == 8, "one: " + DrunkManager.getHangoverDebt(player));
+        drink(helper, player, 2, 20, "vodka");
+        helper.assertTrue(DrunkManager.getHangoverDebt(player) == 12, "two: " + DrunkManager.getHangoverDebt(player));
+        DrunkManager.soberTick(player);
+        helper.assertTrue(DrunkManager.getHangoverDebt(player) == 12, "debt lost while drunk");
+        helper.succeed();
+    }
+
+    /** Kvass is too weak to raise the drunk level, so even a cellar of poor bottles builds no debt. */
+    @GameTest(template = "empty")
+    public static void weakDrinksBuildNoHangoverDebt(GameTestHelper helper) {
+        Player player = helper.makeMockPlayer();
+        for (int i = 0; i < 8; i++) {
+            drink(helper, player, 1, 3, "kvass");
+        }
+        helper.assertTrue(DrunkManager.getDrunk(player) == 0, "drunk " + DrunkManager.getDrunk(player));
+        helper.assertTrue(DrunkManager.getHangoverDebt(player) == 0, "debt: " + DrunkManager.getHangoverDebt(player));
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
+    public static void deathClearsHangoverDebt(GameTestHelper helper) {
+        Player player = helper.makeMockPlayer();
+        drink(helper, player, 2, 40, "vodka");
+        MinecraftForge.EVENT_BUS.post(new LivingDeathEvent(player, player.damageSources().generic()));
+        helper.assertTrue(DrunkManager.getHangoverDebt(player) == 0, "debt survived death");
+        helper.succeed();
+    }
+
+    /** A mug drinks exactly like the bottle of the same drink, and hands the empty mug back. */
+    @GameTest(template = "empty")
+    public static void drinkingMugReturnsMug(GameTestHelper helper) {
+        DrinkData whiskey = new DrinkData(5, 40, "whiskey");
+        ServerPlayer withBottle = freshPlayer(helper);
+        ItemStack bottle = drinkBottle(1, whiskey, null);
+        ItemStack bottleLeft = bottle.getItem().finishUsingItem(bottle, helper.getLevel(), withBottle);
+        helper.assertTrue(bottleLeft.is(Items.GLASS_BOTTLE), "bottle gave " + bottleLeft);
+
+        ServerPlayer withMug = freshPlayer(helper);
+        ItemStack mug = new ItemStack(ModItems.DRINK_MUG.get());
+        DrinkData.set(mug, whiskey);
+        ItemStack left = mug.getItem().finishUsingItem(mug, helper.getLevel(), withMug);
+        helper.assertTrue(left.is(ModItems.MUG.get()), "mug gave " + left);
+        helper.assertTrue(DrunkManager.getDrunk(withMug) > 0, "no drunk");
+        helper.assertTrue(DrunkManager.getDrunk(withMug) == DrunkManager.getDrunk(withBottle),
+                "mug " + DrunkManager.getDrunk(withMug) + " bottle " + DrunkManager.getDrunk(withBottle));
+        helper.succeed();
+    }
+
+    /** A toast halves the drink's hangover debt; the muddy brew spends the marker for nothing. */
+    @GameTest(template = "empty")
+    public static void toastHalvesHangoverDebt(GameTestHelper helper) {
+        Player player = helper.makeMockPlayer();
+        player.addEffect(new MobEffectInstance(ModEffects.TOAST.get(), 200));
+        drink(helper, player, 2, 40, "vodka");
+        helper.assertTrue(DrunkManager.getHangoverDebt(player) == 4, "toasted debt " + DrunkManager.getHangoverDebt(player));
+        helper.assertFalse(player.hasEffect(ModEffects.TOAST.get()), "the drink did not spend the toast");
+        Player muddy = helper.makeMockPlayer();
+        muddy.addEffect(new MobEffectInstance(ModEffects.TOAST.get(), 200));
+        drink(helper, muddy, 3, 2, "muddy");
+        helper.assertFalse(muddy.hasEffect(ModEffects.TOAST.get()), "the muddy brew did not spend the toast");
+        helper.succeed();
     }
 }

@@ -2,10 +2,10 @@ package com.kostya.createbrewery.drunk;
 
 import com.kostya.createbrewery.CreateBrewery;
 import net.minecraft.client.Minecraft;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.client.event.ViewportEvent;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.client.event.ViewportEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod;
 
 /**
  * Client-side drunk visuals: the camera rolls and drifts while the player is drunk,
@@ -13,8 +13,10 @@ import net.neoforged.neoforge.client.event.ViewportEvent;
  *
  * <p>The sway is driven by the level's continuous game time in seconds, not by the
  * per-tick partial tick, so it moves smoothly instead of jittering in place.
+ *
+ * <p>Client only: nothing in common code names this class.
  */
-@EventBusSubscriber(modid = CreateBrewery.MOD_ID, value = Dist.CLIENT)
+@Mod.EventBusSubscriber(modid = CreateBrewery.MOD_ID, value = Dist.CLIENT)
 public final class DrunkScreenEffect {
 
     private DrunkScreenEffect() {
@@ -51,6 +53,6 @@ public final class DrunkScreenEffect {
         if (minecraft.player == null) {
             return 0f;
         }
-        return minecraft.player.getData(ModAttachments.DRUNK_LEVEL.get()).distortionStrength();
+        return DrunkData.of(minecraft.player).level().distortionStrength();
     }
 }

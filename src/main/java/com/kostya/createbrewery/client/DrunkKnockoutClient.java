@@ -4,15 +4,15 @@ import com.kostya.createbrewery.CreateBrewery;
 import com.kostya.createbrewery.drunk.DrunkManager;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.Input;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.client.event.ClientTickEvent;
-import net.neoforged.neoforge.client.event.InputEvent;
-import net.neoforged.neoforge.client.event.MovementInputUpdateEvent;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.client.event.InputEvent;
+import net.minecraftforge.client.event.MovementInputUpdateEvent;
+import net.minecraftforge.event.TickEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod;
 
 /** Takes the controls away from a player who has passed out. */
-@EventBusSubscriber(modid = CreateBrewery.MOD_ID, value = Dist.CLIENT)
+@Mod.EventBusSubscriber(modid = CreateBrewery.MOD_ID, value = Dist.CLIENT)
 public final class DrunkKnockoutClient {
 
     private DrunkKnockoutClient() {
@@ -48,7 +48,10 @@ public final class DrunkKnockoutClient {
 
     /** No menus either: they would keep working behind the blackout. */
     @SubscribeEvent
-    public static void onClientTick(ClientTickEvent.Post event) {
+    public static void onClientTick(TickEvent.ClientTickEvent event) {
+        if (event.phase != TickEvent.Phase.END) {
+            return;
+        }
         Minecraft minecraft = Minecraft.getInstance();
         if (knockedOut() && minecraft.screen != null && !minecraft.screen.isPauseScreen()) {
             minecraft.setScreen(null);

@@ -3,6 +3,7 @@ package com.kostya.createbrewery;
 import com.kostya.createbrewery.block.ModBlocks;
 import com.kostya.createbrewery.block.ModMenus;
 import com.kostya.createbrewery.config.BreweryConfig;
+import com.kostya.createbrewery.network.ModNetwork;
 import com.kostya.createbrewery.recipe.BrewingRecipeSerializer;
 import com.kostya.createbrewery.recipe.ModRecipeTypes;
 import com.kostya.createbrewery.registry.ModCreativeTabs;
@@ -34,7 +35,8 @@ public class CreateBrewery {
     public CreateBrewery(FMLJavaModLoadingContext context) {
         IEventBus modEventBus = context.getModEventBus();
         contentRegistries().forEach(registry -> registry.register(modEventBus));
-        // PORT: Task 5 - modEventBus.addListener(ModNetwork::register) comes back with network/**.
+        // The channel carries the drunk sync now; Task 5 adds the brewer's book payload to it.
+        ModNetwork.register();
         context.registerConfig(ModConfig.Type.SERVER, BreweryConfig.SPEC);
         LOGGER.info("Create Brewery: {} content registries wired", contentRegistries().size());
     }
@@ -62,7 +64,8 @@ public class CreateBrewery {
                 ModBlocks.BLOCK_ENTITIES,
                 ModMenus.MENUS,
                 ModCreativeTabs.TABS
-                // PORT: Task 4 - drunk player data (1.21.1: ModAttachments.ATTACHMENTS).
+                // 1.21.1's ModAttachments.ATTACHMENTS is gone: the drunk player data is the DrunkData capability,
+                // registered by @AutoRegisterCapability and attached in DrunkEvents.
         );
     }
 }
