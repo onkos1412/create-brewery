@@ -140,5 +140,10 @@
   "gui.brewery.keg.portions": "%s/%s",
   "gui.brewery.keg.empty": "Empty",
   "item.brewery.mug": "Mug",
-  "item.brewery.drink_mug": "Mug of drink"
+  "item.brewery.drink_mug": "Mug of drink",
+  "effect.brewery.toast": "Toast",
+  "advancements.brewery.toast.title": "Cheers!",
+  "advancements.brewery.toast.description": "Drink after clinking glasses with a friend",
+  "brewery.configuration.toastBonus": "Toast bonus",
+  "brewery.configuration.toastSeconds": "Toast window, seconds"
 }

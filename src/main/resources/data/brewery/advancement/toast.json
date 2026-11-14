@@ -1,0 +1,22 @@
+{
+  "parent": "brewery:first_brew",
+  "display": {
+    "icon": {
+      "id": "brewery:mug"
+    },
+    "title": {
+      "translate": "advancements.brewery.toast.title"
+    },
+    "description": {
+      "translate": "advancements.brewery.toast.description"
+    },
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": false
+  },
+  "criteria": {
+    "toasted": {
+      "trigger": "minecraft:impossible"
+    }
+  }
+}

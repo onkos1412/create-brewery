@@ -140,5 +140,10 @@
   "gui.brewery.keg.portions": "%s/%s",
   "gui.brewery.keg.empty": "Пусто",
   "item.brewery.mug": "Кружка",
-  "item.brewery.drink_mug": "Кружка напитка"
+  "item.brewery.drink_mug": "Кружка напитка",
+  "effect.brewery.toast": "Тост",
+  "advancements.brewery.toast.title": "За здоровье!",
+  "advancements.brewery.toast.description": "Выпить, чокнувшись с другом",
+  "brewery.configuration.toastBonus": "Бонус тоста",
+  "brewery.configuration.toastSeconds": "Окно тоста, секунд"
 }

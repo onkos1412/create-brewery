@@ -43,6 +43,7 @@ public class CreateBrewery {
                 ModFluids.FLUID_TYPES,
                 ModFluids.FLUIDS,
                 ModItems.ITEMS,
+                com.kostya.createbrewery.registry.ModEffects.EFFECTS,
                 ModDataComponents.DATA_COMPONENTS,
                 com.kostya.createbrewery.recipe.ModRecipeTypes.RECIPE_TYPES,
                 com.kostya.createbrewery.recipe.BrewingRecipeSerializer.SERIALIZERS,

@@ -12,6 +12,8 @@ import com.kostya.createbrewery.recipe.DrinkProfile;
 import com.kostya.createbrewery.quality.QualityRules;
 import com.kostya.createbrewery.quality.StarLine;
 import com.kostya.createbrewery.registry.ModDataComponents;
+import com.kostya.createbrewery.registry.ModEffects;
+import com.kostya.createbrewery.social.ToastRules;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.Holder;
 import net.minecraft.core.component.DataComponentMap;
@@ -78,16 +80,26 @@ public class DrinkItem extends Item {
         if (entity instanceof Player player) {
             DrinkData data = stack.getOrDefault(ModDataComponents.DRINK_DATA.get(), new DrinkData(DrinkData.MAX_STARS));
             if (!level.isClientSide) {
+                boolean spoiledOrMuddy = data.isSpoiled() || data.stage().equals(DrinkProfile.MUDDY.id());
+                // The toast marker is spent by this drink whatever it is; only a proper drink gets the bonus.
+                boolean toasted = player.hasEffect(ModEffects.TOAST);
+                if (toasted) {
+                    player.removeEffect(ModEffects.TOAST);
+                }
+                boolean toastBonus = toasted && !spoiledOrMuddy && BreweryConfig.toastBonus();
                 if (player instanceof ServerPlayer serverPlayer) {
                     awardAdvancements(serverPlayer, level, data);
+                    if (toasted) {
+                        BreweryAdvancements.award(serverPlayer, "toast", "toasted");
+                    }
                 }
                 // Alcohol is stored on the product, while quality remains a separate value.
                 int drunk = data.alcohol() / 5;
                 DrunkManager.addDrunk(player, drunk);
                 // A drink too weak to raise the drunk level builds no debt either.
                 if (drunk > 0) {
-                    DrunkManager.addHangoverDebt(player, HangoverRules.debtFor(data.alcohol(), data.stars(),
-                            data.isSpoiled() || data.stage().equals(DrinkProfile.MUDDY.id())));
+                    DrunkManager.addHangoverDebt(player, ToastRules.hangoverDebt(
+                            HangoverRules.debtFor(data.alcohol(), data.stars(), spoiledOrMuddy), toastBonus));
                 }
                 if (data.isSpoiled()) {
                     player.addEffect(new MobEffectInstance(MobEffects.CONFUSION, 400));
@@ -100,8 +112,8 @@ public class DrinkItem extends Item {
                 if (!data.isSpoiled() && QualityRules.poisonTicks(data.stars()) > 0) {
                     player.addEffect(new MobEffectInstance(MobEffects.POISON, QualityRules.poisonTicks(data.stars())));
                 }
-                if (!data.isSpoiled() && !data.stage().equals(DrinkProfile.MUDDY.id())) {
-                    applyDrinkEffects(player, level, data);
+                if (!spoiledOrMuddy) {
+                    applyDrinkEffects(player, level, data, toastBonus);
                 }
             }
             player.playSound(SoundEvents.PLAYER_BURP, 0.5f, level.random.nextFloat() * 0.1f + 0.9f);
@@ -135,12 +147,16 @@ public class DrinkItem extends Item {
         }
     }
 
-    /** The drink's own effects, as long as its quality earns: a five-star drink keeps the recipe's full duration. */
-    private static void applyDrinkEffects(Player player, Level level, DrinkData data) {
+    /**
+     * The drink's own effects, as long as its quality earns: a five-star drink keeps the recipe's full duration,
+     * and a toast makes them last half as long again.
+     */
+    private static void applyDrinkEffects(Player player, Level level, DrinkData data, boolean toasted) {
         float factor = QualityRules.effectDurationFactor(data.stars());
         for (DrinkEffect drinkEffect : BrewingRecipe.profileWithStage(level, data.stage()).effects()
                 .getOrDefault(data.stage(), List.of())) {
-            int ticks = Math.round(drinkEffect.seconds() * 20 * factor * (float) BreweryConfig.effectMultiplier());
+            int ticks = ToastRules.effectTicks(
+                    Math.round(drinkEffect.seconds() * 20 * factor * (float) BreweryConfig.effectMultiplier()), toasted);
             if (ticks <= 0) {
                 continue;
             }

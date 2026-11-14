@@ -35,6 +35,8 @@ import com.kostya.createbrewery.recipe.MixRules;
 import com.kostya.createbrewery.registry.ModDataComponents;
 import com.kostya.createbrewery.registry.ModFluids;
 import com.kostya.createbrewery.registry.ModItems;
+import com.kostya.createbrewery.registry.ModEffects;
+import com.kostya.createbrewery.social.ToastEvents;
 import com.simibubi.create.AllBlocks;
 import com.simibubi.create.content.kinetics.base.DirectionalKineticBlock;
 import com.simibubi.create.content.kinetics.base.KineticBlockEntity;
@@ -2761,5 +2763,126 @@ public class BreweryGameTests {
         }
         helper.fail("the spout gave no drink");
         return ItemStack.EMPTY;
+    }
+
+    /** A player holding a drink, in the main hand. */
+    private static ServerPlayer drinker(GameTestHelper helper) {
+        ServerPlayer player = freshPlayer(helper);
+        player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(ModItems.DRINK_BOTTLE.get()));
+        return player;
+    }
+
+    /** Two players with drinks clink: both get the toast marker for the toast window. */
+    @GameTest(template = "empty")
+    public static void clinkGivesBothToast(GameTestHelper helper) {
+        ServerPlayer a = drinker(helper);
+        ServerPlayer b = freshPlayer(helper);
+        b.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(ModItems.DRINK_MUG.get()));
+        helper.assertTrue(ToastEvents.clink(a, b), "two drinkers did not clink");
+        for (ServerPlayer player : List.of(a, b)) {
+            MobEffectInstance toast = player.getEffect(ModEffects.TOAST);
+            helper.assertTrue(toast != null && toast.getDuration() == BreweryConfig.toastSeconds() * 20,
+                    "toast " + toast);
+        }
+        helper.succeed();
+    }
+
+    /** No clink unless both players hold a drink in the main hand. */
+    @GameTest(template = "empty")
+    public static void clinkNeedsDrinksInBothHands(GameTestHelper helper) {
+        ServerPlayer a = drinker(helper);
+        ServerPlayer emptyHanded = freshPlayer(helper);
+        helper.assertFalse(ToastEvents.clink(a, emptyHanded), "clinked with an empty hand");
+        helper.assertFalse(ToastEvents.clink(emptyHanded, a), "an empty hand clinked");
+        ServerPlayer mugOnly = freshPlayer(helper);
+        mugOnly.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(ModItems.MUG.get()));
+        helper.assertFalse(ToastEvents.clink(a, mugOnly), "clinked with an empty mug");
+        ServerPlayer offHand = freshPlayer(helper);
+        offHand.setItemInHand(InteractionHand.OFF_HAND, new ItemStack(ModItems.DRINK_BOTTLE.get()));
+        helper.assertFalse(ToastEvents.clink(a, offHand), "clinked with a drink in the off hand");
+        for (ServerPlayer player : List.of(a, emptyHanded, mugOnly, offHand)) {
+            helper.assertFalse(player.hasEffect(ModEffects.TOAST), "toast without a clink");
+        }
+        helper.succeed();
+    }
+
+    /** A deployer or another fake player never clinks, even holding a drink. */
+    @GameTest(template = "empty")
+    public static void fakePlayerCannotClink(GameTestHelper helper) {
+        ServerPlayer real = drinker(helper);
+        var fake = net.neoforged.neoforge.common.util.FakePlayerFactory.getMinecraft(helper.getLevel());
+        ItemStack held = fake.getMainHandItem();
+        fake.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(ModItems.DRINK_BOTTLE.get()));
+        try {
+            helper.assertFalse(ToastEvents.clink(real, fake), "clinked with a fake player");
+            helper.assertFalse(ToastEvents.clink(fake, real), "a fake player clinked");
+            helper.assertFalse(real.hasEffect(ModEffects.TOAST), "toast from a fake player");
+            helper.assertFalse(fake.hasEffect(ModEffects.TOAST), "fake player got a toast");
+        } finally {
+            fake.setItemInHand(InteractionHand.MAIN_HAND, held);
+        }
+        helper.succeed();
+    }
+
+    /** The same drink lasts half as long again after a toast, spends the marker and earns "Cheers!". */
+    @GameTest(template = "empty")
+    public static void toastedDrinkLastsLonger(GameTestHelper helper) {
+        // Five-star vodka gives fire resistance for 90 seconds.
+        ServerPlayer alone = freshPlayer(helper);
+        drink(helper, alone, new DrinkData(5, 40, "vodka"));
+        ServerPlayer toasted = freshPlayer(helper);
+        toasted.addEffect(new MobEffectInstance(ModEffects.TOAST, 200));
+        drink(helper, toasted, new DrinkData(5, 40, "vodka"));
+        MobEffectInstance plain = alone.getEffect(MobEffects.FIRE_RESISTANCE);
+        MobEffectInstance longer = toasted.getEffect(MobEffects.FIRE_RESISTANCE);
+        helper.assertTrue(plain != null && longer != null && longer.getDuration() * 2 == plain.getDuration() * 3,
+                "alone " + plain + ", toasted " + longer);
+        helper.assertFalse(toasted.hasEffect(ModEffects.TOAST), "the drink did not spend the toast");
+        helper.assertTrue(advancementDone(helper, toasted, "toast"), "toast gave no advancement");
+        helper.assertFalse(advancementDone(helper, alone, "toast"), "drinking alone gave the toast advancement");
+        helper.succeed();
+    }
+
+    /** A toast halves the drink's hangover debt; the muddy brew spends the marker for nothing. */
+    @GameTest(template = "empty")
+    public static void toastHalvesHangoverDebt(GameTestHelper helper) {
+        Player player = helper.makeMockPlayer(GameType.SURVIVAL);
+        player.addEffect(new MobEffectInstance(ModEffects.TOAST, 200));
+        drink(helper, player, 2, 40, "vodka");
+        helper.assertTrue(DrunkManager.getHangoverDebt(player) == 4, "toasted debt " + DrunkManager.getHangoverDebt(player));
+        helper.assertFalse(player.hasEffect(ModEffects.TOAST), "the drink did not spend the toast");
+        Player muddy = helper.makeMockPlayer(GameType.SURVIVAL);
+        muddy.addEffect(new MobEffectInstance(ModEffects.TOAST, 200));
+        drink(helper, muddy, 3, 2, "muddy");
+        helper.assertFalse(muddy.hasEffect(ModEffects.TOAST), "the muddy brew did not spend the toast");
+        helper.succeed();
+    }
+
+    /** Once the toast window runs out, the next drink is an ordinary one. */
+    @GameTest(template = "empty")
+    public static void expiredToastGivesNoBonus(GameTestHelper helper) {
+        Player player = helper.makeMockPlayer(GameType.SURVIVAL);
+        player.addEffect(new MobEffectInstance(ModEffects.TOAST, 1));
+        player.baseTick();
+        helper.assertFalse(player.hasEffect(ModEffects.TOAST), "toast did not run out");
+        drink(helper, player, 5, 40, "vodka");
+        MobEffectInstance effect = player.getEffect(MobEffects.FIRE_RESISTANCE);
+        helper.assertTrue(effect != null && effect.getDuration() == 1800, "expired toast still counted: " + effect);
+        helper.succeed();
+    }
+
+    /** With the bonus turned off, clinking still counts for "Cheers!" but the drink is an ordinary one. */
+    @GameTest(template = "empty", batch = "toast_bonus_off")
+    public static void toastBonusOffStillAwards(GameTestHelper helper) {
+        withConfig(BreweryConfig.TOAST_BONUS, false, () -> {
+            ServerPlayer player = freshPlayer(helper);
+            player.addEffect(new MobEffectInstance(ModEffects.TOAST, 200));
+            drink(helper, player, new DrinkData(5, 40, "vodka"));
+            MobEffectInstance effect = player.getEffect(MobEffects.FIRE_RESISTANCE);
+            helper.assertTrue(effect != null && effect.getDuration() == 1800, "bonus while off: " + effect);
+            helper.assertFalse(player.hasEffect(ModEffects.TOAST), "the drink did not spend the toast");
+            helper.assertTrue(advancementDone(helper, player, "toast"), "toast gave no advancement with the bonus off");
+        });
+        helper.succeed();
     }
 }

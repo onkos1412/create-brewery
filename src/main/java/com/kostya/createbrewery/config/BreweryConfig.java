@@ -18,6 +18,8 @@ public final class BreweryConfig {
     public static final int DEFAULT_PASS_OUT_AT = DrunkLevel.PASS_OUT_AT;
     public static final int DEFAULT_SECONDS_PER_SOBER_STEP = 1;
     public static final double DEFAULT_EFFECT_MULTIPLIER = 1.0;
+    public static final boolean DEFAULT_TOAST_BONUS = true;
+    public static final int DEFAULT_TOAST_SECONDS = 10;
 
     public static final ModConfigSpec.BooleanValue STAGGER;
     public static final ModConfigSpec.BooleanValue VOMIT;
@@ -25,6 +27,8 @@ public final class BreweryConfig {
     public static final ModConfigSpec.IntValue PASS_OUT_AT;
     public static final ModConfigSpec.IntValue SECONDS_PER_SOBER_STEP;
     public static final ModConfigSpec.DoubleValue EFFECT_MULTIPLIER;
+    public static final ModConfigSpec.BooleanValue TOAST_BONUS;
+    public static final ModConfigSpec.IntValue TOAST_SECONDS;
 
     public static final ModConfigSpec SPEC;
 
@@ -58,6 +62,15 @@ public final class BreweryConfig {
                 .comment("Multiplier for the duration of the effects drinks give (0 turns them off)")
                 .translation("brewery.configuration.effectMultiplier")
                 .defineInRange("effectMultiplier", DEFAULT_EFFECT_MULTIPLIER, 0.0, 4.0);
+        TOAST_BONUS = builder
+                .comment("Drinking right after clinking drinks makes the drink's effects last 50% longer and halves its "
+                        + "hangover debt. When off, clinking still works and still earns the advancement")
+                .translation("brewery.configuration.toastBonus")
+                .define("toastBonus", DEFAULT_TOAST_BONUS);
+        TOAST_SECONDS = builder
+                .comment("How many seconds after clinking the next drink still counts as a toast")
+                .translation("brewery.configuration.toastSeconds")
+                .defineInRange("toastSeconds", DEFAULT_TOAST_SECONDS, 3, 60);
         builder.pop();
         SPEC = builder.build();
     }
@@ -87,5 +100,13 @@ public final class BreweryConfig {
 
     public static double effectMultiplier() {
         return SPEC.isLoaded() ? EFFECT_MULTIPLIER.get() : DEFAULT_EFFECT_MULTIPLIER;
+    }
+
+    public static boolean toastBonus() {
+        return SPEC.isLoaded() ? TOAST_BONUS.get() : DEFAULT_TOAST_BONUS;
+    }
+
+    public static int toastSeconds() {
+        return SPEC.isLoaded() ? TOAST_SECONDS.get() : DEFAULT_TOAST_SECONDS;
     }
 }

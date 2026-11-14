@@ -211,6 +211,52 @@ def write_mug_textures():
     save(mug_body(), ITEM, "drink_mug")
     save(mug_liquid(), ITEM, "drink_mug_liquid")
 
+EFFECT = ROOT / "textures/mob_effect"
+
+
+def toast_icon():
+    """The toast effect icon (18x18): two wooden mugs tilted together, foam splashing where they clink."""
+    outline = rgb("#1d1a18")
+    img = tex(18)
+    p = img.putpixel
+
+    def mug(x0, lean, handle_side):
+        # A 6-wide mug body; each row is shifted by the lean so the two tops meet in the middle.
+        for row in range(10):
+            y = 6 + row
+            dx = (9 - row) * lean // 9
+            for x in range(6):
+                px = x0 + x + dx
+                if row == 0 or row == 9 or x in (0, 5):
+                    p((px, y), outline)
+                elif row == 1:
+                    p((px, y), rgb("#f4ead0"))
+                elif row in (3, 7):
+                    p((px, y), rgb(IRON[3]))
+                else:
+                    p((px, y), rgb(OAK[4] if x < 3 else OAK[2]))
+        # A handle loop on the outer side: two stubs out of the body and a bar joining them.
+        inner = x0 - 1 if handle_side < 0 else x0 + 6
+        outer = x0 - 2 if handle_side < 0 else x0 + 7
+        for row in range(3, 8):
+            dx = (9 - row) * lean // 9
+            p((outer + dx, 6 + row), outline)
+            if row in (3, 7):
+                p((inner + dx, 6 + row), outline)
+
+    mug(2, 2, -1)
+    mug(10, -2, 1)
+    # The splash of foam over the clink.
+    for x, y in ((8, 3), (9, 2), (10, 4), (7, 1), (11, 1), (9, 4)):
+        p((x, y), rgb("#fbf4dc"))
+    for x, y in ((8, 2), (10, 3)):
+        p((x, y), rgb(BRASS[4]))
+    return img
+
+
+def write_effect_icons():
+    save(toast_icon(), EFFECT, "toast")
+
 
 def brewer_book():
     """A brown leather book seen from the front: spine on the left, page edges on the right, a brass clasp
@@ -920,6 +966,7 @@ def write_logo():
 def main():
     write_block_textures()
     write_item_textures()
+    write_effect_icons()
     write_models()
     write_gui()
     write_book_gui()
