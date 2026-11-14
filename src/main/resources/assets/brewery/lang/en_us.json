@@ -145,5 +145,9 @@
   "advancements.brewery.toast.title": "Cheers!",
   "advancements.brewery.toast.description": "Drink after clinking glasses with a friend",
   "brewery.configuration.toastBonus": "Toast bonus",
-  "brewery.configuration.toastSeconds": "Toast window, seconds"
+  "brewery.configuration.toastSeconds": "Toast window, seconds",
+  "advancements.brewery.treat.title": "On the house!",
+  "advancements.brewery.treat.description": "Another player drank your drink",
+  "advancements.brewery.life_of_the_party.title": "Life of the party",
+  "advancements.brewery.life_of_the_party.description": "Five different players drank your drinks"
 }

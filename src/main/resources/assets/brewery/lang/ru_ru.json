@@ -145,5 +145,9 @@
   "advancements.brewery.toast.title": "За здоровье!",
   "advancements.brewery.toast.description": "Выпить, чокнувшись с другом",
   "brewery.configuration.toastBonus": "Бонус тоста",
-  "brewery.configuration.toastSeconds": "Окно тоста, секунд"
+  "brewery.configuration.toastSeconds": "Окно тоста, секунд",
+  "advancements.brewery.treat.title": "Угощаю!",
+  "advancements.brewery.treat.description": "Другой игрок выпил ваш напиток",
+  "advancements.brewery.life_of_the_party.title": "Душа компании",
+  "advancements.brewery.life_of_the_party.description": "Ваши напитки выпили 5 разных игроков"
 }

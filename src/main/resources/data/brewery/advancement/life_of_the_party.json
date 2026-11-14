@@ -1,0 +1,23 @@
+{
+  "parent": "brewery:treat",
+  "display": {
+    "icon": {
+      "id": "brewery:mug"
+    },
+    "title": {
+      "translate": "advancements.brewery.life_of_the_party.title"
+    },
+    "description": {
+      "translate": "advancements.brewery.life_of_the_party.description"
+    },
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": false,
+    "frame": "challenge"
+  },
+  "criteria": {
+    "treated": {
+      "trigger": "minecraft:impossible"
+    }
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "parent": "brewery:toast",
+  "display": {
+    "icon": {
+      "id": "brewery:mug"
+    },
+    "title": {
+      "translate": "advancements.brewery.treat.title"
+    },
+    "description": {
+      "translate": "advancements.brewery.treat.description"
+    },
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": false
+  },
+  "criteria": {
+    "treated": {
+      "trigger": "minecraft:impossible"
+    }
+  }
+}

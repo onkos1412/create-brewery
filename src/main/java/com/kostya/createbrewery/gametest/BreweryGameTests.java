@@ -36,6 +36,8 @@ import com.kostya.createbrewery.registry.ModDataComponents;
 import com.kostya.createbrewery.registry.ModFluids;
 import com.kostya.createbrewery.registry.ModItems;
 import com.kostya.createbrewery.registry.ModEffects;
+import com.kostya.createbrewery.social.HospitalityData;
+import com.kostya.createbrewery.social.HospitalityEvents;
 import com.kostya.createbrewery.social.ToastEvents;
 import com.simibubi.create.AllBlocks;
 import com.simibubi.create.content.kinetics.base.DirectionalKineticBlock;
@@ -1409,8 +1411,12 @@ public class BreweryGameTests {
      * players never earn advancements, so this is a plain {@link ServerPlayer} that is never added to the world.
      */
     private static ServerPlayer freshPlayer(GameTestHelper helper) {
+        return freshPlayerWithId(helper, UUID.randomUUID());
+    }
+
+    private static ServerPlayer freshPlayerWithId(GameTestHelper helper, UUID id) {
         MinecraftServer server = helper.getLevel().getServer();
-        GameProfile profile = new GameProfile(UUID.randomUUID(), "taster");
+        GameProfile profile = new GameProfile(id, "taster");
         ServerPlayer player = new ServerPlayer(server, helper.getLevel(), profile, ClientInformation.createDefault());
         // Granting an advancement and syncing the drunk level send packets, so the player needs a connection
         // that swallows them.
@@ -2883,6 +2889,122 @@ public class BreweryGameTests {
             helper.assertFalse(player.hasEffect(ModEffects.TOAST), "the drink did not spend the toast");
             helper.assertTrue(advancementDone(helper, player, "toast"), "toast gave no advancement with the bonus off");
         });
+        helper.succeed();
+    }
+
+    /** A bottle of beer signed by {@code owner}, drunk by {@code drinker}. */
+    private static void drinkSigned(GameTestHelper helper, ServerPlayer drinker, UUID owner) {
+        ItemStack bottle = new ItemStack(ModItems.DRINK_BOTTLE.get());
+        bottle.set(ModDataComponents.DRINK_DATA.get(), new DrinkData(4, 20, "beer"));
+        bottle.set(ModDataComponents.BREWER.get(), new BrewerMark("brewer", 1, Optional.of(owner)));
+        bottle.finishUsingItem(helper.getLevel(), drinker);
+    }
+
+    /** Puts a test player on the server's player list for the duration of {@code body}. */
+    private static void whileOnline(GameTestHelper helper, ServerPlayer player, Runnable body) {
+        // getPlayers() is a read-only view, so reach the real list.
+        java.util.List<ServerPlayer> players;
+        try {
+            var field = net.minecraft.server.players.PlayerList.class.getDeclaredField("players");
+            field.setAccessible(true);
+            @SuppressWarnings("unchecked")
+            java.util.List<ServerPlayer> list = (java.util.List<ServerPlayer>) field.get(helper.getLevel().getServer().getPlayerList());
+            players = list;
+        } catch (ReflectiveOperationException e) {
+            throw new IllegalStateException(e);
+        }
+        players.add(player);
+        try {
+            body.run();
+        } finally {
+            players.remove(player);
+        }
+    }
+
+    /** A friend drinking the brewer's drink earns the online brewer "On the house!". */
+    @GameTest(template = "empty")
+    public static void drinkingFriendsDrinkCreditsBrewer(GameTestHelper helper) {
+        ServerPlayer brewer = freshPlayer(helper);
+        ServerPlayer friend = freshPlayer(helper);
+        whileOnline(helper, brewer, () -> {
+            helper.assertFalse(advancementDone(helper, brewer, "treat"), "treat done before anyone drank");
+            drinkSigned(helper, friend, brewer.getUUID());
+            helper.assertTrue(advancementDone(helper, brewer, "treat"), "the brewer was not credited");
+        });
+        helper.assertFalse(advancementDone(helper, friend, "treat"), "the drinker was credited");
+        helper.succeed();
+    }
+
+    /** Drinking one's own drink credits nothing. */
+    @GameTest(template = "empty")
+    public static void ownDrinkCreditsNothing(GameTestHelper helper) {
+        ServerPlayer brewer = freshPlayer(helper);
+        whileOnline(helper, brewer, () -> drinkSigned(helper, brewer, brewer.getUUID()));
+        helper.assertFalse(advancementDone(helper, brewer, "treat"), "own drink earned treat");
+        helper.assertTrue(HospitalityData.get(helper.getLevel().getServer()).credit(brewer.getUUID(), brewer.getUUID()) == 0,
+                "own drink was counted");
+        helper.succeed();
+    }
+
+    /** The same friend drinking again is still one friend. */
+    @GameTest(template = "empty")
+    public static void sameFriendCountsOnce(GameTestHelper helper) {
+        ServerPlayer friend = freshPlayer(helper);
+        UUID brewer = UUID.randomUUID();
+        HospitalityData data = HospitalityData.get(helper.getLevel().getServer());
+        drinkSigned(helper, friend, brewer);
+        drinkSigned(helper, friend, brewer);
+        helper.assertTrue(data.credit(brewer, friend.getUUID()) == 1, "the same friend counted twice");
+        helper.succeed();
+    }
+
+    /** Five different drinkers make "Life of the party"; four do not. */
+    @GameTest(template = "empty")
+    public static void fiveFriendsMakeLifeOfTheParty(GameTestHelper helper) {
+        ServerPlayer brewer = freshPlayer(helper);
+        whileOnline(helper, brewer, () -> {
+            for (int i = 0; i < HospitalityData.PARTY_SIZE - 1; i++) {
+                drinkSigned(helper, freshPlayer(helper), brewer.getUUID());
+            }
+            helper.assertFalse(advancementDone(helper, brewer, "life_of_the_party"), "the party started with four");
+            drinkSigned(helper, freshPlayer(helper), brewer.getUUID());
+            helper.assertTrue(advancementDone(helper, brewer, "life_of_the_party"), "five friends gave no advancement");
+        });
+        helper.succeed();
+    }
+
+    /** An offline brewer is awarded on the next login, once. */
+    @GameTest(template = "empty")
+    public static void offlineBrewerGetsAwardOnLogin(GameTestHelper helper) {
+        UUID brewerId = UUID.randomUUID();
+        drinkSigned(helper, freshPlayer(helper), brewerId);
+        HospitalityData data = HospitalityData.get(helper.getLevel().getServer());
+        ServerPlayer brewer = freshPlayerWithId(helper, brewerId);
+        helper.assertFalse(advancementDone(helper, brewer, "treat"), "awarded while away");
+        HospitalityEvents.onLogin(brewer);
+        helper.assertTrue(advancementDone(helper, brewer, "treat"), "login did not award");
+        helper.assertTrue(data.takePending(brewerId).isEmpty(), "pending was not cleared");
+        helper.assertFalse(advancementDone(helper, brewer, "life_of_the_party"), "login awarded the party");
+        helper.succeed();
+    }
+
+    /** Drinkers and pending awards save and load back; a broken entry is skipped. */
+    @GameTest(template = "empty")
+    public static void hospitalitySurvivesSaveLoad(GameTestHelper helper) {
+        var registries = helper.getLevel().registryAccess();
+        UUID brewer = UUID.randomUUID();
+        UUID a = UUID.randomUUID();
+        UUID b = UUID.randomUUID();
+        HospitalityData source = new HospitalityData();
+        source.credit(brewer, a);
+        source.credit(brewer, b);
+        source.addPending(brewer, "treat");
+        CompoundTag saved = source.save(new CompoundTag(), registries);
+        ((net.minecraft.nbt.ListTag) saved.get("brewers")).add(new CompoundTag());
+        HospitalityData loaded = HospitalityData.load(saved, registries);
+        helper.assertTrue(loaded.credit(brewer, a) == 2, "drinkers were lost");
+        helper.assertTrue(loaded.credit(brewer, UUID.randomUUID()) == 3, "drinkers were not kept apart");
+        helper.assertTrue(loaded.takePending(brewer).equals(java.util.Set.of("treat")), "pending was lost");
         helper.succeed();
     }
 }

@@ -13,7 +13,9 @@ import com.kostya.createbrewery.quality.QualityRules;
 import com.kostya.createbrewery.quality.StarLine;
 import com.kostya.createbrewery.registry.ModDataComponents;
 import com.kostya.createbrewery.registry.ModEffects;
+import com.kostya.createbrewery.social.HospitalityEvents;
 import com.kostya.createbrewery.social.ToastRules;
+import net.neoforged.neoforge.common.util.FakePlayer;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.Holder;
 import net.minecraft.core.component.DataComponentMap;
@@ -89,6 +91,10 @@ public class DrinkItem extends Item {
                 boolean toastBonus = toasted && !spoiledOrMuddy && BreweryConfig.toastBonus();
                 if (player instanceof ServerPlayer serverPlayer) {
                     awardAdvancements(serverPlayer, level, data);
+                    BrewerMark mark = stack.get(ModDataComponents.BREWER.get());
+                    if (mark != null && mark.owner().isPresent() && !(serverPlayer instanceof FakePlayer)) {
+                        HospitalityEvents.treat(serverPlayer.server, serverPlayer, mark.owner().get());
+                    }
                     if (toasted) {
                         BreweryAdvancements.award(serverPlayer, "toast", "toasted");
                     }
