@@ -3124,7 +3124,7 @@ public class BreweryGameTests {
         // getPlayers() is a read-only view, so reach the real list.
         java.util.List<ServerPlayer> players;
         try {
-            var field = net.minecraft.server.players.PlayerList.class.getDeclaredField("players");
+            var field = net.minecraftforge.fml.util.ObfuscationReflectionHelper.findField(net.minecraft.server.players.PlayerList.class, "f_11196_");
             field.setAccessible(true);
             @SuppressWarnings("unchecked")
             java.util.List<ServerPlayer> list = (java.util.List<ServerPlayer>) field.get(helper.getLevel().getServer().getPlayerList());
