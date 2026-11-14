@@ -54,7 +54,7 @@ public final class ToastEvents {
         }
         int ticks = BreweryConfig.toastSeconds() * 20;
         for (Player player : new Player[] {a, b}) {
-            player.addEffect(new MobEffectInstance(ModEffects.TOAST, ticks));
+            player.addEffect(new MobEffectInstance(ModEffects.TOAST, ticks, 0, false, false, true));
             if (player.level() instanceof ServerLevel level) {
                 level.sendParticles(ParticleTypes.HAPPY_VILLAGER, player.getX(), player.getEyeY() + 0.5, player.getZ(),
                         6, 0.3, 0.2, 0.3, 0.0);

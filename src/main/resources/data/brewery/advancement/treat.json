@@ -1,5 +1,5 @@
 {
-  "parent": "brewery:toast",
+  "parent": "brewery:first_brew",
   "display": {
     "icon": {
       "id": "brewery:mug"

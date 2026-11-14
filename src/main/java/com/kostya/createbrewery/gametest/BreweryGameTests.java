@@ -2864,6 +2864,35 @@ public class BreweryGameTests {
         helper.succeed();
     }
 
+    /** A toasted muddy or spoiled drink still spends the marker but earns no "Cheers!". */
+    @GameTest(template = "empty")
+    public static void toastedMuddyGivesNoCheers(GameTestHelper helper) {
+        for (String stage : List.of("muddy", "spoiled")) {
+            ServerPlayer player = freshPlayer(helper);
+            player.addEffect(new MobEffectInstance(ModEffects.TOAST, 200));
+            drink(helper, player, new DrinkData(3, 2, stage));
+            helper.assertFalse(player.hasEffect(ModEffects.TOAST), stage + " did not spend the toast");
+            helper.assertFalse(advancementDone(helper, player, "toast"), stage + " earned the toast advancement");
+        }
+        helper.succeed();
+    }
+
+    /** The real interact handler clinks two drinkers, cancels the event and does not start drinking. */
+    @GameTest(template = "empty")
+    public static void clinkDoesNotStartDrinking(GameTestHelper helper) {
+        ServerPlayer a = drinker(helper);
+        ServerPlayer b = drinker(helper);
+        var event = new net.neoforged.neoforge.event.entity.player.PlayerInteractEvent.EntityInteract(
+                a, InteractionHand.MAIN_HAND, b);
+        net.neoforged.neoforge.common.NeoForge.EVENT_BUS.post(event);
+        helper.assertTrue(a.hasEffect(ModEffects.TOAST) && b.hasEffect(ModEffects.TOAST), "the handler gave no toast to both");
+        helper.assertTrue(event.isCanceled(), "the event was not cancelled");
+        helper.assertTrue(event.getCancellationResult() == net.minecraft.world.InteractionResult.SUCCESS,
+                "result " + event.getCancellationResult());
+        helper.assertFalse(a.isUsingItem(), "the clicking player started drinking");
+        helper.succeed();
+    }
+
     /** Once the toast window runs out, the next drink is an ordinary one. */
     @GameTest(template = "empty")
     public static void expiredToastGivesNoBonus(GameTestHelper helper) {
@@ -2935,6 +2964,25 @@ public class BreweryGameTests {
         helper.succeed();
     }
 
+    /** A spoiled or muddy drink does not count as treating anyone. */
+    @GameTest(template = "empty")
+    public static void spoiledDrinkCreditsNoTreat(GameTestHelper helper) {
+        ServerPlayer brewer = freshPlayer(helper);
+        ServerPlayer friend = freshPlayer(helper);
+        whileOnline(helper, brewer, () -> {
+            for (String stage : List.of("spoiled", "muddy")) {
+                ItemStack bottle = new ItemStack(ModItems.DRINK_BOTTLE.get());
+                bottle.set(ModDataComponents.DRINK_DATA.get(), new DrinkData(1, 20, stage));
+                bottle.set(ModDataComponents.BREWER.get(), new BrewerMark("brewer", 1, Optional.of(brewer.getUUID())));
+                bottle.finishUsingItem(helper.getLevel(), friend);
+            }
+            helper.assertFalse(advancementDone(helper, brewer, "treat"), "a bad drink earned treat");
+        });
+        helper.assertTrue(HospitalityData.get(helper.getLevel().getServer()).credit(brewer.getUUID(), friend.getUUID()) == 1,
+                "a bad drink was counted before");  // credit() records the drinker, so 1 means nobody was recorded earlier
+        helper.succeed();
+    }
+
     /** Drinking one's own drink credits nothing. */
     @GameTest(template = "empty")
     public static void ownDrinkCreditsNothing(GameTestHelper helper) {
@@ -2984,6 +3032,8 @@ public class BreweryGameTests {
         HospitalityEvents.onLogin(brewer);
         helper.assertTrue(advancementDone(helper, brewer, "treat"), "login did not award");
         helper.assertTrue(data.takePending(brewerId).isEmpty(), "pending was not cleared");
+        HospitalityEvents.onLogin(brewer);
+        helper.assertTrue(data.takePending(brewerId).isEmpty(), "a second login left something pending");
         helper.assertFalse(advancementDone(helper, brewer, "life_of_the_party"), "login awarded the party");
         helper.succeed();
     }

@@ -92,10 +92,10 @@ public class DrinkItem extends Item {
                 if (player instanceof ServerPlayer serverPlayer) {
                     awardAdvancements(serverPlayer, level, data);
                     BrewerMark mark = stack.get(ModDataComponents.BREWER.get());
-                    if (mark != null && mark.owner().isPresent() && !(serverPlayer instanceof FakePlayer)) {
+                    if (!spoiledOrMuddy && mark != null && mark.owner().isPresent() && !(serverPlayer instanceof FakePlayer)) {
                         HospitalityEvents.treat(serverPlayer.server, serverPlayer, mark.owner().get());
                     }
-                    if (toasted) {
+                    if (toasted && !spoiledOrMuddy) {
                         BreweryAdvancements.award(serverPlayer, "toast", "toasted");
                     }
                 }
