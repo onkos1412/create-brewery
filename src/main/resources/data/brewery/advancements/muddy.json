@@ -2,7 +2,7 @@
   "parent": "brewery:first_brew",
   "display": {
     "icon": {
-      "id": "minecraft:mud"
+      "item": "minecraft:mud"
     },
     "title": {
       "translate": "advancements.brewery.muddy.title"

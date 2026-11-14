@@ -1,7 +1,7 @@
 package com.kostya.createbrewery.config;
 
 import com.kostya.createbrewery.drunk.DrunkLevel;
-import net.neoforged.neoforge.common.ModConfigSpec;
+import net.minecraftforge.common.ForgeConfigSpec;
 
 /**
  * Server settings (file {@code brewery-server.toml}). The pure rule classes never read these: the
@@ -21,19 +21,19 @@ public final class BreweryConfig {
     public static final boolean DEFAULT_TOAST_BONUS = true;
     public static final int DEFAULT_TOAST_SECONDS = 10;
 
-    public static final ModConfigSpec.BooleanValue STAGGER;
-    public static final ModConfigSpec.BooleanValue VOMIT;
-    public static final ModConfigSpec.BooleanValue HANGOVER;
-    public static final ModConfigSpec.IntValue PASS_OUT_AT;
-    public static final ModConfigSpec.IntValue SECONDS_PER_SOBER_STEP;
-    public static final ModConfigSpec.DoubleValue EFFECT_MULTIPLIER;
-    public static final ModConfigSpec.BooleanValue TOAST_BONUS;
-    public static final ModConfigSpec.IntValue TOAST_SECONDS;
+    public static final ForgeConfigSpec.BooleanValue STAGGER;
+    public static final ForgeConfigSpec.BooleanValue VOMIT;
+    public static final ForgeConfigSpec.BooleanValue HANGOVER;
+    public static final ForgeConfigSpec.IntValue PASS_OUT_AT;
+    public static final ForgeConfigSpec.IntValue SECONDS_PER_SOBER_STEP;
+    public static final ForgeConfigSpec.DoubleValue EFFECT_MULTIPLIER;
+    public static final ForgeConfigSpec.BooleanValue TOAST_BONUS;
+    public static final ForgeConfigSpec.IntValue TOAST_SECONDS;
 
-    public static final ModConfigSpec SPEC;
+    public static final ForgeConfigSpec SPEC;
 
     static {
-        ModConfigSpec.Builder builder = new ModConfigSpec.Builder();
+        ForgeConfigSpec.Builder builder = new ForgeConfigSpec.Builder();
         builder.comment("Drunk mechanics").translation("brewery.configuration.drunk").push("drunk");
         STAGGER = builder
                 .comment("Drunk players are shoved sideways while walking")

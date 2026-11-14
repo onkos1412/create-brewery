@@ -1,7 +1,7 @@
 package com.kostya.createbrewery.recipe;
 
-import net.minecraft.core.HolderLookup;
 import net.minecraft.core.NonNullList;
+import net.minecraft.core.RegistryAccess;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
@@ -22,6 +22,7 @@ import java.util.function.Predicate;
  * rules can be unit-tested without Minecraft's registries; the {@link Recipe} methods
  * needed by the game delegate to that pure {@link #matches(List, int)} rule.
  *
+ * @param id            the recipe's id (1.20.1 recipes carry their own id; 1.21.1 kept it in the holder)
  * @param inputs        item ids accepted as one ingredient each, in order
  * @param waterInput    the fluid the kettle must contain to accept this recipe
  * @param wortOutput    the fluid produced when the brew finishes
@@ -30,6 +31,7 @@ import java.util.function.Predicate;
  * @param drink         what the wort becomes on its way through the machines
  */
 public record BrewingRecipe(
+        ResourceLocation id,
         List<String> inputs,
         FluidKey waterInput,
         FluidKey wortOutput,
@@ -61,7 +63,7 @@ public record BrewingRecipe(
 
     private static DrinkProfile findProfile(Level level, Predicate<DrinkProfile> test) {
         return level.getRecipeManager().getAllRecipesFor(ModRecipeTypes.BREWING.get()).stream()
-                .map(holder -> holder.value().drink())
+                .map(BrewingRecipe::drink)
                 .filter(test)
                 .findFirst()
                 .orElse(DrinkProfile.BEER);
@@ -111,7 +113,7 @@ public record BrewingRecipe(
 
     /** Brewing emits a fluid, not an item; the bottle is filled by the spout instead. */
     @Override
-    public ItemStack assemble(BrewingRecipeInput input, HolderLookup.Provider registries) {
+    public ItemStack assemble(BrewingRecipeInput input, RegistryAccess registries) {
         return ItemStack.EMPTY;
     }
 
@@ -121,15 +123,20 @@ public record BrewingRecipe(
     }
 
     @Override
-    public ItemStack getResultItem(HolderLookup.Provider registries) {
+    public ItemStack getResultItem(RegistryAccess registries) {
         return ItemStack.EMPTY;
+    }
+
+    @Override
+    public ResourceLocation getId() {
+        return id;
     }
 
     @Override
     public NonNullList<Ingredient> getIngredients() {
         NonNullList<Ingredient> list = NonNullList.create();
-        for (String id : inputs) {
-            var item = BuiltInRegistries.ITEM.get(ResourceLocation.parse(id));
+        for (String input : inputs) {
+            var item = BuiltInRegistries.ITEM.get(ResourceLocation.parse(input));
             list.add(Ingredient.of(item));
         }
         return list;

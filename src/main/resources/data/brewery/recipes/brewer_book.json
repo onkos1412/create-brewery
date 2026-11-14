@@ -13,7 +13,7 @@
     }
   ],
   "result": {
-    "id": "brewery:brewer_book",
+    "item": "brewery:brewer_book",
     "count": 1
   }
 }

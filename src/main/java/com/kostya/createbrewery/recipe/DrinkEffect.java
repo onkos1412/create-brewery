@@ -1,5 +1,6 @@
 package com.kostya.createbrewery.recipe;
 
+import com.kostya.createbrewery.StrictCodecs;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.resources.ResourceLocation;
@@ -19,6 +20,6 @@ public record DrinkEffect(ResourceLocation effect, int seconds, int amplifier) {
     public static final Codec<DrinkEffect> CODEC = RecordCodecBuilder.create(instance -> instance.group(
             ResourceLocation.CODEC.fieldOf("effect").forGetter(DrinkEffect::effect),
             Codec.intRange(1, Integer.MAX_VALUE / 20).fieldOf("seconds").forGetter(DrinkEffect::seconds),
-            Codec.intRange(0, 255).optionalFieldOf("amplifier", 0).forGetter(DrinkEffect::amplifier)
+            StrictCodecs.optionalField(Codec.intRange(0, 255), "amplifier", 0).forGetter(DrinkEffect::amplifier)
     ).apply(instance, DrinkEffect::new));
 }

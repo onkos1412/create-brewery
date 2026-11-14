@@ -2,7 +2,7 @@
   "parent": "brewery:distilled",
   "display": {
     "icon": {
-      "id": "minecraft:clock"
+      "item": "minecraft:clock"
     },
     "title": {
       "translate": "advancements.brewery.aged.title"

@@ -2,7 +2,7 @@
   "parent": "brewery:first_brew",
   "display": {
     "icon": {
-      "id": "brewery:mug"
+      "item": "brewery:mug"
     },
     "title": {
       "translate": "advancements.brewery.toast.title"

@@ -2,7 +2,7 @@
   "parent": "brewery:treat",
   "display": {
     "icon": {
-      "id": "brewery:mug"
+      "item": "brewery:mug"
     },
     "title": {
       "translate": "advancements.brewery.life_of_the_party.title"

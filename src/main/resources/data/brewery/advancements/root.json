@@ -1,7 +1,7 @@
 {
   "display": {
     "icon": {
-      "id": "brewery:kettle"
+      "item": "brewery:kettle"
     },
     "title": {
       "translate": "advancements.brewery.root.title"
@@ -20,7 +20,9 @@
       "conditions": {
         "items": [
           {
-            "items": "brewery:kettle"
+            "items": [
+              "brewery:kettle"
+            ]
           }
         ]
       }

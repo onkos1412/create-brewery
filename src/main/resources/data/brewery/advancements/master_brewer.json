@@ -2,7 +2,7 @@
   "parent": "brewery:first_brew",
   "display": {
     "icon": {
-      "id": "minecraft:nether_star"
+      "item": "minecraft:nether_star"
     },
     "title": {
       "translate": "advancements.brewery.master_brewer.title"

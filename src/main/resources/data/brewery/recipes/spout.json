@@ -14,7 +14,7 @@
     }
   },
   "result": {
-    "id": "brewery:spout",
+    "item": "brewery:spout",
     "count": 1
   }
 }

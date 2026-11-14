@@ -2,7 +2,7 @@
   "parent": "brewery:first_brew",
   "display": {
     "icon": {
-      "id": "brewery:distillate"
+      "item": "brewery:distillate"
     },
     "title": {
       "translate": "advancements.brewery.distilled.title"
@@ -20,7 +20,9 @@
       "conditions": {
         "items": [
           {
-            "items": "brewery:distillate"
+            "items": [
+              "brewery:distillate"
+            ]
           }
         ]
       }

@@ -12,7 +12,7 @@
     }
   },
   "result": {
-    "id": "brewery:mug",
+    "item": "brewery:mug",
     "count": 4
   }
 }

@@ -2,7 +2,7 @@
   "parent": "brewery:master_brewer",
   "display": {
     "icon": {
-      "id": "minecraft:golden_apple"
+      "item": "minecraft:golden_apple"
     },
     "title": {
       "translate": "advancements.brewery.taster.title"

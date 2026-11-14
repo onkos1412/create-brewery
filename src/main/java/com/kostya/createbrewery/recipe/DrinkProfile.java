@@ -1,5 +1,6 @@
 package com.kostya.createbrewery.recipe;
 
+import com.kostya.createbrewery.StrictCodecs;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.DataResult;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
@@ -44,21 +45,22 @@ public record DrinkProfile(String id, int alcohol, String distilled, int distill
     public static final DrinkProfile MUDDY =
             new DrinkProfile("muddy", 2, "", 40, "", 200, 32, 3, "oak", 0x5B4A32, Map.of());
 
-    public static final Codec<DrinkProfile> CODEC = RecordCodecBuilder.<DrinkProfile>create(instance -> instance.group(
+    // 1.20.1's optionalFieldOf turns a broken value into the default; StrictCodecs keeps 1.21.1's error.
+    public static final Codec<DrinkProfile> CODEC = StrictCodecs.validate(RecordCodecBuilder.<DrinkProfile>create(instance -> instance.group(
             Codec.STRING.fieldOf("id").forGetter(DrinkProfile::id),
             Codec.intRange(0, 100).fieldOf("alcohol").forGetter(DrinkProfile::alcohol),
-            Codec.STRING.optionalFieldOf("distilled", "").forGetter(DrinkProfile::distilled),
-            Codec.intRange(0, 100).optionalFieldOf("distilledAlcohol", 40).forGetter(DrinkProfile::distilledAlcohol),
-            Codec.STRING.optionalFieldOf("aged", "").forGetter(DrinkProfile::aged),
+            StrictCodecs.optionalField(Codec.STRING, "distilled", "").forGetter(DrinkProfile::distilled),
+            StrictCodecs.optionalField(Codec.intRange(0, 100), "distilledAlcohol", 40).forGetter(DrinkProfile::distilledAlcohol),
+            StrictCodecs.optionalField(Codec.STRING, "aged", "").forGetter(DrinkProfile::aged),
             // The machines divide by these, so a bad datapack must fail on load rather than crash a tick.
-            Codec.intRange(1, Integer.MAX_VALUE).optionalFieldOf("distillTicks", 200).forGetter(DrinkProfile::distillTicks),
-            Codec.intRange(1, 256).optionalFieldOf("idealRpm", 32).forGetter(DrinkProfile::idealRpm),
-            Codec.intRange(1, Integer.MAX_VALUE).optionalFieldOf("agingDays", 3).forGetter(DrinkProfile::agingDays),
-            Codec.STRING.optionalFieldOf("wood", "oak").forGetter(DrinkProfile::wood),
-            COLOR_CODEC.optionalFieldOf("color", BEER_COLOR).forGetter(DrinkProfile::color),
-            Codec.unboundedMap(Codec.STRING, DrinkEffect.CODEC.listOf())
-                    .optionalFieldOf("effects", Map.of()).forGetter(DrinkProfile::effects)
-    ).apply(instance, DrinkProfile::new)).validate(DrinkProfile::checkEffectStages);
+            StrictCodecs.optionalField(Codec.intRange(1, Integer.MAX_VALUE), "distillTicks", 200).forGetter(DrinkProfile::distillTicks),
+            StrictCodecs.optionalField(Codec.intRange(1, 256), "idealRpm", 32).forGetter(DrinkProfile::idealRpm),
+            StrictCodecs.optionalField(Codec.intRange(1, Integer.MAX_VALUE), "agingDays", 3).forGetter(DrinkProfile::agingDays),
+            StrictCodecs.optionalField(Codec.STRING, "wood", "oak").forGetter(DrinkProfile::wood),
+            StrictCodecs.optionalField(COLOR_CODEC, "color", BEER_COLOR).forGetter(DrinkProfile::color),
+            StrictCodecs.optionalField(Codec.unboundedMap(Codec.STRING, DrinkEffect.CODEC.listOf()), "effects",
+                    Map.<String, List<DrinkEffect>>of()).forGetter(DrinkProfile::effects)
+    ).apply(instance, DrinkProfile::new)), DrinkProfile::checkEffectStages);
 
     /** An effect keyed by a stage this recipe never makes could never be drunk, so the recipe is refused. */
     private static DataResult<DrinkProfile> checkEffectStages(DrinkProfile profile) {

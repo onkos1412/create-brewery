@@ -1,8 +1,7 @@
 package com.kostya.createbrewery.advancement;
 
 import com.kostya.createbrewery.CreateBrewery;
-import net.minecraft.advancements.AdvancementHolder;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.advancements.Advancement;
 import net.minecraft.server.level.ServerPlayer;
 
 import java.util.Set;
@@ -22,8 +21,7 @@ public final class BreweryAdvancements {
 
     /** Awards one criterion of {@code brewery:<advancement>}; a missing advancement or a repeat does nothing. */
     public static void award(ServerPlayer player, String advancement, String criterion) {
-        AdvancementHolder holder = player.server.getAdvancements()
-                .get(ResourceLocation.fromNamespaceAndPath(CreateBrewery.MOD_ID, advancement));
+        Advancement holder = player.server.getAdvancements().getAdvancement(CreateBrewery.id(advancement));
         if (holder != null) {
             player.getAdvancements().award(holder, criterion);
         }

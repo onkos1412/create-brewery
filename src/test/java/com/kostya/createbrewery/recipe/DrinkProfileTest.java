@@ -14,11 +14,11 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class DrinkProfileTest {
-    private static final Path RECIPES = Path.of("src/main/resources/data/brewery/recipe");
+    private static final Path RECIPES = Path.of("src/main/resources/data/brewery/recipes");
 
     private static DrinkProfile read(String recipe) throws Exception {
         var json = JsonParser.parseString(Files.readString(RECIPES.resolve(recipe + ".json"))).getAsJsonObject();
-        return DrinkProfile.CODEC.parse(JsonOps.INSTANCE, json.get("drink")).getOrThrow();
+        return DrinkProfile.CODEC.parse(JsonOps.INSTANCE, json.get("drink")).getOrThrow(false, error -> { });
     }
 
     @Test
@@ -54,7 +54,7 @@ class DrinkProfileTest {
     void settingsTheMachinesDivideByMustBePositive() {
         for (String field : List.of("agingDays", "distillTicks", "idealRpm")) {
             var json = JsonParser.parseString("{\"id\": \"kvass\", \"alcohol\": 5, \"" + field + "\": 0}");
-            assertTrue(DrinkProfile.CODEC.parse(JsonOps.INSTANCE, json).isError(), field + " 0 was accepted");
+            assertTrue(DrinkProfile.CODEC.parse(JsonOps.INSTANCE, json).error().isPresent(), field + " 0 was accepted");
         }
     }
 
@@ -66,7 +66,7 @@ class DrinkProfileTest {
             assertTrue(seen.add(read(recipe).color()), recipe + " shares a colour");
         }
         var bad = JsonParser.parseString("{\"id\": \"kvass\", \"alcohol\": 5, \"color\": \"red\"}");
-        assertTrue(DrinkProfile.CODEC.parse(JsonOps.INSTANCE, bad).isError());
+        assertTrue(DrinkProfile.CODEC.parse(JsonOps.INSTANCE, bad).error().isPresent());
     }
 
     @Test
@@ -79,7 +79,7 @@ class DrinkProfileTest {
     @Test
     void omittedStagesMeanTheRoadEnds() {
         var json = JsonParser.parseString("{\"id\": \"kvass\", \"alcohol\": 5}");
-        DrinkProfile kvass = DrinkProfile.CODEC.parse(JsonOps.INSTANCE, json).getOrThrow();
+        DrinkProfile kvass = DrinkProfile.CODEC.parse(JsonOps.INSTANCE, json).getOrThrow(false, error -> { });
 
         assertFalse(kvass.canDistill());
         assertFalse(kvass.canAge());
@@ -100,14 +100,14 @@ class DrinkProfileTest {
     void effectsOfAnotherStageAreRejected() {
         var json = JsonParser.parseString("{\"id\": \"kvass\", \"alcohol\": 5, "
                 + "\"effects\": {\"tequila\": [{\"effect\": \"minecraft:speed\", \"seconds\": 60}]}}");
-        assertTrue(DrinkProfile.CODEC.parse(JsonOps.INSTANCE, json).isError());
+        assertTrue(DrinkProfile.CODEC.parse(JsonOps.INSTANCE, json).error().isPresent());
     }
 
     @Test
     void effectsWithABlankStageKeyAreRejected() {
         var json = JsonParser.parseString("{\"id\": \"kvass\", \"alcohol\": 5, "
                 + "\"effects\": {\"\": [{\"effect\": \"minecraft:speed\", \"seconds\": 60}]}}");
-        assertTrue(DrinkProfile.CODEC.parse(JsonOps.INSTANCE, json).isError());
+        assertTrue(DrinkProfile.CODEC.parse(JsonOps.INSTANCE, json).error().isPresent());
     }
 
     @Test
@@ -120,6 +120,6 @@ class DrinkProfileTest {
     void effectsLastAtLeastASecond() {
         var json = JsonParser.parseString("{\"id\": \"kvass\", \"alcohol\": 5, "
                 + "\"effects\": {\"kvass\": [{\"effect\": \"minecraft:speed\", \"seconds\": 0}]}}");
-        assertTrue(DrinkProfile.CODEC.parse(JsonOps.INSTANCE, json).isError());
+        assertTrue(DrinkProfile.CODEC.parse(JsonOps.INSTANCE, json).error().isPresent());
     }
 }

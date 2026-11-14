@@ -26,18 +26,16 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.material.Fluid;
 import net.minecraft.world.level.material.FlowingFluid;
 import net.minecraft.world.level.material.FluidState;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.bus.api.IEventBus;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.client.extensions.common.IClientFluidTypeExtensions;
-import net.neoforged.neoforge.client.extensions.common.RegisterClientExtensionsEvent;
-import net.neoforged.neoforge.fluids.FluidStack;
-import net.neoforged.neoforge.fluids.FluidType;
-import net.neoforged.neoforge.registries.DeferredHolder;
-import net.neoforged.neoforge.registries.DeferredRegister;
-import net.neoforged.neoforge.registries.NeoForgeRegistries;
+import net.minecraftforge.client.extensions.common.IClientFluidTypeExtensions;
+import net.minecraftforge.eventbus.api.IEventBus;
+import net.minecraftforge.fluids.FluidStack;
+import net.minecraftforge.fluids.FluidType;
+import net.minecraftforge.registries.DeferredRegister;
+import net.minecraftforge.registries.ForgeRegistries;
+import net.minecraftforge.registries.RegistryObject;
 import org.joml.Vector3f;
+
+import java.util.function.Consumer;
 
 /**
  * Registry of the mod's fluids.
@@ -47,18 +45,17 @@ import org.joml.Vector3f;
  */
 public final class ModFluids {
     /** Resource id of the wort fluid type, source fluid and flowing fluid. */
-    public static final ResourceLocation WORT_ID =
-            ResourceLocation.fromNamespaceAndPath(CreateBrewery.MOD_ID, "wort");
+    public static final ResourceLocation WORT_ID = CreateBrewery.id("wort");
 
     public static final DeferredRegister<FluidType> FLUID_TYPES =
-            DeferredRegister.create(NeoForgeRegistries.Keys.FLUID_TYPES, CreateBrewery.MOD_ID);
+            DeferredRegister.create(ForgeRegistries.Keys.FLUID_TYPES, CreateBrewery.MOD_ID);
     public static final DeferredRegister<Fluid> FLUIDS =
             DeferredRegister.create(Registries.FLUID, CreateBrewery.MOD_ID);
 
     /** Colour of the wort: a warm amber, matching the eventual beer tint. */
     private static final Vector3f WORT_TINT = new Vector3f(0.85f, 0.62f, 0.20f);
 
-    public static final DeferredHolder<FluidType, FluidType> WORT_TYPE = FLUID_TYPES.register("wort",
+    public static final RegistryObject<FluidType> WORT_TYPE = FLUID_TYPES.register("wort",
             () -> new FluidType(FluidType.Properties.create()
                     .descriptionId("fluid_type.brewery.wort")
                     .density(1100)
@@ -67,18 +64,24 @@ public final class ModFluids {
                 /** Tanks and goggles name a wort by its drink and quality, which keep it apart from other wort. */
                 @Override
                 public Component getDescription(FluidStack stack) {
-                    DrinkData data = stack.get(ModDataComponents.DRINK_DATA.get());
+                    DrinkData data = DrinkData.get(stack);
                     if (data == null) {
                         return super.getDescription(stack);
                     }
                     return Component.translatable("fluid_type.brewery.wort_of",
                             Component.translatable("drink.brewery." + data.stage()), StarLine.of(data.stars()));
                 }
+
+                /** Called by Forge on the physical client only, so the client classes stay off the server. */
+                @Override
+                public void initializeClient(Consumer<IClientFluidTypeExtensions> consumer) {
+                    consumer.accept(ClientHandler.extensions());
+                }
             });
 
-    public static final DeferredHolder<Fluid, FlowingFluid> WORT =
+    public static final RegistryObject<FlowingFluid> WORT =
             FLUIDS.register("wort", WortFluid.Source::new);
-    public static final DeferredHolder<Fluid, FlowingFluid> FLOWING_WORT =
+    public static final RegistryObject<FlowingFluid> FLOWING_WORT =
             FLUIDS.register("flowing_wort", WortFluid.Flowing::new);
 
     private ModFluids() {
@@ -89,23 +92,24 @@ public final class ModFluids {
         FLUIDS.register(modEventBus);
     }
 
-    /** Wires the wort textures and tint into the client. Must only be called on the client. */
-    @EventBusSubscriber(modid = CreateBrewery.MOD_ID, value = Dist.CLIENT)
+    /**
+     * The wort textures and tint on the client. Only {@link FluidType#initializeClient} reaches this class, and Forge
+     * calls that on the physical client alone (1.21.1: {@code RegisterClientExtensionsEvent}).
+     */
     public static final class ClientHandler {
         private ClientHandler() {
         }
 
-        @SubscribeEvent
-        public static void registerClientExtensions(RegisterClientExtensionsEvent event) {
-            event.registerFluidType(new IClientFluidTypeExtensions() {
+        static IClientFluidTypeExtensions extensions() {
+            return new IClientFluidTypeExtensions() {
                 @Override
                 public ResourceLocation getStillTexture() {
-                    return ResourceLocation.fromNamespaceAndPath(CreateBrewery.MOD_ID, "block/wort_still");
+                    return CreateBrewery.id("block/wort_still");
                 }
 
                 @Override
                 public ResourceLocation getFlowingTexture() {
-                    return ResourceLocation.fromNamespaceAndPath(CreateBrewery.MOD_ID, "block/wort_flow");
+                    return CreateBrewery.id("block/wort_flow");
                 }
 
                 /** Without a stack to go on, wort is its plain beer colour. */
@@ -117,7 +121,7 @@ public final class ModFluids {
                 /** Each wort carries its drink, and so its colour, through Create's pipes and tanks. */
                 @Override
                 public int getTintColor(FluidStack stack) {
-                    DrinkData data = stack.get(ModDataComponents.DRINK_DATA.get());
+                    DrinkData data = DrinkData.get(stack);
                     ClientLevel level = Minecraft.getInstance().level;
                     if (data == null || level == null) {
                         return getTintColor();
@@ -130,7 +134,7 @@ public final class ModFluids {
                                                int renderDistance, float darkenWorldAmount, Vector3f fluidFogColor) {
                     return WORT_TINT;
                 }
-            }, WORT_TYPE.get());
+            };
         }
     }
 

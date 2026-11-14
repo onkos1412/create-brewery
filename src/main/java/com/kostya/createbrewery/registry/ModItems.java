@@ -6,37 +6,47 @@ import com.kostya.createbrewery.item.DistillateItem;
 import com.kostya.createbrewery.item.DrinkItem;
 import com.kostya.createbrewery.item.DrinkMugItem;
 import net.minecraft.world.item.Item;
-import net.neoforged.bus.api.IEventBus;
-import net.neoforged.neoforge.registries.DeferredItem;
-import net.neoforged.neoforge.registries.DeferredRegister;
+import net.minecraftforge.eventbus.api.IEventBus;
+import net.minecraftforge.registries.DeferredRegister;
+import net.minecraftforge.registries.ForgeRegistries;
+import net.minecraftforge.registries.RegistryObject;
 
 /**
  * Registry of the mod's items.
  */
 public final class ModItems {
-    public static final DeferredRegister.Items ITEMS = DeferredRegister.createItems(CreateBrewery.MOD_ID);
+    public static final DeferredRegister<Item> ITEMS = DeferredRegister.create(ForgeRegistries.ITEMS, CreateBrewery.MOD_ID);
 
     /**
      * The drink bottle. New stacks carry five stars by default; the brewing pipeline
      * overwrites the component with the real quality once it exists.
      */
-    public static final DeferredItem<Item> DRINK_BOTTLE = ITEMS.register("drink_bottle",
+    public static final RegistryObject<Item> DRINK_BOTTLE = ITEMS.register("drink_bottle",
             () -> new DrinkItem(new Item.Properties().stacksTo(16)));
 
-    public static final DeferredItem<Item> DISTILLATE = ITEMS.register("distillate",
+    public static final RegistryObject<Item> DISTILLATE = ITEMS.register("distillate",
             () -> new DistillateItem(new Item.Properties().stacksTo(16)));
 
     /** The brewer's book: signed by its first reader, it shows them their brewing journal. */
-    public static final DeferredItem<Item> BREWER_BOOK = ITEMS.register("brewer_book",
+    public static final RegistryObject<Item> BREWER_BOOK = ITEMS.register("brewer_book",
             () -> new BrewerBookItem(new Item.Properties().stacksTo(1)));
 
     /** An empty wooden mug: use it on a keg to fill it with one portion. */
-    public static final DeferredItem<Item> MUG = ITEMS.register("mug",
+    public static final RegistryObject<Item> MUG = ITEMS.register("mug",
             () -> new Item(new Item.Properties().stacksTo(16)));
 
     /** A mug of drink; drinking it hands the mug back. */
-    public static final DeferredItem<Item> DRINK_MUG = ITEMS.register("drink_mug",
+    public static final RegistryObject<Item> DRINK_MUG = ITEMS.register("drink_mug",
             () -> new DrinkMugItem(new Item.Properties().stacksTo(1)));
+
+    /**
+     * PORT: Task 3 - placeholder for the kettle's block item, which comes back with the machines
+     * ({@code ModBlocks.KETTLE_ITEM}). The advancement tree's root shows and asks for {@code brewery:kettle}, so without
+     * an item of that id no {@code brewery:} advancement loads. Task 3 deletes this (registering both would crash on
+     * the duplicate id).
+     */
+    public static final RegistryObject<Item> KETTLE_PLACEHOLDER = ITEMS.register("kettle",
+            () -> new Item(new Item.Properties()));
 
     private ModItems() {
     }

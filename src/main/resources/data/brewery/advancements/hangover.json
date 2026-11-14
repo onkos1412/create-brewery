@@ -2,7 +2,7 @@
   "parent": "brewery:passed_out",
   "display": {
     "icon": {
-      "id": "minecraft:fermented_spider_eye"
+      "item": "minecraft:fermented_spider_eye"
     },
     "title": {
       "translate": "advancements.brewery.hangover.title"

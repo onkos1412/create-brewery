@@ -15,7 +15,7 @@
     }
   },
   "result": {
-    "id": "brewery:kettle",
+    "item": "brewery:kettle",
     "count": 1
   }
 }

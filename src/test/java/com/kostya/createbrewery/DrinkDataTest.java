@@ -19,7 +19,7 @@ class DrinkDataTest {
     void legacyCodecDataGetsSafeDefaults() {
         var json = com.google.gson.JsonParser.parseString("{\"stars\": 4}");
 
-        DrinkData data = DrinkData.CODEC.parse(JsonOps.INSTANCE, json).getOrThrow();
+        DrinkData data = DrinkData.CODEC.parse(JsonOps.INSTANCE, json).getOrThrow(false, error -> { });
 
         assertEquals(4, data.stars());
         assertEquals(DrinkData.DEFAULT_ALCOHOL, data.alcohol());
@@ -44,9 +44,9 @@ class DrinkDataTest {
     @Test
     void codecRoundTripsAllDrinkData() {
         var ops = JsonOps.INSTANCE;
-        var json = DrinkData.CODEC.encodeStart(ops, new DrinkData(4, 40, "aged_whiskey")).getOrThrow();
+        var json = DrinkData.CODEC.encodeStart(ops, new DrinkData(4, 40, "aged_whiskey")).getOrThrow(false, error -> { });
 
-        DrinkData data = DrinkData.CODEC.parse(ops, json).getOrThrow();
+        DrinkData data = DrinkData.CODEC.parse(ops, json).getOrThrow(false, error -> { });
 
         assertEquals(new DrinkData(4, 40, "aged_whiskey"), data);
     }
@@ -59,7 +59,7 @@ class DrinkDataTest {
     @Test
     void codecRoundTripsStars() {
         var ops = JsonOps.INSTANCE;
-        var json = DrinkData.CODEC.encodeStart(ops, new DrinkData(4)).getOrThrow();
-        assertEquals(4, DrinkData.CODEC.parse(ops, json).getOrThrow().stars());
+        var json = DrinkData.CODEC.encodeStart(ops, new DrinkData(4)).getOrThrow(false, error -> { });
+        assertEquals(4, DrinkData.CODEC.parse(ops, json).getOrThrow(false, error -> { }).stars());
     }
 }

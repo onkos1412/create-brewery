@@ -2,12 +2,12 @@ package com.kostya.createbrewery;
 
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
-import io.netty.buffer.ByteBuf;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.UUIDUtil;
 import net.minecraft.network.chat.Component;
-import net.minecraft.network.codec.ByteBufCodecs;
-import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.world.item.ItemStack;
+import net.minecraftforge.fluids.FluidStack;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.Optional;
 import java.util.UUID;
@@ -15,9 +15,14 @@ import java.util.UUID;
 /**
  * Signature of the player who brewed a drink: their name, the world day and, for marks made
  * since the brewer's book, their UUID so later stages credit the right journal.
+ *
+ * <p>Stored in stack NBT under {@link #NBT_KEY} (1.21.1: the {@code brewery:brewer} data component). Item stack
+ * NBT reaches clients with the stack, so tooltips can show it without a stream codec.
  */
 public record BrewerMark(String name, long day, Optional<UUID> owner) {
     public static final long TICKS_PER_DAY = 24000L;
+    /** Where the mark sits in an item or fluid stack's NBT. */
+    public static final String NBT_KEY = "brewery:brewer";
 
     /** A mark with no known owner, as made before the brewer's book. */
     public BrewerMark(String name, long day) {
@@ -27,14 +32,8 @@ public record BrewerMark(String name, long day, Optional<UUID> owner) {
     public static final Codec<BrewerMark> CODEC = RecordCodecBuilder.create(instance -> instance.group(
             Codec.STRING.fieldOf("name").forGetter(BrewerMark::name),
             Codec.LONG.fieldOf("day").forGetter(BrewerMark::day),
-            UUIDUtil.CODEC.optionalFieldOf("owner").forGetter(BrewerMark::owner)
+            StrictCodecs.optionalField(UUIDUtil.CODEC, "owner").forGetter(BrewerMark::owner)
     ).apply(instance, BrewerMark::new));
-
-    public static final StreamCodec<ByteBuf, BrewerMark> STREAM_CODEC = StreamCodec.composite(
-            ByteBufCodecs.STRING_UTF8, BrewerMark::name,
-            ByteBufCodecs.VAR_LONG, BrewerMark::day,
-            ByteBufCodecs.optional(UUIDUtil.STREAM_CODEC), BrewerMark::owner,
-            BrewerMark::new);
 
     /** Day 1 is the first day of a world. */
     public static long dayOf(long dayTime) {
@@ -44,5 +43,27 @@ public record BrewerMark(String name, long day, Optional<UUID> owner) {
     public Component tooltip() {
         return Component.translatable("tooltip.brewery.brewer", name, day)
                 .withStyle(ChatFormatting.GRAY, ChatFormatting.ITALIC);
+    }
+
+    // ---- NBT accessors (1.21.1: stack.get/set(ModDataComponents.BREWER)) ---------------------------
+
+    @Nullable
+    public static BrewerMark get(ItemStack stack) {
+        return StackNbt.read(stack.getTag(), NBT_KEY, CODEC);
+    }
+
+    /** Stores {@code mark}; {@code null} removes it. */
+    public static void set(ItemStack stack, @Nullable BrewerMark mark) {
+        StackNbt.write(stack, NBT_KEY, CODEC, mark);
+    }
+
+    @Nullable
+    public static BrewerMark get(FluidStack stack) {
+        return StackNbt.read(stack.getTag(), NBT_KEY, CODEC);
+    }
+
+    /** Stores {@code mark} on the fluid; {@code null} removes it. */
+    public static void set(FluidStack stack, @Nullable BrewerMark mark) {
+        StackNbt.write(stack, NBT_KEY, CODEC, mark);
     }
 }

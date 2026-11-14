@@ -2,14 +2,13 @@ package com.kostya.createbrewery.registry;
 
 import com.kostya.createbrewery.CreateBrewery;
 import com.kostya.createbrewery.DrinkData;
-import com.kostya.createbrewery.block.ModBlocks;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.CreativeModeTab;
 import net.minecraft.world.item.ItemStack;
-import net.neoforged.bus.api.IEventBus;
-import net.neoforged.neoforge.registries.DeferredHolder;
-import net.neoforged.neoforge.registries.DeferredRegister;
+import net.minecraftforge.eventbus.api.IEventBus;
+import net.minecraftforge.registries.DeferredRegister;
+import net.minecraftforge.registries.RegistryObject;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -38,23 +37,23 @@ public final class ModCreativeTabs {
     public static final DeferredRegister<CreativeModeTab> TABS =
             DeferredRegister.create(Registries.CREATIVE_MODE_TAB, CreateBrewery.MOD_ID);
 
-    public static final DeferredHolder<CreativeModeTab, CreativeModeTab> BREWERY =
+    public static final RegistryObject<CreativeModeTab> BREWERY =
             TABS.register("brewery", () -> CreativeModeTab.builder()
                     .title(Component.translatable("itemGroup.brewery"))
                     .icon(() -> new ItemStack(ModItems.DRINK_BOTTLE.get()))
                     .displayItems((parameters, output) -> {
-                        output.accept(ModBlocks.KETTLE_ITEM.get());
-                        output.accept(ModBlocks.SPOUT_ITEM.get());
-                        output.accept(ModBlocks.DISTILLERY_ITEM.get());
-                        output.accept(ModBlocks.BARREL_ITEM.get());
-                        output.accept(ModBlocks.KEG_ITEM.get());
+                        // PORT: Task 3 - the machines' block items go first, as on 1.21.1:
+                        // output.accept(ModBlocks.KETTLE_ITEM.get());
+                        // output.accept(ModBlocks.SPOUT_ITEM.get());
+                        // output.accept(ModBlocks.DISTILLERY_ITEM.get());
+                        // output.accept(ModBlocks.BARREL_ITEM.get());
+                        // output.accept(ModBlocks.KEG_ITEM.get());
                         output.accept(ModItems.DISTILLATE.get());
                         output.accept(ModItems.MUG.get());
                         output.accept(ModItems.BREWER_BOOK.get());
                         for (Map.Entry<String, Integer> drink : TAB_DRINKS.entrySet()) {
                             ItemStack bottle = new ItemStack(ModItems.DRINK_BOTTLE.get());
-                            bottle.set(ModDataComponents.DRINK_DATA.get(),
-                                    new DrinkData(DrinkData.MAX_STARS, drink.getValue(), drink.getKey()));
+                            DrinkData.set(bottle, new DrinkData(DrinkData.MAX_STARS, drink.getValue(), drink.getKey()));
                             output.accept(bottle);
                         }
                     })
