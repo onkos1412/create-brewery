@@ -19,7 +19,13 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 @Mixin(value = GenericItemFilling.class, remap = false)
 public abstract class GenericItemFillingMixin {
 
-    @Inject(method = "getRequiredAmountForItem", at = @At("HEAD"), cancellable = true)
+    /**
+     * The full descriptor, so an overload Create might add is never taken by mistake. Its Minecraft types go through
+     * the refmap ({@code remap = true}); the method is Create's own and keeps its name in every environment.
+     */
+    @Inject(method = "getRequiredAmountForItem(Lnet/minecraft/world/level/Level;Lnet/minecraft/world/item/ItemStack;"
+            + "Lio/github/fabricators_of_create/porting_lib/fluids/FluidStack;)J",
+            at = @At("HEAD"), cancellable = true, remap = true)
     private static void brewery$wholeBottleOfWort(Level world, ItemStack stack, FluidStack availableFluid,
                                                   CallbackInfoReturnable<Long> cir) {
         if (WortBottling.fillsWithWort(stack, availableFluid.getType())) {

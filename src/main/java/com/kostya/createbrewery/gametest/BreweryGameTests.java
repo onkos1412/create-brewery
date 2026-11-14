@@ -60,6 +60,7 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.NbtOps;
 import net.minecraft.network.Connection;
 import net.minecraft.network.PacketSendListener;
+import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.PacketFlow;
 import net.minecraft.resources.ResourceLocation;
@@ -2231,12 +2232,33 @@ public class BreweryGameTests implements FabricGameTest {
                 "topped up " + topUp + " to " + kettle.getWaterDroplets());
         helper.assertTrue(extract(kettleTank, water, 1) == 0, "water pumped back out");
         extractWater(kettle, 243_000);
+        kettle.setOwner(UUID.randomUUID(), "Kostya");
         items(helper, KETTLE).insertItem(0, new ItemStack(Items.WHEAT, 2), false);
 
-        helper.succeedWhen(() -> {
-            helper.assertTrue(kettle.getWortDroplets() == 81_000, "wort " + kettle.getWortDroplets() + " droplets");
-            helper.assertTrue(kettle.getWaterDroplets() == 0, "water left " + kettle.getWaterDroplets());
-        });
+        helper.startSequence()
+                .thenWaitUntil(() -> {
+                    helper.assertTrue(kettle.getWortDroplets() == 81_000, "wort " + kettle.getWortDroplets() + " droplets");
+                    helper.assertTrue(kettle.getWaterDroplets() == 0, "water left " + kettle.getWaterDroplets());
+                })
+                .thenExecute(() -> {
+                    // The brewed wort leaves through a pipe in uneven chunks too, every one of them the same wort.
+                    FluidVariant beer = StorageUtil.findStoredResource(kettleTank);
+                    helper.assertTrue(beer != null && new DrinkData(kettle.getWortStars(), 0, "beer").equals(DrinkData.get(beer)),
+                            "kettle shows " + beer);
+                    BrewerMark mark = BrewerMark.get(beer);
+                    helper.assertTrue(mark != null && "Kostya".equals(mark.name()) && mark.equals(kettle.getWortMark()),
+                            "kettle wort signed " + mark);
+                    long out = 0;
+                    for (long chunk : new long[] {1, 40_000, 81_000}) {
+                        helper.assertTrue(kettle.getWortDroplets() == 0 || beer.equals(StorageUtil.findStoredResource(kettleTank)),
+                                "part wort turned into " + StorageUtil.findStoredResource(kettleTank));
+                        out += extract(kettleTank, beer, chunk);
+                    }
+                    helper.assertTrue(out == 81_000, "pumped " + out + " droplets of wort");
+                    helper.assertTrue(kettle.getWortDroplets() == 0 && kettle.getWortMark() == null,
+                            "kettle left " + kettle.getWortDroplets() + " droplets, mark " + kettle.getWortMark());
+                })
+                .thenSucceed();
     }
 
     /**
@@ -2287,16 +2309,23 @@ public class BreweryGameTests implements FabricGameTest {
         ItemStack vodka = new ItemStack(ModItems.DISTILLATE.get());
         DrinkData.set(vodka, new DrinkData(5, 40, "vodka"));
         still.getOutput().setStackInSlot(0, vodka);
+        CompoundTag stillSaved = still.saveWithoutMetadata();
+        stillSaved.putInt("Progress", 7);
+        still.load(stillSaved);
         Storage<ItemVariant> stillItems = ItemStorage.SIDED.find(helper.getLevel(), helper.absolutePos(DISTILLERY), null);
         try (Transaction aborted = Transaction.openOuter()) {
-            helper.assertTrue(stillTank.insert(KettleBlockEntity.wortVariant(5, "cider", null), 21_000, aborted) == 21_000,
-                    "still refused more cider");
-            helper.assertTrue(stillTank.extract(KettleBlockEntity.wortVariant(3, "cider", kostya), 81_000, aborted) == 81_000,
+            // A weaker wort from another brewer drags the batch down to one star; the first mark still signs it.
+            helper.assertTrue(stillTank.insert(KettleBlockEntity.wortVariant(1, "cider", new BrewerMark("Other", 9)),
+                    21_000, aborted) == 21_000, "still refused more cider");
+            helper.assertTrue(still.getInputStars() == 1, "weaker wort did not count: " + still.getInputStars());
+            helper.assertTrue(stillTank.extract(KettleBlockEntity.wortVariant(1, "cider", kostya), 81_000, aborted) == 81_000,
                     "still refused to drain");
+            helper.assertTrue(still.getProgressTicks() == 0, "draining kept the progress");
             helper.assertTrue(stillItems.extract(ItemVariant.of(vodka), 1, aborted) == 1, "distillate refused");
         }
         helper.assertTrue(still.getWortDroplets() == 60_000 && still.getInputStars() == 3,
                 "still holds " + still.getWortDroplets() + " at " + still.getInputStars() + " stars");
+        helper.assertTrue(still.getProgressTicks() == 7, "progress " + still.getProgressTicks());
         helper.assertTrue(cider.equals(StorageUtil.findStoredResource(stillTank)), "still shows " + StorageUtil.findStoredResource(stillTank));
         helper.assertTrue(still.getOutput().getStackInSlot(0).is(ModItems.DISTILLATE.get()), "distillate gone");
 
@@ -2339,6 +2368,29 @@ public class BreweryGameTests implements FabricGameTest {
         helper.assertTrue(barrel.getOutput().getStackInSlot(0).is(ModItems.DRINK_BOTTLE.get())
                 && barrel.getBottleCount() == 1, "barrel lost its drink or bottle");
         helper.assertTrue(barrel.getInput().getStackInSlot(1).isEmpty(), "wood stayed");
+        helper.succeed();
+    }
+
+    /**
+     * A renamed glass bottle (NBT on the stack) in the barrel's bottle slot still pays for a drink a funnel takes:
+     * the drink never comes out for free, and the bottle is spent.
+     */
+    @GameTest(template = "brewery:empty")
+    public static void namedBottlePaysForADrink(GameTestHelper helper) {
+        helper.setBlock(BARREL, ModBlocks.BARREL.get());
+        BarrelBlockEntity barrel = blockEntity(helper, BARREL);
+        barrel.getOutput().setStackInSlot(0, new ItemStack(ModItems.DRINK_BOTTLE.get(), 2));
+        ItemStack named = new ItemStack(Items.GLASS_BOTTLE);
+        named.setHoverName(Component.literal("Kostya's glass"));
+        barrel.getBottles().setStackInSlot(0, named);
+        TestSlots funnelView = items(helper, BARREL);
+
+        ItemStack taken = funnelView.extractItem(2, 2, false);
+        helper.assertTrue(taken.is(ModItems.DRINK_BOTTLE.get()) && taken.getCount() == 1, "funnel took " + taken);
+        helper.assertTrue(barrel.getBottleCount() == 0, "named bottle not spent: " + barrel.getBottles().getStackInSlot(0));
+        helper.assertTrue(barrel.getOutput().getStackInSlot(0).getCount() == 1,
+                "drinks left " + barrel.getOutput().getStackInSlot(0));
+        helper.assertTrue(funnelView.extractItem(2, 1, false).isEmpty(), "funnel took a drink for free");
         helper.succeed();
     }
 

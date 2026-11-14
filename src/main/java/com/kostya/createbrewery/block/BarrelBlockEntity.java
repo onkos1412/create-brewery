@@ -12,6 +12,7 @@ import net.fabricmc.fabric.api.transfer.v1.storage.SlottedStorage;
 import net.fabricmc.fabric.api.transfer.v1.storage.StoragePreconditions;
 import net.fabricmc.fabric.api.transfer.v1.storage.StorageView;
 import net.fabricmc.fabric.api.transfer.v1.storage.base.SingleSlotStorage;
+import net.fabricmc.fabric.api.transfer.v1.transaction.Transaction;
 import net.fabricmc.fabric.api.transfer.v1.transaction.TransactionContext;
 import net.fabricmc.fabric.api.transfer.v1.transaction.base.SnapshotParticipant;
 import net.minecraft.core.BlockPos;
@@ -721,15 +722,22 @@ public class BarrelBlockEntity extends BlockEntity {
             StoragePreconditions.notBlankNotNegative(resource, maxAmount);
             int drink = drinkSlot(slot);
             BarrelBlockEntity root = root();
-            long paid = Math.min(maxAmount, root.bottles.getStackInSlot(0).getCount());
-            if (drink < 0 || paid <= 0) {
+            SingleSlotStorage<ItemVariant> bottleSlot = root.bottles.getSlot(0);
+            // Whatever glass bottles wait there pay, renamed ones included: the slot only ever holds glass bottles.
+            ItemVariant glass = bottleSlot.getResource();
+            long affordable = Math.min(maxAmount, bottleSlot.getAmount());
+            if (drink < 0 || glass.isBlank() || affordable <= 0) {
                 return 0;
             }
-            long taken = root.output.getSlot(drink).extract(resource, paid, transaction);
-            if (taken > 0) {
-                root.bottles.getSlot(0).extract(ItemVariant.of(Items.GLASS_BOTTLE), taken, transaction);
+            // Drink and payment move together or not at all.
+            try (Transaction both = transaction.openNested()) {
+                long taken = root.output.getSlot(drink).extract(resource, affordable, both);
+                if (taken <= 0 || bottleSlot.extract(glass, taken, both) != taken) {
+                    return 0;
+                }
+                both.commit();
+                return taken;
             }
-            return taken;
         }
 
         @Override

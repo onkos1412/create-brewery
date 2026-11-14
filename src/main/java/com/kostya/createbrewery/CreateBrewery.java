@@ -43,9 +43,23 @@ public class CreateBrewery implements ModInitializer {
         ModMenus.register();
         // The machines' Transfer API storages (Forge's capabilities) and the distillery's stress impact.
         ModCapabilities.register();
+        loadMixinTargets();
         // brewery-server.toml, as on Forge: Forge Config API Port ships with Create Fabric.
         ForgeConfigRegistry.INSTANCE.register(MOD_ID, ModConfig.Type.SERVER, BreweryConfig.SPEC);
         LOGGER.info("Create Brewery: content registries wired on 1.20.1 Fabric");
+    }
+
+    /**
+     * Loads the Create classes this mod's mixins change, so a Create build whose target no longer matches fails
+     * here, at startup, rather than at the first spout that fills a bottle mid-game.
+     */
+    private static void loadMixinTargets() {
+        try {
+            Class.forName("com.simibubi.create.content.fluids.transfer.GenericItemFilling", true,
+                    CreateBrewery.class.getClassLoader());
+        } catch (ClassNotFoundException e) {
+            throw new IllegalStateException("Create's GenericItemFilling is missing; this Create is not supported", e);
+        }
     }
 
     /** Builds a resource location in this mod's namespace. */
