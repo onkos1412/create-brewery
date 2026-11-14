@@ -5,17 +5,16 @@ import com.kostya.createbrewery.item.BrewerBookItem;
 import com.kostya.createbrewery.item.DistillateItem;
 import com.kostya.createbrewery.item.DrinkItem;
 import com.kostya.createbrewery.item.DrinkMugItem;
+import io.github.fabricators_of_create.porting_lib.util.LazyRegistrar;
+import io.github.fabricators_of_create.porting_lib.util.RegistryObject;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.world.item.Item;
-import net.minecraftforge.eventbus.api.IEventBus;
-import net.minecraftforge.registries.DeferredRegister;
-import net.minecraftforge.registries.ForgeRegistries;
-import net.minecraftforge.registries.RegistryObject;
 
 /**
  * Registry of the mod's items.
  */
 public final class ModItems {
-    public static final DeferredRegister<Item> ITEMS = DeferredRegister.create(ForgeRegistries.ITEMS, CreateBrewery.MOD_ID);
+    public static final LazyRegistrar<Item> ITEMS = LazyRegistrar.create(Registries.ITEM, CreateBrewery.MOD_ID);
 
     /**
      * The drink bottle. New stacks carry five stars by default; the brewing pipeline
@@ -42,7 +41,7 @@ public final class ModItems {
     private ModItems() {
     }
 
-    public static void register(IEventBus modEventBus) {
-        ITEMS.register(modEventBus);
+    public static void register() {
+        ITEMS.register();
     }
 }

@@ -23,7 +23,8 @@
       "com.kostya.createbrewery.gametest.GameTestNamespaces"
     ],
     "fabric-gametest": [
-      "com.kostya.createbrewery.gametest.BootGameTests"
+      "com.kostya.createbrewery.gametest.BootGameTests",
+      "com.kostya.createbrewery.gametest.BreweryGameTests"
     ]
   },
   "mixins": [

@@ -9,14 +9,13 @@ import com.mojang.serialization.DataResult;
 import com.mojang.serialization.JsonOps;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
+import io.github.fabricators_of_create.porting_lib.util.LazyRegistrar;
+import io.github.fabricators_of_create.porting_lib.util.RegistryObject;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.crafting.RecipeSerializer;
-import net.minecraftforge.eventbus.api.IEventBus;
-import net.minecraftforge.registries.DeferredRegister;
-import net.minecraftforge.registries.RegistryObject;
 
 import java.util.List;
 
@@ -153,13 +152,13 @@ public final class BrewingRecipeSerializer implements RecipeSerializer<BrewingRe
         buf.writeVarInt(key.amount());
     }
 
-    public static final DeferredRegister<RecipeSerializer<?>> SERIALIZERS =
-            DeferredRegister.create(Registries.RECIPE_SERIALIZER, CreateBrewery.MOD_ID);
+    public static final LazyRegistrar<RecipeSerializer<?>> SERIALIZERS =
+            LazyRegistrar.create(Registries.RECIPE_SERIALIZER, CreateBrewery.MOD_ID);
 
     public static final RegistryObject<BrewingRecipeSerializer> INSTANCE =
             SERIALIZERS.register("brewing", BrewingRecipeSerializer::new);
 
-    public static void register(IEventBus modEventBus) {
-        SERIALIZERS.register(modEventBus);
+    public static void register() {
+        SERIALIZERS.register();
     }
 }

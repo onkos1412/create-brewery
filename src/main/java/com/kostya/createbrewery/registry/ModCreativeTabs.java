@@ -3,13 +3,13 @@ package com.kostya.createbrewery.registry;
 import com.kostya.createbrewery.CreateBrewery;
 import com.kostya.createbrewery.DrinkData;
 import com.kostya.createbrewery.block.ModBlocks;
+import io.github.fabricators_of_create.porting_lib.util.LazyRegistrar;
+import io.github.fabricators_of_create.porting_lib.util.RegistryObject;
+import net.fabricmc.fabric.api.itemgroup.v1.FabricItemGroup;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.CreativeModeTab;
 import net.minecraft.world.item.ItemStack;
-import net.minecraftforge.eventbus.api.IEventBus;
-import net.minecraftforge.registries.DeferredRegister;
-import net.minecraftforge.registries.RegistryObject;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -35,11 +35,11 @@ public final class ModCreativeTabs {
         return drinks;
     }
 
-    public static final DeferredRegister<CreativeModeTab> TABS =
-            DeferredRegister.create(Registries.CREATIVE_MODE_TAB, CreateBrewery.MOD_ID);
+    public static final LazyRegistrar<CreativeModeTab> TABS =
+            LazyRegistrar.create(Registries.CREATIVE_MODE_TAB, CreateBrewery.MOD_ID);
 
     public static final RegistryObject<CreativeModeTab> BREWERY =
-            TABS.register("brewery", () -> CreativeModeTab.builder()
+            TABS.register("brewery", () -> FabricItemGroup.builder()
                     .title(Component.translatable("itemGroup.brewery"))
                     .icon(() -> new ItemStack(ModItems.DRINK_BOTTLE.get()))
                     .displayItems((parameters, output) -> {
@@ -62,7 +62,7 @@ public final class ModCreativeTabs {
     private ModCreativeTabs() {
     }
 
-    public static void register(IEventBus modEventBus) {
-        TABS.register(modEventBus);
+    public static void register() {
+        TABS.register();
     }
 }

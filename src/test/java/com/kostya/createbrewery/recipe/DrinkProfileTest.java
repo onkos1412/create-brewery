@@ -87,9 +87,9 @@ class DrinkProfileTest {
 
     @Test
     void shippedRecipesCarryTheirEffects() throws Exception {
-        assertEquals(List.of(new DrinkEffect(ResourceLocation.parse("minecraft:speed"), 60, 0)),
+        assertEquals(List.of(new DrinkEffect(new ResourceLocation("minecraft:speed"), 60, 0)),
                 read("pulque").effects().get("tequila"));
-        assertEquals(List.of(new DrinkEffect(ResourceLocation.parse("minecraft:speed"), 120, 1)),
+        assertEquals(List.of(new DrinkEffect(new ResourceLocation("minecraft:speed"), 120, 1)),
                 read("pulque").effects().get("aged_tequila"));
         assertEquals(2, read("wormwood").effects().get("absinthe").size());
         assertEquals(2, read("glow").effects().get("firefly_liqueur").size());
@@ -112,7 +112,7 @@ class DrinkProfileTest {
 
     @Test
     void kvassGivesHaste() throws Exception {
-        assertEquals(List.of(new DrinkEffect(ResourceLocation.parse("minecraft:haste"), 60, 0)),
+        assertEquals(List.of(new DrinkEffect(new ResourceLocation("minecraft:haste"), 60, 0)),
                 read("kvass").effects().get("kvass"));
     }
 

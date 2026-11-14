@@ -2,11 +2,12 @@ package com.kostya.createbrewery;
 
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
+import io.github.fabricators_of_create.porting_lib.fluids.FluidStack;
+import net.fabricmc.fabric.api.transfer.v1.fluid.FluidVariant;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.UUIDUtil;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
-import net.minecraftforge.fluids.FluidStack;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.Optional;
@@ -59,11 +60,21 @@ public record BrewerMark(String name, long day, Optional<UUID> owner) {
 
     @Nullable
     public static BrewerMark get(FluidStack stack) {
-        return StackNbt.read(stack.getTag(), NBT_KEY, CODEC);
+        return StackNbt.read(stack, NBT_KEY, CODEC);
     }
 
-    /** Stores {@code mark} on the fluid; {@code null} removes it. */
-    public static void set(FluidStack stack, @Nullable BrewerMark mark) {
-        StackNbt.write(stack, NBT_KEY, CODEC, mark);
+    /** A copy of the fluid carrying {@code mark}; {@code null} removes it (see {@link StackNbt} for why a copy). */
+    public static FluidStack with(FluidStack stack, @Nullable BrewerMark mark) {
+        return StackNbt.with(stack, NBT_KEY, CODEC, mark);
+    }
+
+    @Nullable
+    public static BrewerMark get(FluidVariant variant) {
+        return StackNbt.read(variant.getNbt(), NBT_KEY, CODEC);
+    }
+
+    /** {@code variant} carrying {@code mark}; {@code null} removes it. */
+    public static FluidVariant with(FluidVariant variant, @Nullable BrewerMark mark) {
+        return StackNbt.with(variant, NBT_KEY, CODEC, mark);
     }
 }

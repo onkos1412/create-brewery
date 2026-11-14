@@ -136,7 +136,7 @@ public record BrewingRecipe(
     public NonNullList<Ingredient> getIngredients() {
         NonNullList<Ingredient> list = NonNullList.create();
         for (String input : inputs) {
-            var item = BuiltInRegistries.ITEM.get(ResourceLocation.parse(input));
+            var item = BuiltInRegistries.ITEM.get(new ResourceLocation(input));
             list.add(Ingredient.of(item));
         }
         return list;

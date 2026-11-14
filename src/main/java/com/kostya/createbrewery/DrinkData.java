@@ -2,8 +2,9 @@ package com.kostya.createbrewery;
 
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
+import io.github.fabricators_of_create.porting_lib.fluids.FluidStack;
+import net.fabricmc.fabric.api.transfer.v1.fluid.FluidVariant;
 import net.minecraft.world.item.ItemStack;
-import net.minecraftforge.fluids.FluidStack;
 import org.jetbrains.annotations.Nullable;
 
 /**
@@ -11,7 +12,8 @@ import org.jetbrains.annotations.Nullable;
  *
  * <p>On 1.21.1 this was the {@code brewery:drink_data} data component. On 1.20.1 it lives in the stack's NBT
  * under {@link #NBT_KEY}, read and written through {@link #get(ItemStack)} / {@link #set(ItemStack, DrinkData)}
- * and the {@link FluidStack} twins. Items that implement {@link Carrier} report a default value when the stack
+ * and the fluid twins for the Transfer API's {@link FluidVariant} and Porting Lib's {@link FluidStack}, which on
+ * Fabric return a new fluid ({@code with}) instead of changing one. Items that implement {@link Carrier} report a default value when the stack
  * has none, as the item's default component did, and setting that default stores nothing, so a fresh stack and
  * one set to the default stay equal and stack together, as they did on 1.21.1.
  */
@@ -84,11 +86,25 @@ public record DrinkData(int stars, int alcohol, String stage) {
     /** The fluid's drink data, or {@code null}: fluids have no default. */
     @Nullable
     public static DrinkData get(FluidStack stack) {
-        return StackNbt.read(stack.getTag(), NBT_KEY, CODEC);
+        return StackNbt.read(stack, NBT_KEY, CODEC);
     }
 
-    /** Stores {@code data} on the fluid; {@code null} removes it. */
-    public static void set(FluidStack stack, @Nullable DrinkData data) {
-        StackNbt.write(stack, NBT_KEY, CODEC, data);
+    /**
+     * A copy of the fluid carrying {@code data}; {@code null} removes it. Fabric fluids keep their NBT in an
+     * immutable variant (see {@link StackNbt}), so this returns the new stack where Forge's {@code set} changed one.
+     */
+    public static FluidStack with(FluidStack stack, @Nullable DrinkData data) {
+        return StackNbt.with(stack, NBT_KEY, CODEC, data);
+    }
+
+    /** The drink data a Transfer API fluid variant carries, or {@code null}. */
+    @Nullable
+    public static DrinkData get(FluidVariant variant) {
+        return StackNbt.read(variant.getNbt(), NBT_KEY, CODEC);
+    }
+
+    /** {@code variant} carrying {@code data}; {@code null} removes it. */
+    public static FluidVariant with(FluidVariant variant, @Nullable DrinkData data) {
+        return StackNbt.with(variant, NBT_KEY, CODEC, data);
     }
 }

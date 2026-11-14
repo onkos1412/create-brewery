@@ -4,17 +4,13 @@ import com.kostya.createbrewery.BrewerMark;
 import com.kostya.createbrewery.DrinkData;
 import com.kostya.createbrewery.advancement.BreweryAdvancements;
 import com.kostya.createbrewery.config.BreweryConfig;
-import com.kostya.createbrewery.drunk.DrunkManager;
-import com.kostya.createbrewery.drunk.HangoverRules;
 import com.kostya.createbrewery.recipe.BrewingRecipe;
 import com.kostya.createbrewery.recipe.DrinkEffect;
 import com.kostya.createbrewery.recipe.DrinkProfile;
 import com.kostya.createbrewery.quality.QualityRules;
 import com.kostya.createbrewery.quality.StarLine;
 import com.kostya.createbrewery.registry.ModEffects;
-import com.kostya.createbrewery.social.HospitalityEvents;
 import com.kostya.createbrewery.social.ToastRules;
-import net.minecraftforge.common.util.FakePlayer;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
@@ -86,22 +82,24 @@ public class DrinkItem extends Item implements DrinkData.Carrier {
                 boolean toastBonus = toasted && !spoiledOrMuddy && BreweryConfig.toastBonus();
                 if (player instanceof ServerPlayer serverPlayer) {
                     awardAdvancements(serverPlayer, level, data);
-                    BrewerMark mark = BrewerMark.get(stack);
-                    if (!spoiledOrMuddy && mark != null && mark.owner().isPresent() && !(serverPlayer instanceof FakePlayer)) {
-                        HospitalityEvents.treat(serverPlayer.server, serverPlayer, mark.owner().get());
-                    }
+                    // PORT(Task 5): treating comes back with social/HospitalityEvents and a Fabric fake-player check:
+                    // BrewerMark mark = BrewerMark.get(stack);
+                    // if (!spoiledOrMuddy && mark != null && mark.owner().isPresent() && !(serverPlayer instanceof FakePlayer)) {
+                    //     HospitalityEvents.treat(serverPlayer.server, serverPlayer, mark.owner().get());
+                    // }
                     if (toasted && !spoiledOrMuddy) {
                         BreweryAdvancements.award(serverPlayer, "toast", "toasted");
                     }
                 }
-                // Alcohol is stored on the product, while quality remains a separate value.
-                int drunk = data.alcohol() / 5;
-                DrunkManager.addDrunk(player, drunk);
-                // A drink too weak to raise the drunk level builds no debt either.
-                if (drunk > 0) {
-                    DrunkManager.addHangoverDebt(player, ToastRules.hangoverDebt(
-                            HangoverRules.debtFor(data.alcohol(), data.stars(), spoiledOrMuddy), toastBonus));
-                }
+                // PORT(Task 4): drunkenness comes back with drunk/DrunkManager:
+                // // Alcohol is stored on the product, while quality remains a separate value.
+                // int drunk = data.alcohol() / 5;
+                // DrunkManager.addDrunk(player, drunk);
+                // // A drink too weak to raise the drunk level builds no debt either.
+                // if (drunk > 0) {
+                //     DrunkManager.addHangoverDebt(player, ToastRules.hangoverDebt(
+                //             HangoverRules.debtFor(data.alcohol(), data.stars(), spoiledOrMuddy), toastBonus));
+                // }
                 if (data.isSpoiled()) {
                     player.addEffect(new MobEffectInstance(MobEffects.CONFUSION, 400));
                     player.addEffect(new MobEffectInstance(MobEffects.POISON, 300));
