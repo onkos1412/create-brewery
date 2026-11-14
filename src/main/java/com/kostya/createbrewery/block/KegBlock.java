@@ -1,8 +1,8 @@
 package com.kostya.createbrewery.block;
 
 import com.kostya.createbrewery.BrewerMark;
-import com.kostya.createbrewery.keg.KegRules;
 import com.kostya.createbrewery.DrinkData;
+import com.kostya.createbrewery.keg.KegRules;
 import com.kostya.createbrewery.registry.ModItems;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;

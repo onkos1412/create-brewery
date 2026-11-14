@@ -1,18 +1,11 @@
 package com.kostya.createbrewery.block;
 
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraftforge.common.capabilities.Capability;
-import net.minecraftforge.common.capabilities.ForgeCapabilities;
-import net.minecraftforge.common.util.LazyOptional;
-import net.minecraftforge.items.ItemStackHandler;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 
 /**
  * The spout's automatic side: empty bottles fed into slot 0 are filled from the machine
@@ -23,7 +16,8 @@ public class SpoutBlockEntity extends BlockEntity {
     private static final int EMPTY_SLOT = 0;
     private static final int FILLED_SLOT = 1;
 
-    private final ItemStackHandler items = new ItemStackHandler(2) {
+    /** Funnels and hoppers reach both slots from every side (see {@link ModCapabilities}). */
+    private final MachineInventory items = new MachineInventory(2) {
         @Override
         protected void onContentsChanged(int slot) {
             setChanged();
@@ -36,18 +30,16 @@ public class SpoutBlockEntity extends BlockEntity {
 
         /** Empty bottles only leave by being filled, so a funnel cannot pull them straight back out. */
         @Override
-        public ItemStack extractItem(int slot, int amount, boolean simulate) {
-            return slot == FILLED_SLOT ? super.extractItem(slot, amount, simulate) : ItemStack.EMPTY;
+        protected boolean canExtract(int slot) {
+            return slot == FILLED_SLOT;
         }
     };
-
-    private final LazyOptional<ItemStackHandler> itemCapability = LazyOptional.of(() -> items);
 
     public SpoutBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlocks.SPOUT_BLOCK_ENTITY.get(), pos, state);
     }
 
-    public ItemStackHandler getItems() {
+    public MachineInventory getItems() {
         return items;
     }
 
@@ -60,19 +52,9 @@ public class SpoutBlockEntity extends BlockEntity {
         ItemStack drink = SpoutBlock.pour(level, worldPosition);
         if (!drink.isEmpty()) {
             items.setStackInSlot(FILLED_SLOT, drink);
-            items.setStackInSlot(EMPTY_SLOT, empty.copyWithCount(empty.getCount() - 1));
+            items.setStackInSlot(EMPTY_SLOT, empty.getCount() > 1 ? empty.copyWithCount(empty.getCount() - 1)
+                    : ItemStack.EMPTY);
         }
-    }
-
-    @Override
-    public <T> @NotNull LazyOptional<T> getCapability(@NotNull Capability<T> cap, @Nullable Direction side) {
-        return cap == ForgeCapabilities.ITEM_HANDLER ? itemCapability.cast() : super.getCapability(cap, side);
-    }
-
-    @Override
-    public void invalidateCaps() {
-        super.invalidateCaps();
-        itemCapability.invalidate();
     }
 
     @Override

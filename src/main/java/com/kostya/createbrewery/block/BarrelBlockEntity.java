@@ -4,11 +4,16 @@ import com.kostya.createbrewery.BrewerMark;
 import com.kostya.createbrewery.DrinkData;
 import com.kostya.createbrewery.barrel.AgingRules;
 import com.kostya.createbrewery.barrel.BarrelLogic;
-import com.kostya.createbrewery.journal.BarrelRecord;
-import com.kostya.createbrewery.journal.BreweryJournalData;
 import com.kostya.createbrewery.recipe.BrewingRecipe;
 import com.kostya.createbrewery.recipe.DrinkProfile;
 import com.kostya.createbrewery.registry.ModItems;
+import net.fabricmc.fabric.api.transfer.v1.item.ItemVariant;
+import net.fabricmc.fabric.api.transfer.v1.storage.SlottedStorage;
+import net.fabricmc.fabric.api.transfer.v1.storage.StoragePreconditions;
+import net.fabricmc.fabric.api.transfer.v1.storage.StorageView;
+import net.fabricmc.fabric.api.transfer.v1.storage.base.SingleSlotStorage;
+import net.fabricmc.fabric.api.transfer.v1.transaction.TransactionContext;
+import net.fabricmc.fabric.api.transfer.v1.transaction.base.SnapshotParticipant;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -19,16 +24,11 @@ import net.minecraft.world.item.Items;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraftforge.common.capabilities.Capability;
-import net.minecraftforge.common.capabilities.ForgeCapabilities;
-import net.minecraftforge.common.util.LazyOptional;
-import net.minecraftforge.items.IItemHandler;
-import net.minecraftforge.items.ItemStackHandler;
-import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 
@@ -65,7 +65,7 @@ public class BarrelBlockEntity extends BlockEntity {
     private String woodId = "";
     /** Set once automation feeds the barrel, so it keeps aging without the GUI button. */
     private boolean autoStart;
-    private final ItemStackHandler input = new ItemStackHandler(5) {
+    private final MachineInventory input = new MachineInventory(5) {
         @Override
         protected void onContentsChanged(int slot) {
             setChanged();
@@ -83,8 +83,8 @@ public class BarrelBlockEntity extends BlockEntity {
 
         /** A running batch stays sealed, or its contents could be swapped out before it finishes. */
         @Override
-        public ItemStack extractItem(int slot, int amount, boolean simulate) {
-            return startedAt >= 0 ? ItemStack.EMPTY : super.extractItem(slot, amount, simulate);
+        protected boolean canExtract(int slot) {
+            return startedAt < 0;
         }
 
         @Override
@@ -94,11 +94,11 @@ public class BarrelBlockEntity extends BlockEntity {
 
         /** Bigger groups stack past the item's own limit, which only a barrel's stack ever does. */
         @Override
-        protected int getStackLimit(int slot, ItemStack stack) {
+        protected int getStackLimit(int slot, ItemVariant resource) {
             return getSlotLimit(slot);
         }
     };
-    private final ItemStackHandler output = new ItemStackHandler(BATCH_SLOTS.length) {
+    private final MachineInventory output = new MachineInventory(BATCH_SLOTS.length) {
         @Override
         protected void onContentsChanged(int slot) {
             setChanged();
@@ -111,7 +111,7 @@ public class BarrelBlockEntity extends BlockEntity {
     };
 
     /** Empty bottles waiting for the drink. The spout instead takes one from the player's hand. */
-    private final ItemStackHandler bottles = new ItemStackHandler(1) {
+    private final MachineInventory bottles = new MachineInventory(1) {
         @Override
         protected void onContentsChanged(int slot) {
             setChanged();
@@ -128,66 +128,23 @@ public class BarrelBlockEntity extends BlockEntity {
      * which cost one bottle each. Slots 0 to 3 are the first distillate, the wood, the first
      * drink and the bottles, with the extra batches after them.
      */
-    private final IItemHandler automationItems = new IItemHandler() {
+    private final Automation automationItems = new Automation();
+
+    /** Remembers, with the transaction that set it, that automation fed this barrel. */
+    private final SnapshotParticipant<Boolean> autoStartChange = new SnapshotParticipant<>() {
         @Override
-        public int getSlots() {
-            return AUTOMATION_SLOTS;
+        protected Boolean createSnapshot() {
+            return autoStart;
         }
 
         @Override
-        public ItemStack getStackInSlot(int slot) {
-            if (slot == BOTTLE_SLOT) {
-                return root().bottles.getStackInSlot(0);
-            }
-            int drink = drinkSlot(slot);
-            return drink >= 0 ? root().output.getStackInSlot(drink) : root().input.getStackInSlot(inputSlot(slot));
+        protected void readSnapshot(Boolean snapshot) {
+            autoStart = snapshot;
         }
 
         @Override
-        public ItemStack insertItem(int slot, ItemStack stack, boolean simulate) {
-            if (drinkSlot(slot) >= 0) {
-                return stack;
-            }
-            if (slot == BOTTLE_SLOT) {
-                return root().bottles.insertItem(0, stack, simulate);
-            }
-            ItemStack remainder = root().input.insertItem(inputSlot(slot), stack, simulate);
-            if (!simulate && remainder.getCount() < stack.getCount()) {
-                root().autoStart = true;
-                root().setChanged();
-            }
-            return remainder;
-        }
-
-        @Override
-        public ItemStack extractItem(int slot, int amount, boolean simulate) {
-            int drink = drinkSlot(slot);
-            int paid = Math.min(amount, root().bottles.getStackInSlot(0).getCount());
-            if (drink < 0 || paid <= 0) {
-                return ItemStack.EMPTY;
-            }
-            ItemStack taken = root().output.extractItem(drink, paid, simulate);
-            if (!simulate) {
-                root().spendBottles(taken.getCount());
-            }
-            return taken;
-        }
-
-        @Override
-        public int getSlotLimit(int slot) {
-            if (slot == BOTTLE_SLOT) {
-                return root().bottles.getSlotLimit(0);
-            }
-            int drink = drinkSlot(slot);
-            return drink >= 0 ? root().output.getSlotLimit(drink) : root().input.getSlotLimit(inputSlot(slot));
-        }
-
-        @Override
-        public boolean isItemValid(int slot, ItemStack stack) {
-            if (slot == BOTTLE_SLOT) {
-                return root().bottles.isItemValid(0, stack);
-            }
-            return drinkSlot(slot) < 0 && root().input.isItemValid(inputSlot(slot), stack);
+        protected void onFinalCommit() {
+            setChanged();
         }
     };
 
@@ -204,7 +161,7 @@ public class BarrelBlockEntity extends BlockEntity {
         return slot < FIRST_DRINK_SLOT ? slot : slot - FIRST_EXTRA_INPUT + 2;
     }
 
-    public ItemStackHandler getBottles() {
+    public MachineInventory getBottles() {
         return bottles;
     }
 
@@ -219,22 +176,8 @@ public class BarrelBlockEntity extends BlockEntity {
         }
     }
 
-    private final LazyOptional<IItemHandler> itemCapability = LazyOptional.of(() -> automationItems);
-
     public BarrelBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlocks.BARREL_BLOCK_ENTITY.get(), pos, state);
-    }
-
-    /** Funnels on any barrel of a group reach the group's store (see {@link #automationItems}). */
-    @Override
-    public <T> @NotNull LazyOptional<T> getCapability(@NotNull Capability<T> cap, @Nullable Direction side) {
-        return cap == ForgeCapabilities.ITEM_HANDLER ? itemCapability.cast() : super.getCapability(cap, side);
-    }
-
-    @Override
-    public void invalidateCaps() {
-        super.invalidateCaps();
-        itemCapability.invalidate();
     }
 
     /** What this distillate ages into, or {@code null} when it does not belong in a barrel. */
@@ -326,8 +269,8 @@ public class BarrelBlockEntity extends BlockEntity {
 
     private long rootScore() {
         long held = 0;
-        for (ItemStackHandler handler : List.of(input, output, bottles)) {
-            for (int slot = 0; slot < handler.getSlots(); slot++) {
+        for (MachineInventory handler : List.of(input, output, bottles)) {
+            for (int slot = 0; slot < handler.getSlotCount(); slot++) {
                 held += handler.getStackInSlot(slot).getCount();
             }
         }
@@ -336,14 +279,14 @@ public class BarrelBlockEntity extends BlockEntity {
 
     /** Hands everything over to the group's root; what it has no room for falls out. Nothing is lost. */
     private void pourInto(BarrelBlockEntity target) {
-        for (int slot = 0; slot < input.getSlots(); slot++) {
+        for (int slot = 0; slot < input.getSlotCount(); slot++) {
             ItemStack stack = input.getStackInSlot(slot);
             if (!stack.isEmpty()) {
                 input.setStackInSlot(slot, ItemStack.EMPTY);
                 spill(target.input.insertItem(slot, stack, false));
             }
         }
-        for (int slot = 0; slot < output.getSlots(); slot++) {
+        for (int slot = 0; slot < output.getSlotCount(); slot++) {
             ItemStack stack = output.getStackInSlot(slot);
             if (!stack.isEmpty()) {
                 output.setStackInSlot(slot, ItemStack.EMPTY);
@@ -392,11 +335,11 @@ public class BarrelBlockEntity extends BlockEntity {
     }
 
     private void takeOver(BarrelBlockEntity old) {
-        for (int slot = 0; slot < input.getSlots(); slot++) {
+        for (int slot = 0; slot < input.getSlotCount(); slot++) {
             input.setStackInSlot(slot, old.input.getStackInSlot(slot));
             old.input.setStackInSlot(slot, ItemStack.EMPTY);
         }
-        for (int slot = 0; slot < output.getSlots(); slot++) {
+        for (int slot = 0; slot < output.getSlotCount(); slot++) {
             output.setStackInSlot(slot, old.output.getStackInSlot(slot));
             old.output.setStackInSlot(slot, ItemStack.EMPTY);
         }
@@ -454,7 +397,7 @@ public class BarrelBlockEntity extends BlockEntity {
     }
 
     private boolean drinksWaiting() {
-        for (int slot = 0; slot < output.getSlots(); slot++) {
+        for (int slot = 0; slot < output.getSlotCount(); slot++) {
             if (!output.getStackInSlot(slot).isEmpty()) {
                 return true;
             }
@@ -477,20 +420,21 @@ public class BarrelBlockEntity extends BlockEntity {
         return profileOf(firstInBatch()).agingDays() * AgingRules.TICKS_PER_DAY;
     }
 
-    public IItemHandler getAutomationItems() {
+    /** Funnels on any barrel of a group reach the group's store through this, from every side. */
+    public SlottedStorage<ItemVariant> getAutomationItems() {
         return automationItems;
     }
 
-    public ItemStackHandler getInput() {
+    public MachineInventory getInput() {
         return input;
     }
 
-    public ItemStackHandler getOutput() {
+    public MachineInventory getOutput() {
         return output;
     }
 
     public ItemStack takeFinishedBottle() {
-        for (int slot = 0; slot < output.getSlots(); slot++) {
+        for (int slot = 0; slot < output.getSlotCount(); slot++) {
             if (!output.getStackInSlot(slot).isEmpty()) {
                 return output.extractItem(slot, 1, false);
             }
@@ -552,7 +496,7 @@ public class BarrelBlockEntity extends BlockEntity {
         }
         long lost = periods - overAgedPeriods;
         overAgedPeriods = periods;
-        for (int slot = 0; slot < output.getSlots(); slot++) {
+        for (int slot = 0; slot < output.getSlotCount(); slot++) {
             ItemStack drink = output.getStackInSlot(slot);
             DrinkData data = DrinkData.get(drink);
             if (data != null) {
@@ -610,10 +554,11 @@ public class BarrelBlockEntity extends BlockEntity {
         BrewerMark mark = BrewerMark.get(batch);
         if (mark != null) {
             BrewerMark.set(aged, mark);
-            if (mark.owner().isPresent() && level.getServer() != null) {
-                BreweryJournalData.get(level.getServer()).recordBarrel(mark.owner().get(), profile.id(),
-                        new BarrelRecord(woodId, (int) (getElapsedTicks() / AgingRules.TICKS_PER_DAY), result.stars()));
-            }
+            // PORT(Task 5): the journal comes back with the brewer's book; Forge credited the brewer here:
+            // if (mark.owner().isPresent() && level.getServer() != null) {
+            //     BreweryJournalData.get(level.getServer()).recordBarrel(mark.owner().get(), profile.id(),
+            //             new BarrelRecord(woodId, (int) (getElapsedTicks() / AgingRules.TICKS_PER_DAY), result.stars()));
+            // }
         }
         output.setStackInSlot(outputSlot, aged);
         if (young) {
@@ -641,10 +586,10 @@ public class BarrelBlockEntity extends BlockEntity {
     }
 
     /** Barrels saved before they grew have fewer slots; loading must not shrink them. */
-    private static void load(ItemStackHandler handler, int size, CompoundTag tag) {
+    private static void load(MachineInventory handler, int size, CompoundTag tag) {
         handler.deserializeNBT(tag);
-        if (handler.getSlots() < size) {
-            ItemStack[] kept = new ItemStack[handler.getSlots()];
+        if (handler.getSlotCount() < size) {
+            ItemStack[] kept = new ItemStack[handler.getSlotCount()];
             for (int slot = 0; slot < kept.length; slot++) {
                 kept[slot] = handler.getStackInSlot(slot);
             }
@@ -676,6 +621,139 @@ public class BarrelBlockEntity extends BlockEntity {
         }
         if (tag.contains("Bottles")) {
             bottles.deserializeNBT(tag.getCompound("Bottles"));
+        }
+    }
+
+    // ---- the Transfer API ------------------------------------------------------------
+
+    /** The group's store as funnels see it: ten slots, filled and emptied in order, as Forge's handler was. */
+    private final class Automation implements SlottedStorage<ItemVariant> {
+        private final List<SingleSlotStorage<ItemVariant>> slots = new ArrayList<>();
+
+        Automation() {
+            for (int slot = 0; slot < AUTOMATION_SLOTS; slot++) {
+                slots.add(new AutomationSlot(slot));
+            }
+        }
+
+        @Override
+        public long insert(ItemVariant resource, long maxAmount, TransactionContext transaction) {
+            StoragePreconditions.notBlankNotNegative(resource, maxAmount);
+            long inserted = 0;
+            for (SingleSlotStorage<ItemVariant> slot : slots) {
+                inserted += slot.insert(resource, maxAmount - inserted, transaction);
+                if (inserted >= maxAmount) {
+                    break;
+                }
+            }
+            return inserted;
+        }
+
+        @Override
+        public long extract(ItemVariant resource, long maxAmount, TransactionContext transaction) {
+            StoragePreconditions.notBlankNotNegative(resource, maxAmount);
+            long extracted = 0;
+            for (SingleSlotStorage<ItemVariant> slot : slots) {
+                extracted += slot.extract(resource, maxAmount - extracted, transaction);
+                if (extracted >= maxAmount) {
+                    break;
+                }
+            }
+            return extracted;
+        }
+
+        @Override
+        public Iterator<StorageView<ItemVariant>> iterator() {
+            return new ArrayList<StorageView<ItemVariant>>(slots).iterator();
+        }
+
+        @Override
+        public int getSlotCount() {
+            return AUTOMATION_SLOTS;
+        }
+
+        @Override
+        public SingleSlotStorage<ItemVariant> getSlot(int slot) {
+            return slots.get(slot);
+        }
+    }
+
+    /**
+     * One automation slot, read from and written to the group's root. Inserting and extracting go through the
+     * root's own slots, which take part in the transaction, so an aborted one leaves everything as it was.
+     */
+    private final class AutomationSlot implements SingleSlotStorage<ItemVariant> {
+        private final int slot;
+
+        AutomationSlot(int slot) {
+            this.slot = slot;
+        }
+
+        private ItemStack stack() {
+            if (slot == BOTTLE_SLOT) {
+                return root().bottles.getStackInSlot(0);
+            }
+            int drink = drinkSlot(slot);
+            return drink >= 0 ? root().output.getStackInSlot(drink) : root().input.getStackInSlot(inputSlot(slot));
+        }
+
+        @Override
+        public long insert(ItemVariant resource, long maxAmount, TransactionContext transaction) {
+            StoragePreconditions.notBlankNotNegative(resource, maxAmount);
+            if (drinkSlot(slot) >= 0) {
+                return 0;
+            }
+            BarrelBlockEntity root = root();
+            if (slot == BOTTLE_SLOT) {
+                return root.bottles.getSlot(0).insert(resource, maxAmount, transaction);
+            }
+            long inserted = root.input.getSlot(inputSlot(slot)).insert(resource, maxAmount, transaction);
+            if (inserted > 0) {
+                root.autoStartChange.updateSnapshots(transaction);
+                root.autoStart = true;
+            }
+            return inserted;
+        }
+
+        /** Drinks only, and each costs one of the group's empty bottles. */
+        @Override
+        public long extract(ItemVariant resource, long maxAmount, TransactionContext transaction) {
+            StoragePreconditions.notBlankNotNegative(resource, maxAmount);
+            int drink = drinkSlot(slot);
+            BarrelBlockEntity root = root();
+            long paid = Math.min(maxAmount, root.bottles.getStackInSlot(0).getCount());
+            if (drink < 0 || paid <= 0) {
+                return 0;
+            }
+            long taken = root.output.getSlot(drink).extract(resource, paid, transaction);
+            if (taken > 0) {
+                root.bottles.getSlot(0).extract(ItemVariant.of(Items.GLASS_BOTTLE), taken, transaction);
+            }
+            return taken;
+        }
+
+        @Override
+        public boolean isResourceBlank() {
+            return stack().isEmpty();
+        }
+
+        @Override
+        public ItemVariant getResource() {
+            return ItemVariant.of(stack());
+        }
+
+        @Override
+        public long getAmount() {
+            return stack().getCount();
+        }
+
+        @Override
+        public long getCapacity() {
+            if (slot == BOTTLE_SLOT) {
+                return root().bottles.getSlotLimit(0);
+            }
+            int drink = drinkSlot(slot);
+            return drink >= 0 ? root().output.getSlotLimit(drink) : root().input.getSlotLimit(inputSlot(slot));
         }
     }
 }

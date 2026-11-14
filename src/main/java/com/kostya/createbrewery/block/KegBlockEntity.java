@@ -6,6 +6,11 @@ import com.kostya.createbrewery.keg.KegRules;
 import com.kostya.createbrewery.quality.StarLine;
 import com.kostya.createbrewery.registry.ModItems;
 import com.simibubi.create.api.equipment.goggles.IHaveGoggleInformation;
+import net.fabricmc.fabric.api.transfer.v1.item.ItemVariant;
+import net.fabricmc.fabric.api.transfer.v1.storage.StoragePreconditions;
+import net.fabricmc.fabric.api.transfer.v1.storage.base.SingleSlotStorage;
+import net.fabricmc.fabric.api.transfer.v1.transaction.TransactionContext;
+import net.fabricmc.fabric.api.transfer.v1.transaction.base.SnapshotParticipant;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -19,11 +24,6 @@ import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraftforge.common.capabilities.Capability;
-import net.minecraftforge.common.capabilities.ForgeCapabilities;
-import net.minecraftforge.common.util.LazyOptional;
-import net.minecraftforge.items.IItemHandler;
-import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
@@ -41,10 +41,10 @@ public class KegBlockEntity extends BlockEntity implements IHaveGoggleInformatio
     private int portions;
     private int empties;
 
-    private final IItemHandler input = new Input();
-    private final IItemHandler output = new Output();
-    private final LazyOptional<IItemHandler> inputCapability = LazyOptional.of(() -> input);
-    private final LazyOptional<IItemHandler> outputCapability = LazyOptional.of(() -> output);
+    /** Records the keg's contents with each transaction that changes them, so an aborted one puts them back. */
+    private final Contents contents = new Contents();
+    private final SingleSlotStorage<ItemVariant> input = new Input();
+    private final SingleSlotStorage<ItemVariant> output = new Output();
 
     public KegBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlocks.KEG_BLOCK_ENTITY.get(), pos, state);
@@ -73,6 +73,12 @@ public class KegBlockEntity extends BlockEntity implements IHaveGoggleInformatio
         if (!canTake(bottle, keepEmpty)) {
             return false;
         }
+        addPortion(bottle, keepEmpty);
+        changed();
+        return true;
+    }
+
+    private void addPortion(ItemStack bottle, boolean keepEmpty) {
         if (portions == 0) {
             drink = portion(bottle);
         }
@@ -80,8 +86,6 @@ public class KegBlockEntity extends BlockEntity implements IHaveGoggleInformatio
         if (keepEmpty) {
             empties++;
         }
-        changed();
-        return true;
     }
 
     /** Takes one portion out as a bottle of the drink, or empty when the keg is empty. */
@@ -98,25 +102,12 @@ public class KegBlockEntity extends BlockEntity implements IHaveGoggleInformatio
         return poured;
     }
 
-    /** Bottles come in from the top and sides; the empty glass goes out below. */
-    public IItemHandler getItemHandler(@Nullable Direction side) {
+    /**
+     * Bottles come in from the top and sides; the empty glass goes out below. Below only takes the empties out,
+     * every other side (and none) pours in.
+     */
+    public SingleSlotStorage<ItemVariant> getItemHandler(@Nullable Direction side) {
         return side == Direction.DOWN ? output : input;
-    }
-
-    /** As {@link #getItemHandler}: below only takes the empties out, every other side (and none) pours in. */
-    @Override
-    public <T> @NotNull LazyOptional<T> getCapability(@NotNull Capability<T> cap, @Nullable Direction side) {
-        if (cap == ForgeCapabilities.ITEM_HANDLER) {
-            return (side == Direction.DOWN ? outputCapability : inputCapability).cast();
-        }
-        return super.getCapability(cap, side);
-    }
-
-    @Override
-    public void invalidateCaps() {
-        super.invalidateCaps();
-        inputCapability.invalidate();
-        outputCapability.invalidate();
     }
 
     /** Whether a bottle would be taken by hand: the same drink, with room left. */
@@ -220,87 +211,130 @@ public class KegBlockEntity extends BlockEntity implements IHaveGoggleInformatio
         return ClientboundBlockEntityDataPacket.create(this);
     }
 
-    /** Drink bottles go in, a portion each; nothing comes out this way. */
-    private final class Input implements IItemHandler {
+    // ---- the Transfer API ------------------------------------------------------------
+
+    /** What a transfer may change, and a transaction that is rolled back puts back. */
+    private record Snapshot(ItemStack drink, int portions, int empties) {
+    }
+
+    private final class Contents extends SnapshotParticipant<Snapshot> {
         @Override
-        public int getSlots() {
-            return 1;
+        protected Snapshot createSnapshot() {
+            return new Snapshot(drink, portions, empties);
         }
 
         @Override
-        public ItemStack getStackInSlot(int slot) {
-            return ItemStack.EMPTY;
+        protected void readSnapshot(Snapshot snapshot) {
+            drink = snapshot.drink();
+            portions = snapshot.portions();
+            empties = snapshot.empties();
         }
 
         @Override
-        public ItemStack insertItem(int slot, ItemStack stack, boolean simulate) {
-            if (stack.isEmpty() || !canTake(stack, true)) {
-                return stack;
+        protected void onFinalCommit() {
+            changed();
+        }
+    }
+
+    /** Drink bottles go in, a portion each, their glass staying inside; nothing comes out this way. */
+    private final class Input implements SingleSlotStorage<ItemVariant> {
+        @Override
+        public long insert(ItemVariant resource, long maxAmount, TransactionContext transaction) {
+            StoragePreconditions.notBlankNotNegative(resource, maxAmount);
+            ItemStack bottle = resource.toStack();
+            if (!canTake(bottle, true)) {
+                return 0;
             }
-            int room = Math.min(KegRules.CAPACITY - portions, KegRules.EMPTIES - empties);
-            int taken = Math.min(room, stack.getCount());
-            if (!simulate) {
-                for (int i = 0; i < taken; i++) {
-                    pourIn(stack, true);
-                }
+            long room = Math.min(KegRules.CAPACITY - portions, KegRules.EMPTIES - empties);
+            long taken = Math.min(room, maxAmount);
+            if (taken <= 0) {
+                return 0;
             }
-            return stack.copyWithCount(stack.getCount() - taken);
+            contents.updateSnapshots(transaction);
+            for (int i = 0; i < taken; i++) {
+                addPortion(bottle, true);
+            }
+            return taken;
         }
 
         @Override
-        public ItemStack extractItem(int slot, int amount, boolean simulate) {
-            return ItemStack.EMPTY;
+        public long extract(ItemVariant resource, long maxAmount, TransactionContext transaction) {
+            return 0;
         }
 
         @Override
-        public int getSlotLimit(int slot) {
+        public boolean supportsExtraction() {
+            return false;
+        }
+
+        @Override
+        public boolean isResourceBlank() {
+            return true;
+        }
+
+        @Override
+        public ItemVariant getResource() {
+            return ItemVariant.blank();
+        }
+
+        @Override
+        public long getAmount() {
+            return 0;
+        }
+
+        @Override
+        public long getCapacity() {
             return KegRules.CAPACITY;
-        }
-
-        @Override
-        public boolean isItemValid(int slot, ItemStack stack) {
-            return stack.is(ModItems.DRINK_BOTTLE.get());
         }
     }
 
     /** The empty glass left by automated filling; nothing goes in this way. */
-    private final class Output implements IItemHandler {
+    private final class Output implements SingleSlotStorage<ItemVariant> {
+        private static final ItemVariant GLASS = ItemVariant.of(Items.GLASS_BOTTLE);
+
         @Override
-        public int getSlots() {
-            return 1;
+        public long insert(ItemVariant resource, long maxAmount, TransactionContext transaction) {
+            return 0;
         }
 
         @Override
-        public ItemStack getStackInSlot(int slot) {
-            return empties > 0 ? new ItemStack(Items.GLASS_BOTTLE, empties) : ItemStack.EMPTY;
-        }
-
-        @Override
-        public ItemStack insertItem(int slot, ItemStack stack, boolean simulate) {
-            return stack;
-        }
-
-        @Override
-        public ItemStack extractItem(int slot, int amount, boolean simulate) {
-            int taken = Math.min(amount, empties);
-            if (taken <= 0) {
-                return ItemStack.EMPTY;
-            }
-            if (!simulate) {
-                empties -= taken;
-                changed();
-            }
-            return new ItemStack(Items.GLASS_BOTTLE, taken);
-        }
-
-        @Override
-        public int getSlotLimit(int slot) {
-            return KegRules.EMPTIES;
-        }
-
-        @Override
-        public boolean isItemValid(int slot, ItemStack stack) {
+        public boolean supportsInsertion() {
             return false;
+        }
+
+        @Override
+        public long extract(ItemVariant resource, long maxAmount, TransactionContext transaction) {
+            StoragePreconditions.notBlankNotNegative(resource, maxAmount);
+            if (!resource.equals(GLASS)) {
+                return 0;
+            }
+            long taken = Math.min(maxAmount, empties);
+            if (taken <= 0) {
+                return 0;
+            }
+            contents.updateSnapshots(transaction);
+            empties -= (int) taken;
+            return taken;
+        }
+
+        @Override
+        public boolean isResourceBlank() {
+            return empties <= 0;
+        }
+
+        @Override
+        public ItemVariant getResource() {
+            return empties > 0 ? GLASS : ItemVariant.blank();
+        }
+
+        @Override
+        public long getAmount() {
+            return empties;
+        }
+
+        @Override
+        public long getCapacity() {
+            return KegRules.EMPTIES;
         }
     }
 }

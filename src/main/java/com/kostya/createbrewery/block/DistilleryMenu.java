@@ -7,7 +7,6 @@ import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.ContainerData;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
-import net.minecraftforge.items.SlotItemHandler;
 
 public class DistilleryMenu extends AbstractContainerMenu {
     private static final int SLOT_SIZE = 18;
@@ -21,7 +20,7 @@ public class DistilleryMenu extends AbstractContainerMenu {
     public DistilleryMenu(int containerId, Inventory inventory, DistilleryBlockEntity distillery) {
         super(ModMenus.DISTILLERY.get(), containerId);
         this.distillery = distillery;
-        addSlot(new SlotItemHandler(distillery == null ? new net.minecraftforge.items.ItemStackHandler(1)
+        addSlot(new MachineSlot(distillery == null ? new MachineInventory(1)
                 : distillery.getOutput(), 0, 66, 35) {
             @Override
             public boolean mayPlace(ItemStack stack) {

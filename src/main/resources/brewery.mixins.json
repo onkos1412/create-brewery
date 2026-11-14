@@ -4,7 +4,9 @@
   "package": "com.kostya.createbrewery.mixin",
   "compatibilityLevel": "JAVA_17",
   "refmap": "brewery.refmap.json",
-  "mixins": [],
+  "mixins": [
+    "GenericItemFillingMixin"
+  ],
   "client": [],
   "injectors": {
     "defaultRequire": 1

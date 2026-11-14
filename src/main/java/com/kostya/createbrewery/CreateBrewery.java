@@ -1,6 +1,8 @@
 package com.kostya.createbrewery;
 
 import com.kostya.createbrewery.block.ModBlocks;
+import com.kostya.createbrewery.block.ModCapabilities;
+import com.kostya.createbrewery.block.ModMenus;
 import com.kostya.createbrewery.config.BreweryConfig;
 import com.kostya.createbrewery.recipe.BrewingRecipeSerializer;
 import com.kostya.createbrewery.recipe.ModRecipeTypes;
@@ -26,7 +28,7 @@ public class CreateBrewery implements ModInitializer {
      * Every content registry the mod owns, wired in one place so it can be audited in a single spot. Porting Lib's
      * {@code LazyRegistrar} stands in for Forge's {@code DeferredRegister}: the holders keep their Forge names and
      * {@code get()}, and each registrar writes its entries into the vanilla registry here. Content registries come
-     * back here as the port brings each slice over from port/todo (PORT(Task 3): block entities and menus).
+     * back here as the port brings each slice over from port/todo.
      */
     @Override
     public void onInitialize() {
@@ -38,6 +40,9 @@ public class CreateBrewery implements ModInitializer {
         ModRecipeTypes.register();
         BrewingRecipeSerializer.register();
         ModCreativeTabs.register();
+        ModMenus.register();
+        // The machines' Transfer API storages (Forge's capabilities) and the distillery's stress impact.
+        ModCapabilities.register();
         // brewery-server.toml, as on Forge: Forge Config API Port ships with Create Fabric.
         ForgeConfigRegistry.INSTANCE.register(MOD_ID, ModConfig.Type.SERVER, BreweryConfig.SPEC);
         LOGGER.info("Create Brewery: content registries wired on 1.20.1 Fabric");

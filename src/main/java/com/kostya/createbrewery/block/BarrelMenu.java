@@ -8,7 +8,6 @@ import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.ContainerData;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
-import net.minecraftforge.items.SlotItemHandler;
 
 public class BarrelMenu extends AbstractContainerMenu {
     private static final int BOTTLE_SLOT = 3;
@@ -26,12 +25,12 @@ public class BarrelMenu extends AbstractContainerMenu {
     public BarrelMenu(int containerId, Inventory inventory, BarrelBlockEntity barrel) {
         super(ModMenus.BARREL.get(), containerId);
         this.barrel = barrel;
-        var handler = barrel == null ? new net.minecraftforge.items.ItemStackHandler(5) : barrel.getInput();
-        var drinks = barrel == null ? new net.minecraftforge.items.ItemStackHandler(4) : barrel.getOutput();
+        var handler = barrel == null ? new MachineInventory(5) : barrel.getInput();
+        var drinks = barrel == null ? new MachineInventory(4) : barrel.getOutput();
         addSlot(new BatchSlot(handler, 0, 44, 35, 0));
-        addSlot(new SlotItemHandler(handler, 1, 80, 35));
+        addSlot(new MachineSlot(handler, 1, 80, 35));
         addSlot(new DrinkSlot(drinks, 0, 116, 35));
-        addSlot(new SlotItemHandler(barrel == null ? new net.minecraftforge.items.ItemStackHandler(1)
+        addSlot(new MachineSlot(barrel == null ? new MachineInventory(1)
                 : barrel.getBottles(), 0, 152, 35));
         addSlot(new BatchSlot(handler, 2, 26, 35, 1));
         addSlot(new BatchSlot(handler, 3, 26, 17, 2));
@@ -82,10 +81,10 @@ public class BarrelMenu extends AbstractContainerMenu {
     }
 
     /** A distillate stack, shown only once the group has barrels enough to open it. */
-    private final class BatchSlot extends SlotItemHandler {
+    private final class BatchSlot extends MachineSlot {
         private final int batch;
 
-        BatchSlot(net.minecraftforge.items.IItemHandler handler, int index, int x, int y, int batch) {
+        BatchSlot(MachineInventory handler, int index, int x, int y, int batch) {
             super(handler, index, x, y);
             this.batch = batch;
         }
@@ -97,10 +96,10 @@ public class BarrelMenu extends AbstractContainerMenu {
     }
 
     /** Taking drinks here costs an empty bottle each, the same as at a funnel or the spout. */
-    private final class DrinkSlot extends SlotItemHandler {
+    private final class DrinkSlot extends MachineSlot {
         private final int drinkIndex;
 
-        DrinkSlot(net.minecraftforge.items.IItemHandler handler, int index, int x, int y) {
+        DrinkSlot(MachineInventory handler, int index, int x, int y) {
             super(handler, index, x, y);
             drinkIndex = index;
         }

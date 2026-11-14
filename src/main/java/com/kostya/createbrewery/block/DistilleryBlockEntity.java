@@ -2,14 +2,18 @@ package com.kostya.createbrewery.block;
 
 import com.kostya.createbrewery.BrewerMark;
 import com.kostya.createbrewery.DrinkData;
+import com.kostya.createbrewery.FluidUnits;
 import com.kostya.createbrewery.distillery.DistilleryLogic;
-import com.kostya.createbrewery.journal.BreweryJournalData;
-import com.kostya.createbrewery.journal.StillRecord;
 import com.kostya.createbrewery.recipe.BrewingRecipe;
 import com.kostya.createbrewery.recipe.DrinkProfile;
 import com.kostya.createbrewery.registry.ModFluids;
 import com.kostya.createbrewery.registry.ModItems;
 import com.simibubi.create.content.kinetics.base.KineticBlockEntity;
+import net.fabricmc.fabric.api.transfer.v1.fluid.FluidVariant;
+import net.fabricmc.fabric.api.transfer.v1.storage.StoragePreconditions;
+import net.fabricmc.fabric.api.transfer.v1.storage.base.SingleSlotStorage;
+import net.fabricmc.fabric.api.transfer.v1.transaction.TransactionContext;
+import net.fabricmc.fabric.api.transfer.v1.transaction.base.SnapshotParticipant;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
@@ -17,21 +21,17 @@ import net.minecraft.nbt.NbtOps;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraftforge.common.capabilities.Capability;
-import net.minecraftforge.common.capabilities.ForgeCapabilities;
-import net.minecraftforge.common.util.LazyOptional;
-import net.minecraftforge.fluids.FluidStack;
-import net.minecraftforge.fluids.capability.IFluidHandler;
-import net.minecraftforge.items.ItemStackHandler;
-import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 /** The distillery: a Create kinetic machine, driven through the shaft in its back. */
 public class DistilleryBlockEntity extends KineticBlockEntity {
 
     private static final int INPUT_WORT = DistilleryLogic.WORT_REQUIRED;
+    /** The cube counts in droplets, as Create Fabric's pipes do; one batch is still exactly 1000 mB. */
+    private static final long INPUT_DROPLETS = FluidUnits.toDroplets(INPUT_WORT);
     private static final int SPOILED_ALCOHOL = 10;
-    private int wortAmount;
+    /** Wort in the cube, in droplets. */
+    private long wortAmount;
     private int inputStars = DrinkData.MAX_STARS;
     private String wortDrink = DrinkProfile.BEER.id();
     /** Who brewed the wort in the cube; the first wort in signs the batch. */
@@ -40,7 +40,7 @@ public class DistilleryBlockEntity extends KineticBlockEntity {
     private int progressTicks;
     private int heatLevel;
 
-    private final ItemStackHandler output = new ItemStackHandler(1) {
+    private final MachineInventory output = new MachineInventory(1) {
         @Override
         protected void onContentsChanged(int slot) {
             setChanged();
@@ -53,113 +53,19 @@ public class DistilleryBlockEntity extends KineticBlockEntity {
     };
 
     /** Pipes fill the wort tank; a finished batch leaves as a distillate item. */
-    private final IFluidHandler fluidHandler = new IFluidHandler() {
-        @Override
-        public int getTanks() {
-            return 1;
-        }
-
-        @Override
-        public @NotNull FluidStack getFluidInTank(int tank) {
-            return wortAmount > 0 ? KettleBlockEntity.wortStack(wortAmount, inputStars, wortDrink, inputMark) : FluidStack.EMPTY;
-        }
-
-        @Override
-        public int getTankCapacity(int tank) {
-            return INPUT_WORT;
-        }
-
-        @Override
-        public boolean isFluidValid(int tank, FluidStack stack) {
-            return stack.getFluid().isSame(ModFluids.WORT.get());
-        }
-
-        @Override
-        public int fill(FluidStack resource, FluidAction action) {
-            if (!isFluidValid(0, resource)) {
-                return 0;
-            }
-            DrinkData data = DrinkData.get(resource);
-            String drink = data == null ? DrinkProfile.BEER.id() : data.stage();
-            if (!canTake(drink)) {
-                return 0;
-            }
-            int accepted = Math.min(resource.getAmount(), INPUT_WORT - wortAmount);
-            if (accepted > 0 && action.execute()) {
-                int stars = data == null ? DrinkData.MAX_STARS : data.stars();
-                inputStars = wortAmount > 0 ? Math.min(inputStars, stars) : stars;
-                if (wortAmount == 0) {
-                    inputMark = BrewerMark.get(resource);
-                }
-                wortDrink = drink;
-                wortAmount += accepted;
-                setChanged();
-            }
-            return accepted;
-        }
-
-        @Override
-        public FluidStack drain(FluidStack resource, FluidAction action) {
-            return isFluidValid(0, resource) ? drain(resource.getAmount(), action) : FluidStack.EMPTY;
-        }
-
-        /** A pump can pull wort back out, so a part batch or an unwanted drink never jams the cube. */
-        @Override
-        public FluidStack drain(int maxDrain, FluidAction action) {
-            int drained = Math.min(maxDrain, wortAmount);
-            if (drained <= 0) {
-                return FluidStack.EMPTY;
-            }
-            FluidStack stack = KettleBlockEntity.wortStack(drained, inputStars, wortDrink, inputMark);
-            if (action.execute()) {
-                wortAmount -= drained;
-                if (wortAmount == 0) {
-                    inputMark = null;
-                }
-                progressTicks = 0;
-                setChanged();
-            }
-            return stack;
-        }
-    };
-
-    private final LazyOptional<IFluidHandler> fluidCapability = LazyOptional.of(() -> fluidHandler);
-    private final LazyOptional<ItemStackHandler> itemCapability = LazyOptional.of(() -> output);
+    private final Tank tank = new Tank();
 
     public DistilleryBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlocks.DISTILLERY_BLOCK_ENTITY.get(), pos, state);
     }
 
-    /** Pipes fill and drain the wort from any side; funnels take the distillate. */
-    @Override
-    public <T> @NotNull LazyOptional<T> getCapability(@NotNull Capability<T> cap, @Nullable Direction side) {
-        LazyOptional<T> machine = getMachineCapability(cap);
-        return machine.isPresent() ? machine : super.getCapability(cap, side);
+    /** The wort tank, which pipes fill and drain from any side, and which the column above hands on as well. */
+    public SingleSlotStorage<FluidVariant> getFluidStorage() {
+        return tank;
     }
 
-    /** The wort tank and the distillate slot, which the column above hands on as well. */
-    <T> LazyOptional<T> getMachineCapability(Capability<T> cap) {
-        if (cap == ForgeCapabilities.FLUID_HANDLER) {
-            return fluidCapability.cast();
-        }
-        if (cap == ForgeCapabilities.ITEM_HANDLER) {
-            return itemCapability.cast();
-        }
-        return LazyOptional.empty();
-    }
-
-    @Override
-    public void invalidateCaps() {
-        super.invalidateCaps();
-        fluidCapability.invalidate();
-        itemCapability.invalidate();
-    }
-
-    public IFluidHandler getFluidHandler() {
-        return fluidHandler;
-    }
-
-    public ItemStackHandler getOutput() {
+    /** The distillate slot, which funnels empty from any side. */
+    public MachineInventory getOutput() {
         return output;
     }
 
@@ -202,7 +108,12 @@ public class DistilleryBlockEntity extends KineticBlockEntity {
         return inputStars;
     }
 
+    /** Wort in the cube, in whole mB. */
     public int getWortAmount() {
+        return (int) FluidUnits.toMb(wortAmount);
+    }
+
+    public long getWortDroplets() {
         return wortAmount;
     }
 
@@ -233,7 +144,7 @@ public class DistilleryBlockEntity extends KineticBlockEntity {
                 if (kettle.drainWort(INPUT_WORT) != INPUT_WORT) {
                     continue;
                 }
-                wortAmount = INPUT_WORT;
+                wortAmount = INPUT_DROPLETS;
                 inputStars = kettle.getWortStars();
                 inputMark = mark;
                 wortDrink = kettle.getWortDrink();
@@ -255,7 +166,7 @@ public class DistilleryBlockEntity extends KineticBlockEntity {
 
         // Read before the early return, so the GUI shows live values while the cube is idle.
         heatLevel = KettleBlockEntity.readHeatLevel(level, worldPosition.below());
-        if (wortAmount < INPUT_WORT || !output.getStackInSlot(0).isEmpty()) {
+        if (wortAmount < INPUT_DROPLETS || !output.getStackInSlot(0).isEmpty()) {
             return;
         }
         if (!com.kostya.createbrewery.distillery.DistillingRules.canDistill(
@@ -270,8 +181,8 @@ public class DistilleryBlockEntity extends KineticBlockEntity {
             return;
         }
 
-        DistilleryLogic.Result result = DistilleryLogic.process(
-                wortAmount, heatLevel, rpm, progressTicks, inputStars, drink.distillTicks(), drink.idealRpm());
+        DistilleryLogic.Result result = DistilleryLogic.process(getWortAmount(), heatLevel, rpm, progressTicks,
+                inputStars, drink.distillTicks(), drink.idealRpm());
         if (!result.distilled()) {
             return;
         }
@@ -282,10 +193,11 @@ public class DistilleryBlockEntity extends KineticBlockEntity {
                 : new DrinkData(result.stars(), drink.distilledAlcohol(), drink.distilled()));
         if (inputMark != null) {
             BrewerMark.set(distillate, inputMark);
-            if (!result.spoiled() && inputMark.owner().isPresent() && level.getServer() != null) {
-                BreweryJournalData.get(level.getServer()).recordStill(inputMark.owner().get(), wortDrink,
-                        new StillRecord(Math.round(Math.abs(rpm)), result.stars()));
-            }
+            // PORT(Task 5): the journal comes back with the brewer's book; Forge credited the brewer here:
+            // if (!result.spoiled() && inputMark.owner().isPresent() && level.getServer() != null) {
+            //     BreweryJournalData.get(level.getServer()).recordStill(inputMark.owner().get(), wortDrink,
+            //             new StillRecord(Math.round(Math.abs(rpm)), result.stars()));
+            // }
         }
         output.setStackInSlot(0, distillate);
         wortAmount = 0;
@@ -297,7 +209,8 @@ public class DistilleryBlockEntity extends KineticBlockEntity {
     @Override
     protected void write(CompoundTag tag, boolean clientPacket) {
         super.write(tag, clientPacket);
-        tag.putInt("Wort", wortAmount);
+        // Droplets. Fabric worlds never load Forge saves, so the key keeps its name with the finer unit.
+        tag.putLong("Wort", wortAmount);
         tag.putInt("InputStars", inputStars);
         tag.putString("WortDrink", wortDrink);
         if (inputMark != null) {
@@ -310,7 +223,7 @@ public class DistilleryBlockEntity extends KineticBlockEntity {
     @Override
     protected void read(CompoundTag tag, boolean clientPacket) {
         super.read(tag, clientPacket);
-        wortAmount = tag.getInt("Wort");
+        wortAmount = tag.getLong("Wort");
         inputStars = tag.contains("InputStars") ? tag.getInt("InputStars") : DrinkData.MAX_STARS;
         wortDrink = tag.contains("WortDrink") ? tag.getString("WortDrink") : DrinkProfile.BEER.id();
         inputMark = tag.contains("InputBrewer")
@@ -319,6 +232,106 @@ public class DistilleryBlockEntity extends KineticBlockEntity {
         progressTicks = tag.getInt("Progress");
         if (tag.contains("Output")) {
             output.deserializeNBT(tag.getCompound("Output"));
+        }
+    }
+
+    // ---- the Transfer API ------------------------------------------------------------
+
+    /** What a transfer may change, and a transaction that is rolled back puts back. */
+    private record TankSnapshot(long wort, int stars, String drink, @Nullable BrewerMark mark, int progress) {
+    }
+
+    /**
+     * The wort tank. Pipes may pour in any amount of a distillable wort, the same drink as the batch inside, and
+     * pump the batch back out, so a part batch or an unwanted drink never jams the cube. Every change is recorded
+     * with its transaction, so Create's simulations leave the cube as it was.
+     */
+    private final class Tank extends SnapshotParticipant<TankSnapshot> implements SingleSlotStorage<FluidVariant> {
+        @Override
+        public long insert(FluidVariant resource, long maxAmount, TransactionContext transaction) {
+            StoragePreconditions.notBlankNotNegative(resource, maxAmount);
+            if (!resource.getFluid().isSame(ModFluids.WORT.get())) {
+                return 0;
+            }
+            DrinkData data = DrinkData.get(resource);
+            String drink = data == null ? DrinkProfile.BEER.id() : data.stage();
+            if (!canTake(drink)) {
+                return 0;
+            }
+            long accepted = Math.min(maxAmount, INPUT_DROPLETS - wortAmount);
+            if (accepted <= 0) {
+                return 0;
+            }
+            updateSnapshots(transaction);
+            int stars = data == null ? DrinkData.MAX_STARS : data.stars();
+            // The weakest wort decides the batch, and the first one in signs it.
+            inputStars = wortAmount > 0 ? Math.min(inputStars, stars) : stars;
+            if (wortAmount == 0) {
+                inputMark = BrewerMark.get(resource);
+            }
+            wortDrink = drink;
+            wortAmount += accepted;
+            return accepted;
+        }
+
+        /** Only the very wort inside comes out, the batch's drink, quality and brewer. */
+        @Override
+        public long extract(FluidVariant resource, long maxAmount, TransactionContext transaction) {
+            StoragePreconditions.notBlankNotNegative(resource, maxAmount);
+            if (wortAmount <= 0 || !resource.equals(getResource())) {
+                return 0;
+            }
+            long drained = Math.min(maxAmount, wortAmount);
+            if (drained <= 0) {
+                return 0;
+            }
+            updateSnapshots(transaction);
+            wortAmount -= drained;
+            if (wortAmount == 0) {
+                inputMark = null;
+            }
+            progressTicks = 0;
+            return drained;
+        }
+
+        @Override
+        public boolean isResourceBlank() {
+            return wortAmount <= 0;
+        }
+
+        @Override
+        public FluidVariant getResource() {
+            return wortAmount <= 0 ? FluidVariant.blank()
+                    : KettleBlockEntity.wortVariant(inputStars, wortDrink, inputMark);
+        }
+
+        @Override
+        public long getAmount() {
+            return wortAmount;
+        }
+
+        @Override
+        public long getCapacity() {
+            return INPUT_DROPLETS;
+        }
+
+        @Override
+        protected TankSnapshot createSnapshot() {
+            return new TankSnapshot(wortAmount, inputStars, wortDrink, inputMark, progressTicks);
+        }
+
+        @Override
+        protected void readSnapshot(TankSnapshot snapshot) {
+            wortAmount = snapshot.wort();
+            inputStars = snapshot.stars();
+            wortDrink = snapshot.drink();
+            inputMark = snapshot.mark();
+            progressTicks = snapshot.progress();
+        }
+
+        @Override
+        protected void onFinalCommit() {
+            setChanged();
         }
     }
 }

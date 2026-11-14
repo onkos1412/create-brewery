@@ -1,8 +1,8 @@
 package com.kostya.createbrewery.block;
 
 import com.kostya.createbrewery.DrinkData;
-import net.minecraft.util.Mth;
 import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.util.Mth;
 import net.minecraft.world.Container;
 import net.minecraft.world.SimpleContainer;
 import net.minecraft.world.entity.player.Inventory;
@@ -12,7 +12,6 @@ import net.minecraft.world.inventory.ContainerData;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraftforge.items.SlotItemHandler;
 
 import java.util.function.IntSupplier;
 
@@ -58,10 +57,10 @@ public class KettleMenu extends AbstractContainerMenu {
         addSlots(inventory, kettle == null ? null : kettle.getInput());
     }
 
-    private void addSlots(Inventory inventory, net.minecraftforge.items.IItemHandler handler) {
+    private void addSlots(Inventory inventory, MachineInventory handler) {
         for (int i = 0; i < INPUT_SLOTS; i++) {
             if (handler != null) {
-                addSlot(new SlotItemHandler(handler, i, 26 + i * SLOT_SIZE, 20));
+                addSlot(new MachineSlot(handler, i, 26 + i * SLOT_SIZE, 20));
             } else {
                 addSlot(new Slot(kettleContainer, i, 26 + i * SLOT_SIZE, 20));
             }

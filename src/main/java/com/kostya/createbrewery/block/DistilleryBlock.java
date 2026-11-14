@@ -8,8 +8,6 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
-import net.minecraft.world.MenuProvider;
-import net.minecraft.world.SimpleMenuProvider;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
@@ -26,7 +24,6 @@ import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
-import net.minecraftforge.network.NetworkHooks;
 import org.jetbrains.annotations.Nullable;
 
 /** A kinetic machine: its only shaft enters the back, opposite the side facing the player who placed it. */
@@ -87,7 +84,8 @@ public class DistilleryBlock extends HorizontalKineticBlock implements IBE<Disti
                                  BlockHitResult hit) {
         if (player instanceof ServerPlayer serverPlayer
                 && level.getBlockEntity(pos) instanceof DistilleryBlockEntity distillery) {
-            NetworkHooks.openScreen(serverPlayer, menuProvider(distillery), pos);
+            ModMenus.open(serverPlayer, pos, Component.translatable("container.brewery.distillery"),
+                    (containerId, inventory, opener) -> new DistilleryMenu(containerId, inventory, distillery));
         }
         return InteractionResult.sidedSuccess(level.isClientSide());
     }
@@ -98,11 +96,5 @@ public class DistilleryBlock extends HorizontalKineticBlock implements IBE<Disti
             ModCapabilities.dropContents(level, pos, distillery.getOutput());
         }
         super.onRemove(state, level, pos, newState, movedByPiston);
-    }
-
-    private static MenuProvider menuProvider(DistilleryBlockEntity distillery) {
-        return new SimpleMenuProvider(
-                (containerId, inventory, player) -> new DistilleryMenu(containerId, inventory, distillery),
-                Component.translatable("container.brewery.distillery"));
     }
 }

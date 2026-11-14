@@ -6,8 +6,6 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
-import net.minecraft.world.MenuProvider;
-import net.minecraft.world.SimpleMenuProvider;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.BlockGetter;
@@ -27,7 +25,6 @@ import net.minecraft.world.level.block.state.properties.DirectionProperty;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.VoxelShape;
-import net.minecraftforge.network.NetworkHooks;
 import org.jetbrains.annotations.Nullable;
 
 /**
@@ -118,7 +115,8 @@ public class BarrelBlock extends BaseEntityBlock {
                                  BlockHitResult hit) {
         if (player instanceof ServerPlayer serverPlayer && level.getBlockEntity(pos) instanceof BarrelBlockEntity barrel) {
             BarrelBlockEntity root = barrel.root();
-            NetworkHooks.openScreen(serverPlayer, menuProvider(root), root.getBlockPos());
+            ModMenus.open(serverPlayer, root.getBlockPos(), Component.translatable("container.brewery.barrel"),
+                    (containerId, inventory, opener) -> new BarrelMenu(containerId, inventory, root));
         }
         return InteractionResult.sidedSuccess(level.isClientSide());
     }
@@ -139,11 +137,5 @@ public class BarrelBlock extends BaseEntityBlock {
             BarrelBlockEntity.regroupAround(level, pos, state.getValue(FACING));
         }
         super.onRemove(state, level, pos, newState, movedByPiston);
-    }
-
-    private static MenuProvider menuProvider(BarrelBlockEntity barrel) {
-        return new SimpleMenuProvider(
-                (containerId, inventory, player) -> new BarrelMenu(containerId, inventory, barrel),
-                Component.translatable("container.brewery.barrel"));
     }
 }

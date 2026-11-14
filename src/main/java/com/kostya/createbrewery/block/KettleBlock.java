@@ -1,12 +1,11 @@
 package com.kostya.createbrewery.block;
 
+import net.fabricmc.fabric.api.entity.FakePlayer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
-import net.minecraft.world.MenuProvider;
-import net.minecraft.world.SimpleMenuProvider;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
@@ -26,8 +25,6 @@ import net.minecraft.world.level.block.state.properties.BooleanProperty;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.VoxelShape;
-import net.minecraftforge.common.util.FakePlayer;
-import net.minecraftforge.network.NetworkHooks;
 import org.jetbrains.annotations.Nullable;
 
 /**
@@ -121,7 +118,8 @@ public class KettleBlock extends BaseEntityBlock {
             return InteractionResult.SUCCESS;
         }
         if (player instanceof ServerPlayer serverPlayer) {
-            NetworkHooks.openScreen(serverPlayer, menuProvider(kettle), pos);
+            ModMenus.open(serverPlayer, pos, Component.translatable("container.brewery.kettle"),
+                    (containerId, inventory, opener) -> new KettleMenu(containerId, inventory, kettle));
         }
         return InteractionResult.sidedSuccess(level.isClientSide());
     }
@@ -132,11 +130,5 @@ public class KettleBlock extends BaseEntityBlock {
             ModCapabilities.dropContents(level, pos, kettle.getInput());
         }
         super.onRemove(state, level, pos, newState, movedByPiston);
-    }
-
-    private static MenuProvider menuProvider(KettleBlockEntity kettle) {
-        return new SimpleMenuProvider(
-                (containerId, inventory, player) -> new KettleMenu(containerId, inventory, kettle),
-                Component.translatable("container.brewery.kettle"));
     }
 }
