@@ -18,9 +18,9 @@ import java.util.Optional;
  *     <li>{@code hangover_debt}: saved, not synced;</li>
  *     <li>stagger last position, vomit cooldown: neither saved nor synced.</li>
  * </ul>
- * None of them was {@code copyOnDeath}, so a respawned player starts from defaults, while a clone
- * that is not a death (leaving the End) carries over the saved values (see
- * {@link DrunkEvents#onCopyFrom}), as NeoForge does for serializable attachments.
+ * A respawned player gets a fresh field and so starts from defaults, while a clone that is not a death
+ * (leaving the End) carries over the saved values ({@link DrunkEvents#onCopyFrom} calls
+ * {@link #copySavedFrom}), as on Forge and 1.21.1.
  *
  * <p>The saved values live in the player's NBT under {@link #NBT_KEY} (Forge kept them under {@code ForgeCaps}
  * with the same id; loader saves are not shared).
@@ -114,7 +114,10 @@ public final class DrunkData {
         hangoverDebt = tag.getInt(DEBT_KEY);
     }
 
-    /** Copies what is saved, nothing else: what NeoForge copies on a clone that is not a death. */
+    /**
+     * Copies what is saved, nothing else, from the old player's field into the new player's: what a clone that is
+     * not a death keeps.
+     */
     public void copySavedFrom(DrunkData other) {
         load(other.save());
     }

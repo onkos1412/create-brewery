@@ -48,6 +48,7 @@ import io.netty.channel.embedded.EmbeddedChannel;
 import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents;
 import net.fabricmc.fabric.api.entity.event.v1.ServerPlayerEvents;
 import net.fabricmc.fabric.api.gametest.v1.FabricGameTest;
+import net.fabricmc.fabric.api.message.v1.ServerMessageEvents;
 import net.fabricmc.fabric.api.transfer.v1.context.ContainerItemContext;
 import net.fabricmc.fabric.api.transfer.v1.fluid.FluidStorage;
 import net.fabricmc.fabric.api.transfer.v1.fluid.FluidVariant;
@@ -68,6 +69,7 @@ import net.minecraft.nbt.NbtOps;
 import net.minecraft.network.Connection;
 import net.minecraft.network.PacketSendListener;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.PlayerChatMessage;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.PacketFlow;
 import net.minecraft.resources.ResourceLocation;
@@ -105,10 +107,12 @@ import org.jetbrains.annotations.Nullable;
 
 import java.io.IOException;
 import java.io.Reader;
+import java.lang.reflect.Method;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * In-world checks of what unit tests cannot reach: real block entities, the Transfer API and
@@ -3208,6 +3212,60 @@ public class BreweryGameTests implements FabricGameTest {
         muddy.addEffect(new MobEffectInstance(ModEffects.TOAST.get(), 200));
         drink(helper, muddy, 3, 2, "muddy");
         helper.assertFalse(muddy.hasEffect(ModEffects.TOAST.get()), "the muddy brew did not spend the toast");
+        helper.succeed();
+    }
+
+    /** The last plain-chat message each sender broadcast, as other players would see it. */
+    private static final Map<UUID, Component> BROADCAST_CHAT = new ConcurrentHashMap<>();
+    private static boolean chatCaptured;
+
+    /** Fabric events cannot be unregistered, so the capture is hooked once and keyed by sender. */
+    private static synchronized void captureChat() {
+        if (!chatCaptured) {
+            chatCaptured = true;
+            ServerMessageEvents.CHAT_MESSAGE.register(
+                    (message, sender, params) -> BROADCAST_CHAT.put(sender.getUUID(), message.decoratedContent()));
+        }
+    }
+
+    /**
+     * Sends {@code text} down the plain-chat path, where handleChat hands its decorated message on to be broadcast.
+     * That method is private; game tests run only in the dev workspace, where it keeps its Mojang name.
+     */
+    private static void sendPlainChat(ServerPlayer player, String text) {
+        try {
+            Method broadcast = ServerGamePacketListenerImpl.class.getDeclaredMethod("broadcastChatMessage",
+                    PlayerChatMessage.class);
+            broadcast.setAccessible(true);
+            broadcast.invoke(player.connection, PlayerChatMessage.unsigned(player.getUUID(), text));
+        } catch (ReflectiveOperationException e) {
+            throw new AssertionError("cannot send plain chat", e);
+        }
+    }
+
+    /**
+     * As Forge's ServerChatEvent: a drunk player's plain chat is slurred, a sober player's is not, and the server's
+     * chat decorator (what /me, /say, /msg and /teammsg go through) leaves a drunk player's words alone.
+     */
+    @GameTest(template = "brewery:empty")
+    public static void onlyPlainChatIsSlurred(GameTestHelper helper) {
+        captureChat();
+        String said = "she sells sea shells so cheaply, sister says, so she sells six sacks of sea salt";
+        ServerPlayer drunk = freshPlayer(helper);
+        DrunkManager.addDrunk(drunk, DrunkLevel.MAX);
+        ServerPlayer sober = freshPlayer(helper);
+
+        Component decorated = helper.getLevel().getServer().getChatDecorator()
+                .decorate(drunk, Component.literal(said)).join();
+        helper.assertTrue(decorated.getString().equals(said), "a command message was slurred: " + decorated.getString());
+
+        sendPlainChat(drunk, said);
+        sendPlainChat(sober, said);
+        Component drunkSaid = BROADCAST_CHAT.get(drunk.getUUID());
+        Component soberSaid = BROADCAST_CHAT.get(sober.getUUID());
+        helper.assertTrue(drunkSaid != null && soberSaid != null, "plain chat was not broadcast");
+        helper.assertFalse(drunkSaid.getString().equals(said), "drunk plain chat was not slurred");
+        helper.assertTrue(soberSaid.getString().equals(said), "sober plain chat changed: " + soberSaid.getString());
         helper.succeed();
     }
 }

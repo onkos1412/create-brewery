@@ -8,10 +8,10 @@ import net.fabricmc.fabric.api.event.player.AttackBlockCallback;
 import net.fabricmc.fabric.api.event.player.AttackEntityCallback;
 import net.fabricmc.fabric.api.event.player.UseBlockCallback;
 import net.fabricmc.fabric.api.event.player.UseItemCallback;
-import net.fabricmc.fabric.api.message.v1.ServerMessageDecoratorEvent;
 import net.fabricmc.fabric.api.message.v1.ServerMessageEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.PlayerChatMessage;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionResult;
@@ -25,7 +25,6 @@ import net.minecraft.world.item.alchemy.PotionUtils;
 import net.minecraft.world.item.alchemy.Potions;
 
 import java.util.Random;
-import java.util.concurrent.CompletableFuture;
 
 /**
  * Gameplay events for the drunk system: sobering over time and resetting on death. This also carries the
@@ -33,8 +32,9 @@ import java.util.concurrent.CompletableFuture;
  * player, which NeoForge's attachments did on their own.
  *
  * <p>Forge subscribed these to its event bus; on Fabric {@link #register()} hooks each one to the Fabric API
- * callback that matches it. Finishing an item has no Fabric callback that sees the item before it was used up, so
- * {@code LivingEntityMixin} calls {@link #onFinishUsingItem} where Forge fired {@code LivingEntityUseItemEvent.Finish}.
+ * callback that matches it. Two have no callback that fits, so targeted mixins call them where Forge fired its
+ * event: {@code LivingEntityMixin} calls {@link #onFinishUsingItem} (the item before it was used up), and
+ * {@code ServerGamePacketListenerImplMixin} calls {@link #slurChat} (plain chat only, as Forge's ServerChatEvent).
  */
 public final class DrunkEvents {
 
@@ -50,8 +50,8 @@ public final class DrunkEvents {
         ServerEntityWorldChangeEvents.AFTER_PLAYER_CHANGE_WORLD.register(
                 (player, origin, destination) -> DrunkManager.sync(player, true));
         ServerTickEvents.END_SERVER_TICK.register(DrunkEvents::onServerTick);
+        // Fired for plain chat only (PlayerList's player overload); /me, /say and /msg are commands, as on Forge.
         ServerMessageEvents.ALLOW_CHAT_MESSAGE.register((message, sender, params) -> !DrunkManager.isKnockedOut(sender));
-        ServerMessageDecoratorEvent.EVENT.register(ServerMessageDecoratorEvent.CONTENT_PHASE, DrunkEvents::slur);
         // The client already blocks these; the server refuses them from a modified client too. FAIL stops the
         // action, as a cancelled Forge event did.
         UseBlockCallback.EVENT.register((player, level, hand, hit) -> refuseIfKnockedOut(player));
@@ -78,6 +78,10 @@ public final class DrunkEvents {
     /** Forge's server-side {@code PlayerTickEvent} (end phase), once per server tick for every player. */
     private static void onServerTick(MinecraftServer server) {
         for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+            // Forge's event fired from the player's own tick, which a removed player no longer gets.
+            if (player.isRemoved()) {
+                continue;
+            }
             onPlayerTick(player);
         }
     }
@@ -94,16 +98,18 @@ public final class DrunkEvents {
         DrunkManager.knockoutTick(player);
     }
 
-    /** Drunk players slur; a player who has passed out says nothing at all (refused in ALLOW_CHAT_MESSAGE). */
-    private static CompletableFuture<Component> slur(ServerPlayer sender, Component message) {
-        if (sender != null) {
-            int level = DrunkManager.getDrunk(sender);
-            if (level >= DrunkLevel.SLUR_FROM) {
-                return CompletableFuture.completedFuture(
-                        Component.literal(DrunkSpeech.slur(message.getString(), level, new Random())));
-            }
+    /**
+     * Drunk players slur their plain chat (Forge: {@code ServerChatEvent#setMessage} with the slurred raw text); a
+     * player who has passed out says nothing at all (refused in ALLOW_CHAT_MESSAGE). The slurred text becomes the
+     * message's unsigned content, which is what everyone sees, as Forge's decorated message did.
+     */
+    public static PlayerChatMessage slurChat(ServerPlayer sender, PlayerChatMessage message) {
+        int level = DrunkManager.getDrunk(sender);
+        if (level < DrunkLevel.SLUR_FROM) {
+            return message;
         }
-        return CompletableFuture.completedFuture(message);
+        return message.withUnsignedContent(
+                Component.literal(DrunkSpeech.slur(message.signedContent(), level, new Random())));
     }
 
     private static InteractionResult refuseIfKnockedOut(Player player) {
