@@ -52,8 +52,8 @@ class DrinkJournalTest {
     void codecRoundTrip() {
         DrinkJournal full = DrinkJournal.EMPTY.withKettle(k(3)).withStill(new StillRecord(64, 2)).withBarrel(b(4));
         for (DrinkJournal j : List.of(full, DrinkJournal.EMPTY)) {
-            var json = DrinkJournal.CODEC.encodeStart(JsonOps.INSTANCE, j).getOrThrow();
-            assertEquals(j, DrinkJournal.CODEC.parse(JsonOps.INSTANCE, json).getOrThrow());
+            var json = DrinkJournal.CODEC.encodeStart(JsonOps.INSTANCE, j).getOrThrow(false, error -> { });
+            assertEquals(j, DrinkJournal.CODEC.parse(JsonOps.INSTANCE, json).getOrThrow(false, error -> { }));
         }
     }
 }

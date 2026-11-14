@@ -2,6 +2,8 @@ package com.kostya.createbrewery.block;
 
 import com.kostya.createbrewery.BrewerMark;
 import com.kostya.createbrewery.DrinkData;
+import com.kostya.createbrewery.journal.BreweryJournalData;
+import com.kostya.createbrewery.journal.KettleRecord;
 import com.kostya.createbrewery.recipe.BrewingRecipe;
 import com.kostya.createbrewery.recipe.DrinkProfile;
 import com.kostya.createbrewery.recipe.MixRules;
@@ -409,11 +411,10 @@ public class KettleBlockEntity extends BlockEntity {
                     : new BrewerMark(ownerName, BrewerMark.dayOf(level.getDayTime()), Optional.ofNullable(ownerId));
         }
         // The owner's book keeps this brew's own result, not the tank's weakest.
-        // PORT: Task 5 - the journal comes back with the brewer's book:
-        // if (ownerId != null && !DrinkProfile.MUDDY.id().equals(brew.drink()) && level.getServer() != null) {
-        //     BreweryJournalData.get(level.getServer()).recordKettle(ownerId, brew.drink(),
-        //             new KettleRecord(KettleRecord.mixOf(contents), heatLevel, stars));
-        // }
+        if (ownerId != null && !DrinkProfile.MUDDY.id().equals(brew.drink()) && level.getServer() != null) {
+            BreweryJournalData.get(level.getServer()).recordKettle(ownerId, brew.drink(),
+                    new KettleRecord(KettleRecord.mixOf(contents), heatLevel, stars));
+        }
         wortDrink = brew.drink();
         waterAmount -= brew.amount();
         wortAmount += brew.amount();

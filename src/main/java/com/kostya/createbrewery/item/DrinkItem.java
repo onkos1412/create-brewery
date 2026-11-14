@@ -12,6 +12,7 @@ import com.kostya.createbrewery.recipe.DrinkProfile;
 import com.kostya.createbrewery.quality.QualityRules;
 import com.kostya.createbrewery.quality.StarLine;
 import com.kostya.createbrewery.registry.ModEffects;
+import com.kostya.createbrewery.social.HospitalityEvents;
 import com.kostya.createbrewery.social.ToastRules;
 import net.minecraftforge.common.util.FakePlayer;
 import net.minecraft.ChatFormatting;
@@ -87,8 +88,7 @@ public class DrinkItem extends Item implements DrinkData.Carrier {
                     awardAdvancements(serverPlayer, level, data);
                     BrewerMark mark = BrewerMark.get(stack);
                     if (!spoiledOrMuddy && mark != null && mark.owner().isPresent() && !(serverPlayer instanceof FakePlayer)) {
-                        // PORT: Task 5 - hospitality comes back with social/**:
-                        // HospitalityEvents.treat(serverPlayer.server, serverPlayer, mark.owner().get());
+                        HospitalityEvents.treat(serverPlayer.server, serverPlayer, mark.owner().get());
                     }
                     if (toasted && !spoiledOrMuddy) {
                         BreweryAdvancements.award(serverPlayer, "toast", "toasted");

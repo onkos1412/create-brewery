@@ -3,7 +3,6 @@ package com.kostya.createbrewery.journal;
 import com.mojang.logging.LogUtils;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
-import net.minecraft.core.HolderLookup;
 import net.minecraft.core.UUIDUtil;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
@@ -33,13 +32,10 @@ public class BreweryJournalData extends SavedData {
 
     private static final Logger LOGGER = LogUtils.getLogger();
 
-    public static final SavedData.Factory<BreweryJournalData> FACTORY =
-            new SavedData.Factory<>(BreweryJournalData::new, BreweryJournalData::load, null);
-
     private final Map<UUID, Map<String, DrinkJournal>> journals = new HashMap<>();
 
     public static BreweryJournalData get(MinecraftServer server) {
-        return server.overworld().getDataStorage().computeIfAbsent(FACTORY, NAME);
+        return server.overworld().getDataStorage().computeIfAbsent(BreweryJournalData::load, BreweryJournalData::new, NAME);
     }
 
     public Map<String, DrinkJournal> journalOf(UUID player) {
@@ -68,7 +64,7 @@ public class BreweryJournalData extends SavedData {
         }
     }
 
-    public static BreweryJournalData load(CompoundTag tag, HolderLookup.Provider registries) {
+    public static BreweryJournalData load(CompoundTag tag) {
         BreweryJournalData data = new BreweryJournalData();
         if (tag.get("players") instanceof ListTag list) {
             for (Tag element : list) {
@@ -80,7 +76,7 @@ public class BreweryJournalData extends SavedData {
     }
 
     @Override
-    public CompoundTag save(CompoundTag tag, HolderLookup.Provider registries) {
+    public CompoundTag save(CompoundTag tag) {
         ListTag list = new ListTag();
         journals.forEach((player, drinks) -> Entry.CODEC.encodeStart(NbtOps.INSTANCE, new Entry(player, Map.copyOf(drinks)))
                 .resultOrPartial(LOGGER::error).ifPresent(list::add));

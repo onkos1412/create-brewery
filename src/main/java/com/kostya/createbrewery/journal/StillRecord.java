@@ -2,9 +2,7 @@ package com.kostya.createbrewery.journal;
 
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
-import io.netty.buffer.ByteBuf;
-import net.minecraft.network.codec.ByteBufCodecs;
-import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.network.FriendlyByteBuf;
 
 /** Best still result: the rotation speed and the stars earned. */
 public record StillRecord(int rpm, int stars) {
@@ -13,8 +11,13 @@ public record StillRecord(int rpm, int stars) {
             Codec.INT.fieldOf("stars").forGetter(StillRecord::stars)
     ).apply(instance, StillRecord::new));
 
-    public static final StreamCodec<ByteBuf, StillRecord> STREAM_CODEC = StreamCodec.composite(
-            ByteBufCodecs.VAR_INT, StillRecord::rpm,
-            ByteBufCodecs.VAR_INT, StillRecord::stars,
-            StillRecord::new);
+    /** Network form (1.21.1: a {@code StreamCodec} of two var-ints). */
+    public void write(FriendlyByteBuf buf) {
+        buf.writeVarInt(rpm);
+        buf.writeVarInt(stars);
+    }
+
+    public static StillRecord read(FriendlyByteBuf buf) {
+        return new StillRecord(buf.readVarInt(), buf.readVarInt());
+    }
 }

@@ -30,8 +30,11 @@ public final class ModNetwork {
                 .decoder(DrunkSyncPacket::decode)
                 .consumerMainThread(DrunkSyncPacket::handle)
                 .add();
-        // PORT: Task 5 - the brewer's book payload (1.21.1: registrar.playToClient(OpenBrewerBookPayload.TYPE,
-        // OpenBrewerBookPayload.STREAM_CODEC, (payload, context) -> context.enqueueWork(() -> BrewerBookClient.open(payload)))).
+        CHANNEL.messageBuilder(OpenBrewerBookPayload.class, nextId++, NetworkDirection.PLAY_TO_CLIENT)
+                .encoder(OpenBrewerBookPayload::encode)
+                .decoder(OpenBrewerBookPayload::decode)
+                .consumerMainThread(OpenBrewerBookPayload::handle)
+                .add();
     }
 
     public static void sendTo(ServerPlayer player, Object message) {

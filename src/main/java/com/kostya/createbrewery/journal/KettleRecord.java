@@ -2,9 +2,7 @@ package com.kostya.createbrewery.journal;
 
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
-import io.netty.buffer.ByteBuf;
-import net.minecraft.network.codec.ByteBufCodecs;
-import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.network.FriendlyByteBuf;
 
 import java.util.Collections;
 import java.util.List;
@@ -24,12 +22,17 @@ public record KettleRecord(Map<String, Integer> mix, int heat, int stars) {
             Codec.INT.fieldOf("stars").forGetter(KettleRecord::stars)
     ).apply(instance, KettleRecord::new));
 
-    public static final StreamCodec<ByteBuf, KettleRecord> STREAM_CODEC = StreamCodec.composite(
-            ByteBufCodecs.<ByteBuf, String, Integer, Map<String, Integer>>map(
-                    size -> new TreeMap<>(), ByteBufCodecs.STRING_UTF8, ByteBufCodecs.VAR_INT), KettleRecord::mix,
-            ByteBufCodecs.VAR_INT, KettleRecord::heat,
-            ByteBufCodecs.VAR_INT, KettleRecord::stars,
-            KettleRecord::new);
+    /** Network form (1.21.1: a {@code StreamCodec} of a string-to-var-int map and two var-ints). */
+    public void write(FriendlyByteBuf buf) {
+        buf.writeMap(mix, FriendlyByteBuf::writeUtf, FriendlyByteBuf::writeVarInt);
+        buf.writeVarInt(heat);
+        buf.writeVarInt(stars);
+    }
+
+    public static KettleRecord read(FriendlyByteBuf buf) {
+        Map<String, Integer> mix = buf.readMap(size -> new TreeMap<>(), FriendlyByteBuf::readUtf, FriendlyByteBuf::readVarInt);
+        return new KettleRecord(mix, buf.readVarInt(), buf.readVarInt());
+    }
 
     /** One id per item in, counted per distinct id. */
     public static Map<String, Integer> mixOf(List<String> ids) {

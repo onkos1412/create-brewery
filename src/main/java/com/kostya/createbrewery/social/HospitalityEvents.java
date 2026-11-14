@@ -4,15 +4,15 @@ import com.kostya.createbrewery.CreateBrewery;
 import com.kostya.createbrewery.advancement.BreweryAdvancements;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.common.util.FakePlayer;
-import net.neoforged.neoforge.event.entity.player.PlayerEvent;
+import net.minecraftforge.common.util.FakePlayer;
+import net.minecraftforge.event.entity.player.PlayerEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod;
 
 import java.util.UUID;
 
 /** Treating others: credits a brewer when someone else drinks their drink, and pays out what they missed offline. */
-@EventBusSubscriber(modid = CreateBrewery.MOD_ID)
+@Mod.EventBusSubscriber(modid = CreateBrewery.MOD_ID)
 public final class HospitalityEvents {
 
     private HospitalityEvents() {

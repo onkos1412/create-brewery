@@ -2,9 +2,7 @@ package com.kostya.createbrewery.journal;
 
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
-import io.netty.buffer.ByteBuf;
-import net.minecraft.network.codec.ByteBufCodecs;
-import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.network.FriendlyByteBuf;
 
 import java.util.Optional;
 
@@ -18,11 +16,17 @@ public record DrinkJournal(Optional<KettleRecord> kettle, Optional<StillRecord> 
             BarrelRecord.CODEC.optionalFieldOf("barrel").forGetter(DrinkJournal::barrel)
     ).apply(instance, DrinkJournal::new));
 
-    public static final StreamCodec<ByteBuf, DrinkJournal> STREAM_CODEC = StreamCodec.composite(
-            ByteBufCodecs.optional(KettleRecord.STREAM_CODEC), DrinkJournal::kettle,
-            ByteBufCodecs.optional(StillRecord.STREAM_CODEC), DrinkJournal::still,
-            ByteBufCodecs.optional(BarrelRecord.STREAM_CODEC), DrinkJournal::barrel,
-            DrinkJournal::new);
+    /** Network form (1.21.1: a {@code StreamCodec} of three optionals). */
+    public void write(FriendlyByteBuf buf) {
+        buf.writeOptional(kettle, (b, r) -> r.write(b));
+        buf.writeOptional(still, (b, r) -> r.write(b));
+        buf.writeOptional(barrel, (b, r) -> r.write(b));
+    }
+
+    public static DrinkJournal read(FriendlyByteBuf buf) {
+        return new DrinkJournal(buf.readOptional(KettleRecord::read), buf.readOptional(StillRecord::read),
+                buf.readOptional(BarrelRecord::read));
+    }
 
     public DrinkJournal withKettle(KettleRecord r) {
         if (kettle.isPresent() && r.stars() <= kettle.get().stars()) return this;

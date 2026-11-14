@@ -3,7 +3,6 @@ package com.kostya.createbrewery.social;
 import com.mojang.logging.LogUtils;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
-import net.minecraft.core.HolderLookup;
 import net.minecraft.core.UUIDUtil;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
@@ -39,14 +38,11 @@ public class HospitalityData extends SavedData {
 
     private static final Logger LOGGER = LogUtils.getLogger();
 
-    public static final SavedData.Factory<HospitalityData> FACTORY =
-            new SavedData.Factory<>(HospitalityData::new, HospitalityData::load, null);
-
     private final Map<UUID, Set<UUID>> drinkers = new HashMap<>();
     private final Map<UUID, Set<String>> pending = new HashMap<>();
 
     public static HospitalityData get(MinecraftServer server) {
-        return server.overworld().getDataStorage().computeIfAbsent(FACTORY, NAME);
+        return server.overworld().getDataStorage().computeIfAbsent(HospitalityData::load, HospitalityData::new, NAME);
     }
 
     /**
@@ -80,7 +76,7 @@ public class HospitalityData extends SavedData {
         return taken;
     }
 
-    public static HospitalityData load(CompoundTag tag, HolderLookup.Provider registries) {
+    public static HospitalityData load(CompoundTag tag) {
         HospitalityData data = new HospitalityData();
         if (tag.get("brewers") instanceof ListTag list) {
             for (Tag element : list) {
@@ -98,7 +94,7 @@ public class HospitalityData extends SavedData {
     }
 
     @Override
-    public CompoundTag save(CompoundTag tag, HolderLookup.Provider registries) {
+    public CompoundTag save(CompoundTag tag) {
         Set<UUID> brewers = new HashSet<>(drinkers.keySet());
         brewers.addAll(pending.keySet());
         ListTag list = new ListTag();

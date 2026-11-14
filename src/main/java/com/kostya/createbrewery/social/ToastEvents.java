@@ -13,15 +13,15 @@ import net.minecraft.world.InteractionResult;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.common.util.FakePlayer;
-import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
+import net.minecraftforge.common.util.FakePlayer;
+import net.minecraftforge.event.entity.player.PlayerInteractEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod;
 
 /**
  * Clinking: a player holding a drink right-clicks another player who holds one too, and both get the toast marker.
  */
-@EventBusSubscriber(modid = CreateBrewery.MOD_ID)
+@Mod.EventBusSubscriber(modid = CreateBrewery.MOD_ID)
 public final class ToastEvents {
 
     private ToastEvents() {
@@ -54,7 +54,7 @@ public final class ToastEvents {
         }
         int ticks = BreweryConfig.toastSeconds() * 20;
         for (Player player : new Player[] {a, b}) {
-            player.addEffect(new MobEffectInstance(ModEffects.TOAST, ticks, 0, false, false, true));
+            player.addEffect(new MobEffectInstance(ModEffects.TOAST.get(), ticks, 0, false, false, true));
             if (player.level() instanceof ServerLevel level) {
                 level.sendParticles(ParticleTypes.HAPPY_VILLAGER, player.getX(), player.getEyeY() + 0.5, player.getZ(),
                         6, 0.3, 0.2, 0.3, 0.0);
