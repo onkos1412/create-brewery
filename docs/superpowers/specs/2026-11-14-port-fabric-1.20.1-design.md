@@ -76,8 +76,9 @@ before Modrinth publishing prep.
 - **Tanks store droplets internally** (like Create Fabric itself), so foreign pipes moving any droplet amount work
   without clamping or rejection. Rules and config stay in mB and are converted with the exact factor 81 when
   building capacities and portions; displayed values are droplets / 81 (shown as mB, as now).
-- **A drink bottle stays 250 mB** (20250 droplets), not Fabric's usual 1/3 bucket, so portions and keg/barrel
-  arithmetic match the other loaders. Vanilla water/potion bottles are Create Fabric's own business.
+- **Volumes stay exactly as on Forge** (e.g. wort per bottle and distillate are 1000 mB = 81000 droplets, kettle
+  tank 4000 mB), never Fabric's usual 1/3-bucket bottle, so portions and keg/barrel arithmetic match the other
+  loaders. Vanilla water/potion bottles are Create Fabric's own business.
 - **Saved-world NBT does not need to be compatible between loaders** (worlds don't move between Forge and Fabric).
   Own recipe types keep mB in their JSON (parsed by our code); any recipe JSON read by Create Fabric itself uses
   droplets.
