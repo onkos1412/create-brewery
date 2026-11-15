@@ -1,5 +1,7 @@
 <center><img alt="Create Brewery" width="100%" src="https://raw.githubusercontent.com/onkos1412/create-brewery/main/docs/modrinth/img/banner.png"></center>
 
+<br>
+
 <center>
 <img alt="NeoForge" height="48" src="https://cdn.jsdelivr.net/npm/@intergrav/devins-badges@3/assets/cozy/supported/neoforge_vector.svg">
 <img alt="Forge" height="48" src="https://cdn.jsdelivr.net/npm/@intergrav/devins-badges@3/assets/cozy/supported/forge_vector.svg">

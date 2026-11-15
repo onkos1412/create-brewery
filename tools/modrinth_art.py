@@ -5,13 +5,14 @@ mod's pixel art. Output: docs/modrinth/img/*.png. Run: python tools/modrinth_art
 """
 from pathlib import Path
 
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw
+
+from pixel_font import render as font_mask
 
 ROOT = Path(__file__).resolve().parent.parent
 ITEMS = ROOT / "src/main/resources/assets/brewery/textures/item"
 LOGO = ROOT / "src/main/resources/brewery_logo.png"
 OUT = ROOT / "docs/modrinth/img"
-FONT = "C:/Windows/Fonts/arialbd.ttf"
 
 # Warm tavern palette: dark oak, brass, amber.
 OAK_DARK = (43, 29, 20)
@@ -58,41 +59,53 @@ def brass_frame(im, inset=0):
         d.point((x - 1, y - 1), fill=BRASS_LIGHT)
 
 
-def pixel_text(text, size):
-    """Text rendered without anti-aliasing, as a 1-bit mask, so it scales up as crisp pixels."""
-    font = ImageFont.truetype(FONT, size)
-    left, top, right, bottom = font.getbbox(text)
-    mask = Image.new("1", (right - left + 2, bottom - top + 2), 0)
-    ImageDraw.Draw(mask).text((-left, -top), text, font=font, fill=1)
-    return mask
-
-
-def draw_text(canvas, text, size, center_x, top, fill_top=BRASS_LIGHT, fill_bottom=BRASS):
-    mask = pixel_text(text, size)
+def draw_text(canvas, mask, x, top, fill_top=BRASS_LIGHT, fill_bottom=BRASS):
+    """Paints a font mask with a vertical brass gradient and a one-pixel drop shadow."""
     w, h = mask.size
-    x = center_x - w // 2 if center_x is not None else 0
-    shadow = Image.new("RGBA", mask.size, SHADOW)
-    canvas.paste(shadow, (x + 1, top + 1), mask)
+    canvas.paste(Image.new("RGBA", mask.size, SHADOW), (x + 1, top + 1), mask)
     gradient = Image.new("RGBA", mask.size)
     gd = ImageDraw.Draw(gradient)
     for y in range(h):
         t = y / max(1, h - 1)
         gd.line([0, y, w, y], fill=tuple(int(a + (b - a) * t) for a, b in zip(fill_top, fill_bottom)) + (255,))
     canvas.paste(gradient, (x, top), mask)
-    return w, h
+
+
+def plaque(size, inner):
+    """A small stone tile in a brass frame with a sprite in the middle and five stars below it."""
+    im = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+    d = ImageDraw.Draw(im)
+    d.rectangle([1, 1, size - 2, size - 2], fill=(118, 116, 112))
+    for i in range(0, size * size, 7):
+        x, y = (i * 13) % size, (i * 29) % size
+        if 2 < x < size - 3 and 2 < y < size - 3:
+            d.point((x, y), fill=(98, 96, 93) if i % 2 else (138, 135, 130))
+    brass_frame(im)
+    im.alpha_composite(inner, ((size - inner.size[0]) // 2, 3))
+    star = ["00100", "11111", "01110", "01010"]
+    total = 5 * 6 - 1
+    for n in range(5):
+        x0 = (size - total) // 2 + n * 6
+        for yy, row in enumerate(star):
+            for xx, bit in enumerate(row):
+                if bit == "1":
+                    d.point((x0 + xx, size - 9 + yy), fill=BRASS_LIGHT if yy < 2 else BRASS)
+    return im
 
 
 def banner():
     w, h, scale = 320, 80, 5
     im = planks(w, h)
     brass_frame(im)
-    logo = Image.open(LOGO).convert("RGBA").resize((48, 48), Image.NEAREST)
-    im.alpha_composite(logo, (10, 16))
-    im.alpha_composite(logo.transpose(Image.FLIP_LEFT_RIGHT), (w - 58, 16))
-    draw_text(im, "CREATE BREWERY", 17, w // 2, 14)
-    tag = pixel_text("BREW  -  DISTILL  -  AGE  -  TOAST", 9)
-    im.paste(Image.new("RGBA", tag.size, SHADOW), (w // 2 - tag.size[0] // 2 + 1, 41), tag)
-    im.paste(Image.new("RGBA", tag.size, CREAM), (w // 2 - tag.size[0] // 2, 40), tag)
+    beer = plaque(50, sprite("beer_bottle", 32))
+    im.alpha_composite(beer, (10, 15))
+    im.alpha_composite(beer, (w - 60, 15))
+    title = font_mask("CREATE BREWERY", 2)
+    draw_text(im, title, (w - title.size[0]) // 2, 12)
+    tag = font_mask("BREW - DISTILL - AGE - TOAST", 1)
+    tx = (w - tag.size[0]) // 2
+    im.paste(Image.new("RGBA", tag.size, SHADOW), (tx + 1, 35), tag)
+    im.paste(Image.new("RGBA", tag.size, CREAM), (tx, 34), tag)
     shelf = ["beer", "stout", "kvass", "cider", "mead", "wine", "whiskey", "rum", "calvados", "absinthe"]
     x0 = w // 2 - len(shelf) * 16 // 2
     ImageDraw.Draw(im).rectangle([x0 - 3, 70, x0 + len(shelf) * 16 + 2, 71], fill=BRASS_DARK)
@@ -102,14 +115,12 @@ def banner():
 
 
 def headline(text, icon):
-    w, h, scale = 160, 24, 5
+    w, h, scale = 232, 24, 5
     im = planks(w, h)
     brass_frame(im)
     im.alpha_composite(icon, (6, 4))
-    mask = pixel_text(text, 12)
-    top = (h - mask.size[1]) // 2
-    im.paste(Image.new("RGBA", mask.size, SHADOW), (27, top + 1), mask)
-    im.paste(Image.new("RGBA", mask.size, BRASS_LIGHT), (26, top), mask)
+    mask = font_mask(text, 2)
+    draw_text(im, mask, 28, (h - mask.size[1]) // 2)
     return im.resize((w * scale, h * scale), Image.NEAREST)
 
 
