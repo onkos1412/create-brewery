@@ -1,6 +1,8 @@
 # Changelog
 
-## Unreleased
+## 0.2.0
+
+Available for Minecraft 1.21.1 NeoForge (Create 6.0.10+), 1.20.1 Forge (Create 6.0.8+) and 1.20.1 Fabric (Create Fabric 6.0.7+).
 
 - Brewer's signature: drinks show who brewed them and on which day.
 - Brewer's book: a personal, owner-only diary of your best results for every drink.

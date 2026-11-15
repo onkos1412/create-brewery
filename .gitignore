@@ -41,3 +41,6 @@ repo/
 
 ### Game logs ###
 logs/
+
+### Release jars ###
+release/
