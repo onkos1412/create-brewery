@@ -1,5 +1,7 @@
 package com.kostya.createbrewery.block;
 
+import net.fabricmc.api.EnvType;
+import net.fabricmc.api.Environment;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.network.chat.Component;
@@ -7,9 +9,10 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.Slot;
 
+@Environment(EnvType.CLIENT)
 public class BarrelScreen extends AbstractContainerScreen<BarrelMenu> {
     private static final ResourceLocation TEXTURE =
-            ResourceLocation.fromNamespaceAndPath("brewery", "textures/gui/barrel.png");
+            new ResourceLocation("brewery", "textures/gui/barrel.png");
 
     private static final int BUTTON_X = 8;
     private static final int BUTTON_Y = 56;

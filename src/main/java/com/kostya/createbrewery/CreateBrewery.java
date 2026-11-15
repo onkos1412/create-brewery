@@ -30,8 +30,7 @@ public class CreateBrewery implements ModInitializer {
     /**
      * Every content registry the mod owns, wired in one place so it can be audited in a single spot. Porting Lib's
      * {@code LazyRegistrar} stands in for Forge's {@code DeferredRegister}: the holders keep their Forge names and
-     * {@code get()}, and each registrar writes its entries into the vanilla registry here. Content registries come
-     * back here as the port brings each slice over from port/todo.
+     * {@code get()}, and each registrar writes its entries into the vanilla registry here.
      */
     @Override
     public void onInitialize() {

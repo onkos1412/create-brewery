@@ -20,5 +20,7 @@ public class CreateBreweryClient implements ClientModInitializer {
         DrunkKnockoutClient.register();
         // The brewer's book opens from the server's payload.
         BrewerBookClient.register();
+        // Machine screens, colours, the distillery's shaft, the bottle art, wort rendering and Ponder.
+        ModClientSetup.register();
     }
 }

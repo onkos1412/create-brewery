@@ -10,6 +10,8 @@ import net.createmod.ponder.api.registration.PonderPlugin;
 import net.createmod.ponder.api.registration.PonderSceneRegistrationHelper;
 import net.createmod.ponder.api.scene.SceneBuilder;
 import net.createmod.ponder.api.scene.SceneBuildingUtil;
+import net.fabricmc.api.EnvType;
+import net.fabricmc.api.Environment;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.ResourceLocation;
@@ -20,6 +22,7 @@ import net.minecraft.world.item.Items;
  * Create-style animated guides. The scene text lives in the language files under
  * {@code brewery.ponder.<scene>}; the English passed here is only Ponder's placeholder.
  */
+@Environment(EnvType.CLIENT)
 public final class BreweryPonder implements PonderPlugin {
     private static final int TEXT_TICKS = 80;
 

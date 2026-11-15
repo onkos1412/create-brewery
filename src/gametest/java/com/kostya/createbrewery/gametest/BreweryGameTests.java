@@ -131,11 +131,10 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * In-world checks of what unit tests cannot reach: real block entities, the Transfer API and
  * Create's kinetics. Run with {@code gradlew runGametest}; registered through the {@code fabric-gametest}
- * entrypoint. Every test uses the {@code brewery:empty} structure, so the game-test run keeps it (see
- * {@link GameTestNamespaces}).
+ * entrypoint of the dev-only {@code brewery_gametest} mod (the {@code gametest} source set, not in the release jar).
+ * Every test uses the {@code brewery:empty} structure, so the game-test run keeps it (see {@link GameTestNamespaces}).
  *
- * <p>The tests come back slice by slice from {@code port/todo/.../gametest/BreweryGameTests.java} with their
- * names and assertions unchanged.
+ * <p>Ported from the Forge build with their names and assertions unchanged.
  */
 public class BreweryGameTests implements FabricGameTest {
 

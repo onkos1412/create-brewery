@@ -29,7 +29,7 @@ import java.util.Random;
 /**
  * Gameplay events for the drunk system: sobering over time and resetting on death. This also carries the
  * {@link DrunkData} over a clone that is not a death, and syncs it to the client when the client gets a new
- * player, which NeoForge's attachments did on their own.
+ * player, as the Forge build's capability and {@code PlayerEvent.Clone} handler did.
  *
  * <p>Forge subscribed these to its event bus; on Fabric {@link #register()} hooks each one to the Fabric API
  * callback that matches it. Two have no callback that fits, so targeted mixins call them where Forge fired its
@@ -64,8 +64,7 @@ public final class DrunkEvents {
     }
 
     /**
-     * NeoForge copied serializable attachments to the new player unless the clone was a death and the
-     * attachment was {@code copyOnDeath}; none of the drunk ones was. So: a death starts from defaults, while
+     * Follows the Forge build's clone rules: a death starts from defaults, while
      * leaving the End ({@code alive}) keeps the saved values (level, blackout, hangover debt), and never the
      * stagger position or vomit cooldown.
      */

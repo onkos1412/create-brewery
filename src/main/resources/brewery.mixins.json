@@ -10,7 +10,9 @@
     "PlayerMixin",
     "ServerGamePacketListenerImplMixin"
   ],
-  "client": [],
+  "client": [
+    "client.ClientRecipeBookMixin"
+  ],
   "injectors": {
     "defaultRequire": 1
   }

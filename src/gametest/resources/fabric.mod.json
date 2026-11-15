@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "id": "brewery_gametest",
+  "version": "1.0.0",
+  "name": "Create Brewery Game Tests",
+  "description": "The Create Brewery game tests. Development only: the gametest source set, never part of the release jar.",
+  "license": "MIT",
+  "environment": "*",
+  "entrypoints": {
+    "server": [
+      "com.kostya.createbrewery.gametest.GameTestNamespaces"
+    ],
+    "fabric-gametest": [
+      "com.kostya.createbrewery.gametest.BootGameTests",
+      "com.kostya.createbrewery.gametest.BreweryGameTests"
+    ]
+  },
+  "depends": {
+    "brewery": "*"
+  }
+}

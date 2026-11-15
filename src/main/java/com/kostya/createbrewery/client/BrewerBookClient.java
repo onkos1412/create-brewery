@@ -24,7 +24,7 @@ public final class BrewerBookClient {
         });
     }
 
-    public static void open(OpenBrewerBookPayload payload) {
+    private static void open(OpenBrewerBookPayload payload) {
         Minecraft.getInstance().setScreen(new BrewerBookScreen(payload));
     }
 }

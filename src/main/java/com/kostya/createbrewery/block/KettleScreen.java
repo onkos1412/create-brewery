@@ -2,6 +2,8 @@ package com.kostya.createbrewery.block;
 
 import com.kostya.createbrewery.quality.StarLine;
 import com.kostya.createbrewery.recipe.MixRules;
+import net.fabricmc.api.EnvType;
+import net.fabricmc.api.Environment;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.network.chat.Component;
@@ -14,10 +16,11 @@ import net.minecraft.world.inventory.Slot;
  * Client screen for the kettle: ingredient slots, a brew progress bar, the heat source
  * and the water and wort tanks.
  */
+@Environment(EnvType.CLIENT)
 public class KettleScreen extends AbstractContainerScreen<KettleMenu> {
 
     private static final ResourceLocation TEXTURE =
-            ResourceLocation.fromNamespaceAndPath("brewery", "textures/gui/kettle.png");
+            new ResourceLocation("brewery", "textures/gui/kettle.png");
 
     private static final int BAR_X = 26;
     private static final int BAR_Y = 44;

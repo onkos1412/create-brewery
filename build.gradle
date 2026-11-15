@@ -17,9 +17,29 @@ java {
     withSourcesJar()
 }
 
+// The game tests live in their own source set and their own dev-only mod (`brewery_gametest`), so the release jar
+// carries neither the test classes nor their entrypoints. Some tests reach into the game by its named (Mojang)
+// members, which only exist in the development environment.
+sourceSets {
+    gametest {
+        compileClasspath += sourceSets.main.compileClasspath + sourceSets.main.output
+        runtimeClasspath += sourceSets.main.runtimeClasspath + sourceSets.main.output
+    }
+}
+
 loom {
     // brewery.mixins.json names this refmap; Loom generates it.
     mixin.defaultRefmapName = "${mod_id}.refmap.json"
+
+    // Which output folders make up which mod in the development runs.
+    mods {
+        "${mod_id}" {
+            sourceSet sourceSets.main
+        }
+        "${mod_id}_gametest" {
+            sourceSet sourceSets.gametest
+        }
+    }
 
     runs {
         // A dedicated server that runs every registered game test, writes a JUnit report and exits
@@ -34,10 +54,15 @@ loom {
             // Create Fabric 6.0.7 build 1716 registers its client-only CardboardArmorStealthOverlay from common
             // code (AllItems, cardboard_helmet). Verifying that class loads LocalPlayer, which Fabric Loader refuses
             // on a server, so Create's own initializer fails. Skipping bytecode verification of mod classes keeps
-            // LocalPlayer unloaded; the overlay is never ticked on a server.
+            // LocalPlayer unloaded; the overlay is never ticked on a server. This works around Create's upstream
+            // issue only: without the flag the server fails in Create's initializer, not in this mod (checked in
+            // the Fabric port's Task 6). Remove both flags once a Create Fabric build stops loading the overlay on
+            // a server.
             vmArg "-XX:+UnlockDiagnosticVMOptions"
             vmArg "-XX:-BytecodeVerificationRemote"
             runDir "build/gametest"
+            // The main mod plus the game-test mod.
+            source sourceSets.gametest
         }
     }
 }
@@ -101,6 +126,12 @@ repositories {
         content { includeGroup 'com.jamieswhiteshirt' }
     }
     maven {
+        // Mod Menu
+        name = 'TerraformersMC'
+        url = 'https://maven.terraformersmc.com/releases'
+        content { includeGroup 'com.terraformersmc' }
+    }
+    maven {
         // JEI
         name = 'BlameJared'
         url = 'https://maven.blamejared.com'
@@ -128,6 +159,11 @@ dependencies {
     modCompileOnly "mezz.jei:jei-${minecraft_version}-common-api:${jei_version}"
     modCompileOnly "mezz.jei:jei-${minecraft_version}-fabric-api:${jei_version}"
     modLocalRuntime "mezz.jei:jei-${minecraft_version}-fabric:${jei_version}"
+
+    // Mod Menu is optional too: its API for the `modmenu` entrypoint at compile time, the mod in this workspace's
+    // client only.
+    modCompileOnly "com.terraformersmc:modmenu:${modmenu_version}"
+    modLocalRuntime "com.terraformersmc:modmenu:${modmenu_version}"
 
     testImplementation platform('org.junit:junit-bom:5.10.2')
     testImplementation 'org.junit.jupiter:junit-jupiter'

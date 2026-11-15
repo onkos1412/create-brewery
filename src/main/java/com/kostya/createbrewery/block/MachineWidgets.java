@@ -1,5 +1,7 @@
 package com.kostya.createbrewery.block;
 
+import net.fabricmc.api.EnvType;
+import net.fabricmc.api.Environment;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.network.chat.Component;
@@ -7,9 +9,10 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 
 /** Pieces shared by the machine screens, drawn from {@code textures/gui/machine_parts.png}. */
+@Environment(EnvType.CLIENT)
 final class MachineWidgets {
     private static final ResourceLocation PARTS =
-            ResourceLocation.fromNamespaceAndPath("brewery", "textures/gui/machine_parts.png");
+            new ResourceLocation("brewery", "textures/gui/machine_parts.png");
 
     static final int TANK_WIDTH = 10;
     static final int BUTTON_WIDTH = 64;

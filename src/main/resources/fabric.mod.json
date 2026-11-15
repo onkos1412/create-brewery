@@ -22,12 +22,8 @@
     "client": [
       "com.kostya.createbrewery.client.CreateBreweryClient"
     ],
-    "server": [
-      "com.kostya.createbrewery.gametest.GameTestNamespaces"
-    ],
-    "fabric-gametest": [
-      "com.kostya.createbrewery.gametest.BootGameTests",
-      "com.kostya.createbrewery.gametest.BreweryGameTests"
+    "modmenu": [
+      "com.kostya.createbrewery.client.BreweryModMenu"
     ]
   },
   "mixins": [

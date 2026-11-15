@@ -3,6 +3,8 @@ package com.kostya.createbrewery.block;
 import com.kostya.createbrewery.distillery.DistilleryLogic;
 import com.kostya.createbrewery.distillery.DistillingRules;
 import com.kostya.createbrewery.quality.StarLine;
+import net.fabricmc.api.EnvType;
+import net.fabricmc.api.Environment;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.network.chat.Component;
@@ -10,9 +12,10 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.player.Inventory;
 
+@Environment(EnvType.CLIENT)
 public class DistilleryScreen extends AbstractContainerScreen<DistilleryMenu> {
     private static final ResourceLocation TEXTURE =
-            ResourceLocation.fromNamespaceAndPath("brewery", "textures/gui/distillery.png");
+            new ResourceLocation("brewery", "textures/gui/distillery.png");
 
     private static final int TANK_X = 12;
     private static final int TANK_Y = 18;

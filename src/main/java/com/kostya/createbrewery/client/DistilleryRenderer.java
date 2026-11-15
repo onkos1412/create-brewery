@@ -10,6 +10,8 @@ import dev.engine_room.flywheel.lib.model.Models;
 import dev.engine_room.flywheel.lib.visualization.SimpleBlockEntityVisualizer;
 import net.createmod.catnip.render.CachedBuffers;
 import net.createmod.catnip.render.SuperByteBuffer;
+import net.fabricmc.api.EnvType;
+import net.fabricmc.api.Environment;
 import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
 import net.minecraft.core.Direction;
 import net.minecraft.world.level.block.state.BlockState;
@@ -18,6 +20,7 @@ import net.minecraft.world.level.block.state.BlockState;
  * Spins the half shaft in the distillery's back. Create draws it through Flywheel when that
  * can run, and through this renderer when it cannot, so both are registered.
  */
+@Environment(EnvType.CLIENT)
 final class DistilleryRenderer extends KineticBlockEntityRenderer<DistilleryBlockEntity> {
 
     DistilleryRenderer(BlockEntityRendererProvider.Context context) {
