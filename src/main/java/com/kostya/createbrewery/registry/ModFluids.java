@@ -33,10 +33,10 @@ import net.minecraft.world.level.material.FluidState;
  * kettle and the spout move around. No bucket item is provided.
  *
  * <p>Fabric has no Forge {@code FluidType}: the name tanks and goggles show comes from a Transfer API
- * {@link FluidVariantAttributeHandler} (common code), and the textures, tint and fog colour from client fluid
- * render handlers (PORT(Task 6): {@code FluidRenderHandlerRegistry} in the client entrypoint, from the Forge
- * {@code ClientHandler}: still {@code brewery:block/wort_still}, flowing {@code brewery:block/wort_flow}, tint the
- * drink's colour, plain beer colour without one, fog {@code 0.85, 0.62, 0.20}).
+ * {@link FluidVariantAttributeHandler} (common code), and the textures and tint from client fluid
+ * render handlers ({@code FluidRenderHandlerRegistry} in the client entrypoint: still {@code brewery:block/wort_still},
+ * flowing {@code brewery:block/wort_flow}, tint the drink's colour, plain beer colour without one). Wort has no fog
+ * hook: it has no in-world block form, so nothing can submerge the camera in it.
  */
 public final class ModFluids {
     /** Resource id of the wort source fluid (the flowing one is {@code brewery:flowing_wort}). */

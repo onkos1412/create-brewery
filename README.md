@@ -3,7 +3,7 @@
 Аддон для [Create](https://github.com/Creators-of-Create/Create): варка алкоголя в духе плагина BreweryX.
 Правильно настроенная линия всегда даёт 5★, а ошибки стоят звёзд.
 
-Нужны Minecraft 1.21.1, NeoForge 21.1.235 или новее и Create 6.0.10. JEI необязателен: рецептов он не показывает.
+Нужны Minecraft 1.20.1, Fabric Loader 0.17.2 или новее, Fabric API и Create Fabric 6.0.7 или новее. JEI и Mod Menu необязательны: JEI рецептов не показывает, а Mod Menu открывает экран настроек мода.
 
 ## Машины
 
@@ -42,7 +42,7 @@
 
 ## Настройки сервера
 
-Файл `brewery-server.toml` в папке мира (`serverconfig`), его же показывает экран настроек мода:
+Файл `brewery-server.toml` в папке `config/` (там же лежат настройки Create Fabric), его же показывает экран настроек мода:
 
 - `drunk.stagger` (true) — шатающаяся походка;
 - `drunk.vomit` (true) — рвота;
