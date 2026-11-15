@@ -5,7 +5,7 @@ mod's pixel art. Output: docs/modrinth/img/*.png. Run: python tools/modrinth_art
 """
 from pathlib import Path
 
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageFilter
 
 from pixel_font import render as font_mask
 
@@ -96,26 +96,73 @@ def plaque(inner):
     return im
 
 
+def grow(mask, px):
+    """The mask thickened by px pixels in every direction (a square outline)."""
+    out = Image.new("1", (mask.size[0] + 2 * px, mask.size[1] + 2 * px), 0)
+    for dx in range(2 * px + 1):
+        for dy in range(2 * px + 1):
+            out.paste(1, (dx, dy), mask)
+    return out
+
+
+def logo_text(text, scale, depth):
+    """Chunky title lettering: dark outline, a brass bevel extruded downwards and a gradient face."""
+    face = font_mask(text, scale)
+    w, h = face.size
+    layer = Image.new("RGBA", (w + 4, h + depth + 4), (0, 0, 0, 0))
+    solid = Image.new("1", layer.size, 0)
+    for d in range(depth + 1):
+        solid.paste(1, (2, 2 + d), face)
+    layer.paste(Image.new("RGBA", layer.size, SHADOW), (0, 0), grow(solid, 1).crop((1, 1, layer.size[0] + 1, layer.size[1] + 1)))
+    for d in range(depth, 0, -1):
+        tone = BRASS_DARK if d > 1 else (150, 100, 42)
+        layer.paste(Image.new("RGBA", face.size, tone), (2, 2 + d), face)
+    gradient = Image.new("RGBA", face.size)
+    gd = ImageDraw.Draw(gradient)
+    for y in range(h):
+        t = y / max(1, h - 1)
+        gd.line([0, y, w, y], fill=tuple(int(a + (b - a) * t) for a, b in zip(BRASS_LIGHT, BRASS)) + (255,))
+    gd.line([0, 0, w, 0], fill=(255, 236, 180, 255))
+    layer.paste(gradient, (2, 2), face)
+    return layer
+
+
+def outlined_text(text, scale, color):
+    face = font_mask(text, scale)
+    layer = Image.new("RGBA", (face.size[0] + 2, face.size[1] + 2), (0, 0, 0, 0))
+    layer.paste(Image.new("RGBA", layer.size, SHADOW), (0, 0), grow(face, 1))
+    layer.paste(Image.new("RGBA", face.size, color), (1, 1), face)
+    return layer
+
+
 def banner():
-    w, h, scale = 320, 80, 5
-    im = planks(w, h)
-    brass_frame(im)
-    beer = plaque(sprite("beer_bottle", 48))
-    top = (h - beer.size[1]) // 2
-    im.alpha_composite(beer, (14, top))
-    im.alpha_composite(beer, (w - 14 - beer.size[0], top))
-    title = font_mask("CREATE BREWERY", 2)
-    draw_text(im, title, (w - title.size[0]) // 2, 12)
-    tag = font_mask("BREW - DISTILL - AGE - TOAST", 1)
-    tx = (w - tag.size[0]) // 2
-    im.paste(Image.new("RGBA", tag.size, SHADOW), (tx + 1, 35), tag)
-    im.paste(Image.new("RGBA", tag.size, CREAM), (tx, 34), tag)
-    shelf = ["beer", "stout", "kvass", "cider", "mead", "wine", "whiskey", "rum", "calvados", "absinthe"]
-    x0 = w // 2 - len(shelf) * 16 // 2
-    ImageDraw.Draw(im).rectangle([x0 - 3, 70, x0 + len(shelf) * 16 + 2, 71], fill=BRASS_DARK)
+    """An in-game shot of a brewery, softened and darkened, with the title lettering over it."""
+    W, H, scale = 1600, 400, 5
+    shot = Image.open(OUT / "shot_line.png").convert("RGB")
+    cover = max(W / shot.width, H / shot.height)
+    shot = shot.resize((round(shot.width * cover), round(shot.height * cover)), Image.LANCZOS)
+    left, top = (shot.width - W) // 2, (shot.height - H) // 2
+    bg = shot.crop((left, top, left + W, top + H)).filter(ImageFilter.GaussianBlur(3)).convert("RGBA")
+    shade = Image.new("RGBA", (W, H))
+    sd = ImageDraw.Draw(shade)
+    for x in range(W):
+        edge = min(x, W - 1 - x) / (W / 2)
+        sd.line([x, 0, x, H], fill=(18, 10, 6, int(110 + 100 * (1 - edge))))
+    bg.alpha_composite(shade)
+    art = Image.new("RGBA", (W // scale, H // scale), (0, 0, 0, 0))
+    title = logo_text("CREATE BREWERY", 3, 3)
+    art.alpha_composite(title, ((art.width - title.width) // 2, 14))
+    tag = outlined_text("BREW - DISTILL - AGE - TOAST", 1, CREAM)
+    art.alpha_composite(tag, ((art.width - tag.width) // 2, 14 + title.height + 6))
+    shelf = ["beer", "wine", "whiskey", "mead", "rum"]
+    x0 = (art.width - len(shelf) * 18) // 2
     for i, name in enumerate(shelf):
-        im.alpha_composite(sprite(f"{name}_bottle", 16), (x0 + i * 16, 54))
-    return im.resize((w * scale, h * scale), Image.NEAREST)
+        art.alpha_composite(sprite(f"{name}_bottle", 16), (x0 + i * 18 + 1, 14 + title.height + 18))
+    bg.alpha_composite(art.resize((W, H), Image.NEAREST))
+    frame = ImageDraw.Draw(bg)
+    for i, c in enumerate((SHADOW, BRASS_DARK, BRASS, BRASS_DARK)):
+        frame.rectangle([i * 2, i * 2, W - 1 - i * 2, H - 1 - i * 2], outline=c, width=2)
+    return bg
 
 
 def headline(text, icon):
