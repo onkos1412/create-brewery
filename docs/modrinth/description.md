@@ -32,7 +32,7 @@ Build a brewery out of kettles, stills and barrels, wire it up with Create pipes
 
 Everything connects with Create pipes and funnels. Hold the **Ponder** key over any machine for an animated guide.
 
-| <img src="https://raw.githubusercontent.com/onkos1412/create-brewery/main/docs/modrinth/img/shot_kettle.png" width="400"> | <img src="https://raw.githubusercontent.com/onkos1412/create-brewery/main/docs/modrinth/img/shot_ponder.png" width="400"> |
+| <img alt="Brewing Kettle screen" src="https://raw.githubusercontent.com/onkos1412/create-brewery/main/docs/modrinth/img/shot_kettle.png" width="400"> | <img alt="Ponder guide for the kettle" src="https://raw.githubusercontent.com/onkos1412/create-brewery/main/docs/modrinth/img/shot_ponder.png" width="400"> |
 | --- | --- |
 
 ![divider](https://raw.githubusercontent.com/onkos1412/create-brewery/main/docs/modrinth/img/divider.png)
@@ -43,7 +43,7 @@ Beer, stout, kvass, cider, mead, wine, whiskey, vodka, rum, calvados, tequila, p
 
 **Nobody tells you the recipes.** The kettle brews any mix, and the closer it is to the real recipe, the more stars it gets. Still speed, aging time and barrel wood are found by feel too. Quality shows in the bottle tooltip, in the machine screens and in Create's goggles.
 
-| <img src="https://raw.githubusercontent.com/onkos1412/create-brewery/main/docs/modrinth/img/shot_bottles.png" width="400"> | <img src="https://raw.githubusercontent.com/onkos1412/create-brewery/main/docs/modrinth/img/shot_barrel.png" width="400"> |
+| <img alt="Signed drinks in the inventory" src="https://raw.githubusercontent.com/onkos1412/create-brewery/main/docs/modrinth/img/shot_bottles.png" width="400"> | <img alt="Aging Barrel screen" src="https://raw.githubusercontent.com/onkos1412/create-brewery/main/docs/modrinth/img/shot_barrel.png" width="400"> |
 | --- | --- |
 
 ![divider](https://raw.githubusercontent.com/onkos1412/create-brewery/main/docs/modrinth/img/divider.png)
