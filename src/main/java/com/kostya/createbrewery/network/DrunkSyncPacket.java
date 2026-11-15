@@ -1,8 +1,5 @@
 package com.kostya.createbrewery.network;
 
-import com.kostya.createbrewery.CreateBrewery;
-import net.fabricmc.fabric.api.networking.v1.PacketByteBufs;
-import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
@@ -16,7 +13,7 @@ import net.minecraft.server.level.ServerPlayer;
  */
 public record DrunkSyncPacket(int level, int knockoutTicks) {
 
-    public static final ResourceLocation ID = CreateBrewery.id("drunk_sync");
+    public static final ResourceLocation ID = ModNetwork.DRUNK_SYNC;
 
     public void encode(FriendlyByteBuf buf) {
         buf.writeVarInt(level);
@@ -29,8 +26,6 @@ public record DrunkSyncPacket(int level, int knockoutTicks) {
 
     /** Sends this through the player's own connection listener, as Forge's {@code PacketDistributor.PLAYER} did. */
     public void sendTo(ServerPlayer player) {
-        FriendlyByteBuf buf = PacketByteBufs.create();
-        encode(buf);
-        player.connection.send(ServerPlayNetworking.createS2CPacket(ID, buf));
+        ModNetwork.send(player, ID, this::encode);
     }
 }

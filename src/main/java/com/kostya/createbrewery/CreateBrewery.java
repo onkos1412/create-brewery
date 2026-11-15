@@ -11,6 +11,8 @@ import com.kostya.createbrewery.registry.ModCreativeTabs;
 import com.kostya.createbrewery.registry.ModEffects;
 import com.kostya.createbrewery.registry.ModFluids;
 import com.kostya.createbrewery.registry.ModItems;
+import com.kostya.createbrewery.social.HospitalityEvents;
+import com.kostya.createbrewery.social.ToastEvents;
 import com.mojang.logging.LogUtils;
 import fuzs.forgeconfigapiport.api.config.v2.ForgeConfigRegistry;
 import net.fabricmc.api.ModInitializer;
@@ -47,6 +49,9 @@ public class CreateBrewery implements ModInitializer {
         // 1.21.1's ModAttachments are gone: every player carries its DrunkData (PlayerMixin), and the drunk
         // gameplay (sobering, clone rules, client sync, slurred chat, blackout) hooks Fabric API callbacks here.
         DrunkEvents.register();
+        // Clinking drinks and the treats an offline brewer earned (Forge's EntityInteract and PlayerLoggedIn).
+        ToastEvents.register();
+        HospitalityEvents.register();
         loadMixinTargets();
         // brewery-server.toml, as on Forge: Forge Config API Port ships with Create Fabric.
         ForgeConfigRegistry.INSTANCE.register(MOD_ID, ModConfig.Type.SERVER, BreweryConfig.SPEC);

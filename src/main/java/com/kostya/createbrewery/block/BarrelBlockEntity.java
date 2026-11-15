@@ -4,6 +4,8 @@ import com.kostya.createbrewery.BrewerMark;
 import com.kostya.createbrewery.DrinkData;
 import com.kostya.createbrewery.barrel.AgingRules;
 import com.kostya.createbrewery.barrel.BarrelLogic;
+import com.kostya.createbrewery.journal.BarrelRecord;
+import com.kostya.createbrewery.journal.BreweryJournalData;
 import com.kostya.createbrewery.recipe.BrewingRecipe;
 import com.kostya.createbrewery.recipe.DrinkProfile;
 import com.kostya.createbrewery.registry.ModItems;
@@ -555,11 +557,10 @@ public class BarrelBlockEntity extends BlockEntity {
         BrewerMark mark = BrewerMark.get(batch);
         if (mark != null) {
             BrewerMark.set(aged, mark);
-            // PORT(Task 5): the journal comes back with the brewer's book; Forge credited the brewer here:
-            // if (mark.owner().isPresent() && level.getServer() != null) {
-            //     BreweryJournalData.get(level.getServer()).recordBarrel(mark.owner().get(), profile.id(),
-            //             new BarrelRecord(woodId, (int) (getElapsedTicks() / AgingRules.TICKS_PER_DAY), result.stars()));
-            // }
+            if (mark.owner().isPresent() && level.getServer() != null) {
+                BreweryJournalData.get(level.getServer()).recordBarrel(mark.owner().get(), profile.id(),
+                        new BarrelRecord(woodId, (int) (getElapsedTicks() / AgingRules.TICKS_PER_DAY), result.stars()));
+            }
         }
         output.setStackInSlot(outputSlot, aged);
         if (young) {

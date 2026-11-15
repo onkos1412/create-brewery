@@ -1,9 +1,10 @@
 package com.kostya.createbrewery.social;
 
-import com.kostya.createbrewery.CreateBrewery;
 import com.kostya.createbrewery.config.BreweryConfig;
 import com.kostya.createbrewery.registry.ModEffects;
 import com.kostya.createbrewery.registry.ModItems;
+import net.fabricmc.fabric.api.entity.FakePlayer;
+import net.fabricmc.fabric.api.event.player.UseEntityCallback;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvents;
@@ -11,36 +12,43 @@ import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.effect.MobEffectInstance;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
-import net.minecraftforge.common.util.FakePlayer;
-import net.minecraftforge.event.entity.player.PlayerInteractEvent;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
-import net.minecraftforge.fml.common.Mod;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.phys.EntityHitResult;
+import org.jetbrains.annotations.Nullable;
 
 /**
  * Clinking: a player holding a drink right-clicks another player who holds one too, and both get the toast marker.
  */
-@Mod.EventBusSubscriber(modid = CreateBrewery.MOD_ID)
 public final class ToastEvents {
 
     private ToastEvents() {
     }
 
-    @SubscribeEvent
-    public static void onInteract(PlayerInteractEvent.EntityInteract event) {
-        if (event.getHand() != InteractionHand.MAIN_HAND || !(event.getTarget() instanceof Player other)) {
-            return;
+    /** Forge's {@code EntityInteract} subscriber, on Fabric's {@link UseEntityCallback}. Called from the common entrypoint. */
+    public static void register() {
+        UseEntityCallback.EVENT.register(ToastEvents::onInteract);
+    }
+
+    /**
+     * Fires on both sides. Returning anything but {@code PASS} cancels the interaction, as Forge's cancelled event did;
+     * {@code SUCCESS} also swings the arm and, on the client, sends the interaction to the server.
+     */
+    public static InteractionResult onInteract(Player player, Level level, InteractionHand hand, Entity target,
+                                               @Nullable EntityHitResult hitResult) {
+        // Forge's EntityInteract is the plain interaction; Fabric also fires for the positioned one (hitResult set),
+        // which vanilla tries first. Passing there leaves the clink to the plain one, which follows. Forge never fired
+        // it for spectators; Fabric fires before the spectator check.
+        if (hitResult != null || player.isSpectator() || hand != InteractionHand.MAIN_HAND || !(target instanceof Player other)) {
+            return InteractionResult.PASS;
         }
-        Player player = event.getEntity();
-        boolean clinked = player.level().isClientSide()
+        boolean clinked = level.isClientSide()
                 // The client cannot tell a fake player, but must not start drinking either: the server decides.
                 ? holdsDrink(player) && holdsDrink(other)
                 : clink(player, other);
-        if (clinked) {
-            event.setCancellationResult(InteractionResult.SUCCESS);
-            event.setCanceled(true);
-        }
+        return clinked ? InteractionResult.SUCCESS : InteractionResult.PASS;
     }
 
     /**

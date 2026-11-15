@@ -2,25 +2,26 @@ package com.kostya.createbrewery.network;
 
 import com.kostya.createbrewery.journal.DrinkJournal;
 import net.minecraft.network.FriendlyByteBuf;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.fml.DistExecutor;
-import net.minecraftforge.network.NetworkEvent;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.level.ServerPlayer;
 
 import java.util.List;
 import java.util.Optional;
-import java.util.function.Supplier;
 
 /**
  * Opens the brewer's book on the client. A stranger's copy is unreadable and carries nothing.
  *
- * <p>1.21.1 sent this as a {@code CustomPacketPayload} ({@code brewery:open_brewer_book}); on 1.20.1 it is a
- * message on {@link ModNetwork#CHANNEL}, with the same fields in the same order.
+ * <p>1.21.1 sent this as a {@code CustomPacketPayload} ({@code brewery:open_brewer_book}); on 1.20.1 Fabric it goes
+ * on channel {@link #ID}, with the same fields in the same order. Common code: the client receiver is
+ * {@code client.BrewerBookClient}, registered from the client entrypoint.
  *
  * @param readable  whether the reader owns the book
  * @param ownerName whose book it is, empty when unreadable
  * @param pages     one page per drink, in recipe-id order
  */
 public record OpenBrewerBookPayload(boolean readable, String ownerName, List<Page> pages) {
+
+    public static final ResourceLocation ID = ModNetwork.OPEN_BOOK;
 
     /**
      * One drink in the book.
@@ -53,9 +54,7 @@ public record OpenBrewerBookPayload(boolean readable, String ownerName, List<Pag
         return new OpenBrewerBookPayload(buf.readBoolean(), buf.readUtf(), buf.readList(Page::read));
     }
 
-    /** Runs on the main thread. The client class is named only inside the client-only lambda. */
-    public void handle(Supplier<NetworkEvent.Context> context) {
-        DistExecutor.unsafeRunWhenOn(Dist.CLIENT,
-                () -> () -> com.kostya.createbrewery.client.BrewerBookClient.open(this));
+    public void sendTo(ServerPlayer player) {
+        ModNetwork.send(player, ID, this::encode);
     }
 }

@@ -10,10 +10,7 @@ Sources from the 1.20.1 Forge build (branch `mc1.20.1-forge`) that are not yet p
 - `todo/java/main/com/kostya/createbrewery/CreateBrewery.java` is the Forge mod class kept for reference
   (its registry wiring, config and network registration); the live `src/main/java` one grows as slices
   come back, and this copy is deleted once nothing in it is still missing.
-- The same goes for `todo/java/main/.../gametest/BreweryGameTests.java` (it keeps only the tests not yet ported; its
-  helpers are copies of the live class's, written against Forge capabilities, so bring back tests, not helpers twice;
-  the machine helpers such as `placeKettle`, `fluids` and `items` now live only in the live class, which reaches the
-  Transfer API through its `TestTank`/`TestSlots` adapters).
+- The parked `gametest/BreweryGameTests.java` is gone: every game test lives in the live class again.
 - The machine screens and `MachineWidgets` stay in `todo/` until the client slice; their menus are live.
 - Live code marks what a later slice still has to bring back with `PORT(Task N)` comments.
 - When `todo/` is empty the port is complete and this folder is deleted.

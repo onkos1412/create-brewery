@@ -4,6 +4,8 @@ import com.kostya.createbrewery.BrewerMark;
 import com.kostya.createbrewery.DrinkData;
 import com.kostya.createbrewery.FluidUnits;
 import com.kostya.createbrewery.distillery.DistilleryLogic;
+import com.kostya.createbrewery.journal.BreweryJournalData;
+import com.kostya.createbrewery.journal.StillRecord;
 import com.kostya.createbrewery.recipe.BrewingRecipe;
 import com.kostya.createbrewery.recipe.DrinkProfile;
 import com.kostya.createbrewery.registry.ModFluids;
@@ -193,11 +195,10 @@ public class DistilleryBlockEntity extends KineticBlockEntity {
                 : new DrinkData(result.stars(), drink.distilledAlcohol(), drink.distilled()));
         if (inputMark != null) {
             BrewerMark.set(distillate, inputMark);
-            // PORT(Task 5): the journal comes back with the brewer's book; Forge credited the brewer here:
-            // if (!result.spoiled() && inputMark.owner().isPresent() && level.getServer() != null) {
-            //     BreweryJournalData.get(level.getServer()).recordStill(inputMark.owner().get(), wortDrink,
-            //             new StillRecord(Math.round(Math.abs(rpm)), result.stars()));
-            // }
+            if (!result.spoiled() && inputMark.owner().isPresent() && level.getServer() != null) {
+                BreweryJournalData.get(level.getServer()).recordStill(inputMark.owner().get(), wortDrink,
+                        new StillRecord(Math.round(Math.abs(rpm)), result.stars()));
+            }
         }
         output.setStackInSlot(0, distillate);
         wortAmount = 0;

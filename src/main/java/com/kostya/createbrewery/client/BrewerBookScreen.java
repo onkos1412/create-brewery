@@ -6,6 +6,8 @@ import com.kostya.createbrewery.journal.KettleRecord;
 import com.kostya.createbrewery.journal.StillRecord;
 import com.kostya.createbrewery.network.OpenBrewerBookPayload;
 import com.kostya.createbrewery.quality.StarLine;
+import net.fabricmc.api.EnvType;
+import net.fabricmc.api.Environment;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
@@ -32,10 +34,11 @@ import java.util.TreeMap;
  * The brewer's book: a title spread, then a two-page spread per drink with the owner's best kettle,
  * still and barrel results. A stranger sees only scribbles.
  */
+@Environment(EnvType.CLIENT)
 public class BrewerBookScreen extends Screen {
     private static final ResourceLocation TEXTURE =
-            ResourceLocation.fromNamespaceAndPath("brewery", "textures/gui/brewer_book.png");
-    private static final Style SCRIBBLE = Style.EMPTY.withFont(ResourceLocation.withDefaultNamespace("alt"));
+            new ResourceLocation("brewery", "textures/gui/brewer_book.png");
+    private static final Style SCRIBBLE = Style.EMPTY.withFont(new ResourceLocation("alt"));
 
     static final int TEX_WIDTH = 320;
     static final int TEX_HEIGHT = 200;
