@@ -105,15 +105,34 @@ public final class ModClientSetup {
     }
 
     /**
+     * The bottle art index (0..14) for the item model's {@code brewery:drink} overrides. Vanilla's public
+     * {@link ItemProperties#register} only takes a clamped function, whose default {@code call} squeezes the value
+     * into 0..1 (Forge's patched overload did not), so every art above 1 showed the whiskey bottle. Overriding
+     * {@code call} returns the index unclamped, as on Forge.
+     */
+    private static final class BottleArt implements net.minecraft.client.renderer.item.ClampedItemPropertyFunction {
+        @Override
+        public float unclampedCall(net.minecraft.world.item.ItemStack stack,
+                                   @Nullable net.minecraft.client.multiplayer.ClientLevel level,
+                                   @Nullable net.minecraft.world.entity.LivingEntity entity, int seed) {
+            DrinkData data = DrinkData.get(stack);
+            return data == null ? 0f : BOTTLE_ART.getOrDefault(data.stage(), 0f);
+        }
+
+        @Override
+        public float call(net.minecraft.world.item.ItemStack stack,
+                          @Nullable net.minecraft.client.multiplayer.ClientLevel level,
+                          @Nullable net.minecraft.world.entity.LivingEntity entity, int seed) {
+            return unclampedCall(stack, level, entity, seed);
+        }
+    }
+
+    /**
      * Lets the bottle's item model pick its art from the drink inside. Also the menu screens: 1.20.1 has no
      * {@code RegisterMenuScreensEvent}, so they go through {@link MenuScreens#register}.
      */
     private static void registerItemProperties() {
-        ItemProperties.register(ModItems.DRINK_BOTTLE.get(), CreateBrewery.id("drink"),
-                (stack, level, entity, seed) -> {
-                    DrinkData data = DrinkData.get(stack);
-                    return data == null ? 0f : BOTTLE_ART.getOrDefault(data.stage(), 0f);
-                });
+        ItemProperties.register(ModItems.DRINK_BOTTLE.get(), CreateBrewery.id("drink"), new BottleArt());
         MenuScreens.register(ModMenus.KETTLE.get(), KettleScreen::new);
         MenuScreens.register(ModMenus.DISTILLERY.get(), DistilleryScreen::new);
         MenuScreens.register(ModMenus.BARREL.get(), BarrelScreen::new);
