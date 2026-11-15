@@ -71,25 +71,28 @@ def draw_text(canvas, mask, x, top, fill_top=BRASS_LIGHT, fill_bottom=BRASS):
     canvas.paste(gradient, (x, top), mask)
 
 
-def plaque(size, inner):
-    """A small stone tile in a brass frame with a sprite in the middle and five stars below it."""
-    im = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+def plaque(inner):
+    """A stone tile in a brass frame, cut to fit the sprite, with five stars below it."""
+    box = inner.getbbox()
+    sprite_w, sprite_h = box[2] - box[0], box[3] - box[1]
+    w, h = max(sprite_w + 12, 39), sprite_h + 18
+    im = Image.new("RGBA", (w, h), (0, 0, 0, 0))
     d = ImageDraw.Draw(im)
-    d.rectangle([1, 1, size - 2, size - 2], fill=(118, 116, 112))
-    for i in range(0, size * size, 7):
-        x, y = (i * 13) % size, (i * 29) % size
-        if 2 < x < size - 3 and 2 < y < size - 3:
+    d.rectangle([1, 1, w - 2, h - 2], fill=(118, 116, 112))
+    for i in range(0, w * h, 7):
+        x, y = (i * 13) % w, (i * 29) % h
+        if 2 < x < w - 3 and 2 < y < h - 3:
             d.point((x, y), fill=(98, 96, 93) if i % 2 else (138, 135, 130))
     brass_frame(im)
-    im.alpha_composite(inner, ((size - inner.size[0]) // 2, 3))
+    im.alpha_composite(inner.crop(box), ((w - sprite_w) // 2, 4))
     star = ["00100", "11111", "01110", "01010"]
     total = 5 * 6 - 1
     for n in range(5):
-        x0 = (size - total) // 2 + n * 6
+        x0 = (w - total) // 2 + n * 6
         for yy, row in enumerate(star):
             for xx, bit in enumerate(row):
                 if bit == "1":
-                    d.point((x0 + xx, size - 9 + yy), fill=BRASS_LIGHT if yy < 2 else BRASS)
+                    d.point((x0 + xx, h - 11 + yy), fill=BRASS_LIGHT if yy < 2 else BRASS)
     return im
 
 
@@ -97,9 +100,10 @@ def banner():
     w, h, scale = 320, 80, 5
     im = planks(w, h)
     brass_frame(im)
-    beer = plaque(50, sprite("beer_bottle", 32))
-    im.alpha_composite(beer, (10, 15))
-    im.alpha_composite(beer, (w - 60, 15))
+    beer = plaque(sprite("beer_bottle", 48))
+    top = (h - beer.size[1]) // 2
+    im.alpha_composite(beer, (14, top))
+    im.alpha_composite(beer, (w - 14 - beer.size[0], top))
     title = font_mask("CREATE BREWERY", 2)
     draw_text(im, title, (w - title.size[0]) // 2, 12)
     tag = font_mask("BREW - DISTILL - AGE - TOAST", 1)
